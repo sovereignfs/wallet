@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { processEnv } from '../../config/env';
 
 /**
  * The real `age` and `age-keygen`, for the tests that hold this format to age and not to itself. On a developer's machine without them those tests are
@@ -8,7 +9,7 @@ export const hasAge = (() => {
   const found =
     spawnSync('age', ['--version']).status === 0 &&
     spawnSync('age-keygen', ['--version']).status === 0;
-  if (!found && process.env.CI)
+  if (!found && processEnv().CI)
     throw new Error('age and age-keygen are needed to run these tests in CI');
   return found;
 })();

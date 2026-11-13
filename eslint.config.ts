@@ -116,7 +116,7 @@ export default defineConfig(
       'src/sovereign/**/*.{ts,tsx}',
       'app/api/**/*.{ts,tsx}',
     ],
-    ignores: ['**/*.test.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/test-support.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

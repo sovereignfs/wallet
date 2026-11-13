@@ -36,6 +36,10 @@ export const ROUTES: RouteRule[] = [
   { route: '/home', page: { kind: 'account' } },
 
   // APIs
+  // The one door every write to an entry comes through (DESIGN.md §11.3): the account is the session's, and the server applies what a device sends only to it.
+  { route: '/api/sync', methods: { POST: { kind: 'account' } } },
+  // The vault header and its recipients (DESIGN.md §7.4, §8.1): read by the account's devices, made once. Only public keys and a sealed header; the account is the session's.
+  { route: '/api/vault', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
   // Deleting the account (DESIGN.md §28): what it would do, and doing it with the password; the account is the session's.
   {
     route: '/api/account/delete',
