@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { type Page, expect, test } from '@playwright/test';
 import { PORTS } from './ports';
 
 /**
@@ -6,6 +6,22 @@ import { PORTS } from './ports';
  * account, and the wallet then needs a key of its own: **signing in through core never opens a wallet** (DESIGN.md §9.4).
  */
 test.use({ baseURL: `http://localhost:${PORTS.sovereign}` });
+
+/**
+ * The button that takes a person to Sovereign. Signing in is limited per address, and the tests reach this instance from one, so it may be told to wait:
+ * it then does, as a person would.
+ */
+async function throughSovereign(page: Page) {
+  const arrived = page.getByRole('button', { name: 'Get started' });
+  await page.getByRole('button', { name: 'Sign in with Sovereign' }).click();
+  const limited = page.getByText(/Too many tries/);
+  await expect(limited.or(arrived)).toBeVisible({ timeout: 30_000 });
+  if (await limited.isVisible()) {
+    await page.waitForTimeout(10_500);
+    await page.getByRole('button', { name: 'Sign in with Sovereign' }).click();
+    await expect(arrived).toBeVisible({ timeout: 30_000 });
+  }
+}
 
 const control = `http://localhost:${PORTS.coreControl}`;
 /** A person of the fake Sovereign that no earlier run of these tests has been. */
@@ -27,8 +43,7 @@ test('signing in through Sovereign makes an account, which sets up a wallet of i
   await page.goto('/sign-in');
   // Only Sovereign is on: there is no password form.
   await expect(page.getByLabel('Password')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Sign in with Sovereign' }).click();
-  await expect(page.getByRole('button', { name: 'Get started' })).toBeVisible({ timeout: 30_000 });
+  await throughSovereign(page);
   await expect(page.getByRole('heading', { name: 'Set up your wallet' })).toBeVisible();
   await page.getByRole('button', { name: 'User menu' }).click();
   await expect(page.getByText(/^sov-.*@example\.com$/)).toBeVisible();
@@ -58,8 +73,7 @@ test('core’s notices end the session, and a deletion removes the account, befo
     data: { sub, email: `${person('gone')}@example.com`, name: 'Gone Soon', emailVerified: true },
   });
   await page.goto('/sign-in');
-  await page.getByRole('button', { name: 'Sign in with Sovereign' }).click();
-  await expect(page.getByRole('button', { name: 'Get started' })).toBeVisible({ timeout: 30_000 });
+  await throughSovereign(page);
   const notice = async (kind: 'logout' | 'account-deleted', wrong?: string) =>
     (
       await request.post(`${control}/notice`, { data: { kind, sub, sid: 'core-session-1', wrong } })
