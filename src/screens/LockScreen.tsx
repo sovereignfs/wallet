@@ -75,6 +75,8 @@ export function LockScreen() {
       if (result === 'wrong_key') return setError('That key does not open this wallet.');
       if (result === 'no_vault')
         return setError('This device has no copy of your wallet’s header. Connect, and try again.');
+      // What was pasted is let go of at once: it is not kept in the page once it has opened the header.
+      setKeyText('');
       // A way to unlock this device is offered while the bytes are in hand, if it has none yet.
       if ((methods ?? []).length === 0) setOffer(result);
       else await unlockWith(result);
