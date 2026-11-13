@@ -56,9 +56,10 @@ export interface Keys {
  */
 export async function setUp(
   page: Page,
-  options: { passcode?: string | null; recovery?: 'skip' | 'make' } = {},
+  options: { passcode?: string | null; passkey?: boolean; recovery?: 'skip' | 'make' } = {},
 ): Promise<Keys & { recovery?: string }> {
-  const { passcode = PASSCODE, recovery = 'skip' } = options;
+  const { passkey = false, recovery = 'skip' } = options;
+  const passcode = options.passcode === undefined ? (passkey ? null : PASSCODE) : options.passcode;
   await page.getByRole('button', { name: 'Get started' }).click();
   await expect(page.getByRole('heading', { name: 'Your wallet key' })).toBeVisible();
 
@@ -96,7 +97,13 @@ export async function setUp(
   await expect(page.getByRole('heading', { name: 'Unlock this device' })).toBeVisible({
     timeout: 30_000,
   });
-  if (passcode) {
+  if (passkey) {
+    await page.getByRole('button', { name: 'Use a passkey' }).click();
+    await expect(page.getByRole('list', { name: 'Ways this device unlocks' })).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.getByRole('button', { name: 'Continue' }).click();
+  } else if (passcode) {
     await page.getByLabel('Passcode', { exact: true }).fill(passcode);
     await page.getByLabel('Passcode again').fill(passcode);
     await page.getByRole('button', { name: 'Set passcode' }).click();

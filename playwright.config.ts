@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+import { writeCameraVideo } from './e2e/camera.ts';
 import { PORTS } from './e2e/ports.ts';
 
 /**
@@ -21,6 +22,10 @@ const SECRET = 'e2e-only-secret-not-for-anything-real-0123456789';
 // Playwright loads this file again in every worker: the first load makes the directory and the others, which inherit the variable, use it.
 const directory = process.env.WALLET_E2E_DIR ?? mkdtempSync(join(tmpdir(), 'wallet-e2e-'));
 process.env.WALLET_E2E_DIR = directory;
+
+// A video of a QR code for Chromium's fake camera, made once per run.
+const cameraVideo = join(directory, 'qr.y4m');
+writeCameraVideo(cameraVideo);
 
 const CORE = {
   WALLET_CORE_URL: `http://localhost:${PORTS.coreAuth}/api/auth`,
@@ -64,9 +69,33 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: `http://localhost:${PORTS.app}`, trace: 'retain-on-failure' },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'phone', use: { ...devices['Pixel 7'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /(scan|passkey)\.spec\.ts/,
+    },
+    { name: 'phone', use: { ...devices['Pixel 7'] }, testIgnore: /(scan|passkey)\.spec\.ts/ },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+      testIgnore: /(scan|passkey)\.spec\.ts/,
+    },
+    // A fake camera that shows a QR code, and a virtual authenticator (set up by the test): Chromium only, since WebKit has neither.
+    {
+      name: 'camera',
+      testMatch: /(scan|passkey)\.spec\.ts/,
+      use: {
+        ...devices['Pixel 7'],
+        permissions: ['camera'],
+        launchOptions: {
+          args: [
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream',
+            `--use-file-for-fake-video-capture=${cameraVideo}`,
+          ],
+        },
+      },
+    },
   ],
   webServer: [
     {

@@ -33,6 +33,9 @@ export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   if (page) {
     requestHeaders.set('x-nonce', nonce);
+    // The address the browser asked for, for the layout of the signed-in area, which answers an address that is not one of the area's with a 404 before it
+    // asks who is signed in (a rewrite changes what the layout sees of the URL, and this does not).
+    requestHeaders.set('x-wallet-path', request.nextUrl.pathname);
     requestHeaders.set('content-security-policy', policy);
   }
 
@@ -51,7 +54,11 @@ export function proxy(request: NextRequest) {
   const target = absent ? '/not-found' : signedIn ? '/home' : null;
   if (signedIn && !absent) requestHeaders.set(HOME_MARK, '1');
   const response = target
-    ? NextResponse.rewrite(new URL(target, request.url), { request: { headers: requestHeaders } })
+    ? NextResponse.rewrite(new URL(target, request.url), {
+        request: { headers: requestHeaders },
+        // The page that is not found, and its status: the root loading state would otherwise have sent a 200 before the page could say otherwise.
+        ...(absent ? { status: 404 } : {}),
+      })
     : NextResponse.next({ request: { headers: requestHeaders } });
   if (page) response.headers.set('content-security-policy', policy);
   if (secure) response.headers.set('strict-transport-security', HSTS);
