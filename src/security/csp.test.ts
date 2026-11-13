@@ -22,7 +22,9 @@ describe('the Content-Security-Policy', () => {
   });
 
   it('never allows an inline script, a handler or eval, in production', () => {
-    expect(directive(policy(), 'script-src').join(' ')).not.toMatch(/(?<!wasm-)unsafe-(inline|eval)/);
+    expect(directive(policy(), 'script-src').join(' ')).not.toMatch(
+      /(?<!wasm-)unsafe-(inline|eval)/,
+    );
   });
 
   it('allows eval in development only, because React asks for it there', () => {

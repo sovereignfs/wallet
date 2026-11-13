@@ -148,7 +148,9 @@ export async function replacePending(
   const tx = db.transaction('outbox', 'readwrite');
   for (const item of await tx.store.index('byEntry').getAll(entryId))
     if (item.n !== undefined) await tx.store.delete(item.n);
-  await tx.store.add({ ...replacement, n: undefined } as OutboxItem);
+  // The order is the store's to give: a replacement is queued last, with no number of its own.
+  const { n: _n, stale: _stale, ...fresh } = replacement;
+  await tx.store.add(fresh as OutboxItem);
   await tx.done;
 }
 

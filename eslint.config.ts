@@ -39,6 +39,12 @@ export default defineConfig(
     },
   },
 
+  // A test says what it expects by asserting it, and a `!` on a value it has just made is the plainest way to say so.
+  {
+    files: ['**/*.test.{ts,tsx}'],
+    rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
+  },
+
   // Accessibility: the jsx-a11y recommended ruleset on every JSX/TSX file (WCAG 2.2 AA is a condition of every task, DESIGN.md §15.5).
   {
     files: ['**/*.{jsx,tsx}'],
