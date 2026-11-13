@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from './nav';
 import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import type { Wallet } from '../local/wallet';
 import { Button } from '@sovereignfs/ui';

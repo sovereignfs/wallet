@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from './nav';
 import { Alert, Button, Checkbox, FormField, Input, Textarea } from '@sovereignfs/ui';
 import { toBase64Url } from '../core/encoding';
 import {

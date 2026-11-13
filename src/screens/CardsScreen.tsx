@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from './nav';
 import { useMemo, useState } from 'react';
 import { Button, EmptyState, Icon, SegmentedControl } from '@sovereignfs/ui';
 import type { CardShape } from '../core/entries';

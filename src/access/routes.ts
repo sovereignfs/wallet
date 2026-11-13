@@ -30,16 +30,11 @@ export const ROUTES: RouteRule[] = [
   { route: '/reset-password', page: { kind: 'public' } },
   // The page the service worker keeps (DESIGN.md §26.6): the same for everyone, with nothing of an account in it. Who is signed in is read on the device.
   { route: '/shell', page: { kind: 'public' } },
-  // The app, for someone signed in: the layout around it (`app/(app)/layout.tsx`) finds who, and each page asks for itself as well. Unlocking is the browser's:
-  // these pages hold no entry, and the server could not open one.
-  // Home: the front address `/` shows it to someone signed in (the proxy rewrites it), and `/home` itself is sent back to `/`.
-  { route: '/home', page: { kind: 'account' } },
-  { route: '/setup', page: { kind: 'account' } },
-  { route: '/cards', page: { kind: 'account' } },
-  { route: '/cards/new', page: { kind: 'account' } },
-  { route: '/cards/[id]', page: { kind: 'account' } },
-  { route: '/cards/[id]/show', page: { kind: 'account' } },
-  { route: '/settings', page: { kind: 'account' } },
+  // The app, for someone signed in: Home (the front address `/` shows it to someone signed in, the proxy rewriting it to `/home`, and `/home` itself is sent
+  // back to `/`), setup, the cards, a card, showing it and Settings. The layout around it (`app/(app)/layout.tsx`) finds who, and the page asks for itself as
+  // well. The server renders this one page; **the browser chooses the screen from the address** (`src/screens/AppRoutes.tsx`), so that moving about works with
+  // no connection and never reloads the page, which would lock the wallet. The server could not say whether a card is there, since it cannot read one.
+  { route: '/[...path]', page: { kind: 'account' } },
 
   // APIs
   // The one door every write to an entry comes through (DESIGN.md §11.3): the account is the session's, and the server applies what a device sends only to it.

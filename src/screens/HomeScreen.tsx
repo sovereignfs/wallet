@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from './nav';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, EmptyState } from '@sovereignfs/ui';
 import { unlockMethods } from '../keyring/wrappers';

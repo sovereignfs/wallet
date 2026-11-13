@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from './nav';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,

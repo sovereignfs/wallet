@@ -16,8 +16,31 @@ export async function signUp(page: Page, email: string, name = 'Ada Lovelace') {
   await page.getByLabel('Name').fill(name);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('button', { name: 'Get started' })).toBeVisible({ timeout: 20_000 });
+  await submitUntilThrough(
+    page,
+    'Create account',
+    page.getByRole('button', { name: 'Get started' }),
+  );
+}
+
+/**
+ * Signing up and in are limited per address (a few in ten seconds), and every test reaches this instance from the same one, so an attempt may be told to
+ * wait: it then does, once the window has passed, as a person would.
+ */
+async function submitUntilThrough(
+  page: Page,
+  button: string,
+  arrived: ReturnType<Page['getByRole']>,
+) {
+  const submit = page.getByRole('button', { name: button, exact: true });
+  await submit.click();
+  const limited = page.getByText(/Too many tries/);
+  await expect(limited.or(arrived)).toBeVisible({ timeout: 20_000 });
+  if (await limited.isVisible()) {
+    await page.waitForTimeout(10_500);
+    await submit.click();
+    await expect(arrived).toBeVisible({ timeout: 20_000 });
+  }
 }
 
 export interface Keys {
@@ -170,4 +193,47 @@ export async function dumpBrowser(page: Page): Promise<string> {
     parts.push(`session: ${JSON.stringify({ ...sessionStorage })}`);
     return parts.join('\n');
   });
+}
+
+/** Signs in with the password. A new device then meets the lock screen, since it holds no key of this wallet yet. */
+export async function signIn(page: Page, email: string) {
+  await page.goto('/sign-in');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(PASSWORD);
+  await submitUntilThrough(page, 'Sign in', page.getByRole('button', { name: 'User menu' }));
+}
+
+/** The first unlock of a device that has none: the key file, then no quick way (said so). */
+export async function unlockNewDevice(page: Page, keyFile: string) {
+  await expect(page.getByRole('heading', { name: 'Your wallet is locked' })).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByLabel('Wallet key or recovery key').fill(keyFile);
+  await page.getByRole('button', { name: 'Unlock with key' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Make unlocking quick on this device' }),
+  ).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: 'Not now' }).click();
+  await expect(page.getByRole('heading', { name: 'Your wallet is locked' })).toHaveCount(0, {
+    timeout: 20_000,
+  });
+}
+
+/** What the sync loop does when a person comes back to the page: so that a test need not wait the thirty seconds. */
+export async function syncNow(page: Page) {
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+}
+
+/** Waits for a card to be on the cards screen, asking the loop to sync meanwhile, as coming back to the page would. */
+export async function waitForCard(page: Page, name: RegExp | string, timeout = 60_000) {
+  const link = page.getByRole('link', { name });
+  await expect
+    .poll(
+      async () => {
+        await syncNow(page);
+        return link.count();
+      },
+      { timeout },
+    )
+    .toBeGreaterThan(0);
 }

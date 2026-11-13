@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from '../../screens/nav';
 import { useState } from 'react';
 import { ConfirmDialog, UserMenu } from '@sovereignfs/ui';
 import { authClient } from '../client';

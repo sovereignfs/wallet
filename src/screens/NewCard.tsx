@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from './nav';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, FormField, SegmentedControl, Textarea } from '@sovereignfs/ui';
 import {

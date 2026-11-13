@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Link } from './nav';
+import { useRouter } from './nav';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@sovereignfs/ui';
 import { CodeView } from '../barcode/CodeView';

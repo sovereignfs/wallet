@@ -1,8 +1,9 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from './nav';
 import { useEffect, useState } from 'react';
 import { type Identity, readIdentity } from '../identity';
+import { AppRoutes } from './AppRoutes';
 import { SignedInArea } from './SignedInArea';
 
 /**
@@ -27,7 +28,7 @@ export function OfflineApp() {
     );
   return (
     <SignedInArea accountId={who.id} name={who.name} email={who.email}>
-      <p style={{ padding: 'var(--sv-space-6)' }}>Your wallet is on this device.</p>
+      <AppRoutes />
     </SignedInArea>
   );
 }
