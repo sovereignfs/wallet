@@ -46,6 +46,92 @@ export default defineConfig(
     rules: jsxA11y.flatConfigs.recommended.rules,
   },
 
+  // `src/core/` is portable (DESIGN.md §5, §31.2): a native app takes it whole. No React, Next.js, `src/server/` or the rest of the app, and no DOM or Node
+  // beyond WebCrypto, `TextEncoder`/`TextDecoder` and `fetch`. Its tests may use Node.
+  {
+    files: ['src/core/**/*.{ts,tsx}'],
+    ignores: ['src/core/**/*.test.{ts,tsx}', 'src/core/**/testing.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['react', 'react-dom', 'react/*', 'next', 'next/*', '@sovereignfs/*'],
+              message: 'src/core/ is portable: no React, Next.js or design system.',
+            },
+            {
+              group: [
+                'node:*',
+                'drizzle-orm',
+                'drizzle-orm/*',
+                'pg',
+                '@libsql/*',
+                'better-auth',
+                'better-auth/*',
+              ],
+              message:
+                'src/core/ is portable: no Node and no server libraries; WebCrypto, TextEncoder, TextDecoder and fetch only.',
+            },
+            {
+              group: ['**/src/*', '../../*', '!../../core/*'],
+              message: 'src/core/ imports nothing of the rest of the app.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        ...[
+          'window',
+          'document',
+          'navigator',
+          'localStorage',
+          'sessionStorage',
+          'indexedDB',
+          'location',
+          'history',
+          'Worker',
+          'BroadcastChannel',
+          'process',
+          'Buffer',
+          'require',
+          '__dirname',
+        ].map((name) => ({
+          name,
+          message:
+            'src/core/ is portable: no DOM and no Node beyond WebCrypto, TextEncoder, TextDecoder and fetch.',
+        })),
+      ],
+    },
+  },
+
+  // The server never opens an entry (AGENTS.md): no server code, and not the server's own key, imports the vault format.
+  {
+    files: [
+      'src/server/**/*.{ts,tsx}',
+      'src/crypto/**/*.{ts,tsx}',
+      'src/db/**/*.{ts,tsx}',
+      'src/auth/**/*.{ts,tsx}',
+      'src/sovereign/**/*.{ts,tsx}',
+      'app/api/**/*.{ts,tsx}',
+    ],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/core/vault', '**/core/vault/*'],
+              message: 'Server code never opens an entry: it does not import the vault format.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Turns off every formatting rule Prettier owns. Keep last.
   eslintConfigPrettier,
 );
