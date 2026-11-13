@@ -13,6 +13,7 @@ import {
   Textarea,
 } from '@sovereignfs/ui';
 import { IDLE_CHOICES, type HiddenLock, type IdleMinutes } from '../keyring/keyring';
+import { authClient } from '../auth/client';
 import { forgetIdentity } from '../identity';
 import { type RefusedItem, eraseLocal } from '../local/db';
 import { openSealed } from '../local/open';
@@ -391,7 +392,7 @@ function Storage() {
 }
 
 function Account({ email }: { email: string }) {
-  const { accountId, keyring } = useWallet();
+  const { accountId, keyring, db, loop } = useWallet();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [typed, setTyped] = useState('');
@@ -428,8 +429,13 @@ function Account({ email }: { email: string }) {
       }
       if (!response.ok) return setError('The account could not be deleted. Try again.');
       keyring.lock('sign-out');
+      // The store cannot be deleted while this page holds it open, and nothing is to be sent for an account that is gone.
+      loop.stop();
+      db.close();
       await eraseLocal(accountId);
       forgetIdentity();
+      // The session's cookie is cleared as well: the account it was for is gone, but the browser still holds the cookie.
+      await authClient.signOut().catch(() => undefined);
       window.location.assign('/');
     } catch {
       setError('Deleting needs a connection.');
