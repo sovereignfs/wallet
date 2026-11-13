@@ -17,11 +17,12 @@ describe('the Content-Security-Policy', () => {
     expect(scripts).toContain("'strict-dynamic'");
     expect(scripts).not.toContain("'unsafe-inline'");
     expect(scripts).not.toContain("'unsafe-eval'");
-    expect(scripts).not.toContain("'wasm-unsafe-eval'");
+    // WebAssembly may be compiled (Argon2id, the code scanner), which is not eval.
+    expect(scripts).toContain("'wasm-unsafe-eval'");
   });
 
   it('never allows an inline script, a handler or eval, in production', () => {
-    expect(policy()).not.toMatch(/unsafe-inline.*script|script-src[^;]*unsafe/);
+    expect(directive(policy(), 'script-src').join(' ')).not.toMatch(/(?<!wasm-)unsafe-(inline|eval)/);
   });
 
   it('allows eval in development only, because React asks for it there', () => {
@@ -81,7 +82,17 @@ describe('the headers every response has', () => {
     expect(headers['X-Content-Type-Options']).toBe('nosniff');
     expect(headers['X-Frame-Options']).toBe('DENY');
     expect(headers['Referrer-Policy']).toBe('no-referrer');
-    expect(headers['Permissions-Policy']).toContain('camera=()');
+    // The device is off but for what the app uses, for its own address.
+    const permissions = headers['Permissions-Policy'] ?? '';
+    for (const allowed of [
+      'camera',
+      'screen-wake-lock',
+      'publickey-credentials-get',
+      'publickey-credentials-create',
+    ])
+      expect(permissions).toContain(`${allowed}=(self)`);
+    for (const off of ['microphone', 'geolocation', 'payment', 'usb', 'bluetooth'])
+      expect(permissions).toContain(`${off}=()`);
     expect(headers['Cross-Origin-Opener-Policy']).toBe('same-origin');
   });
 

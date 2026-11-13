@@ -1,12 +1,13 @@
 /**
- * The Content-Security-Policy every page is sent with, and the headers that go with it (DESIGN.md §23, task 1.7).
+ * The Content-Security-Policy every page is sent with, and the headers that go with it (DESIGN.md §30, task 1.7).
  *
  * Task text and names come from people, and with keys in the page (DESIGN.md §9) a page must stay safe even if a way to put markup in them were
  * found: nothing may run that the server did not mark, and nothing third-party may load.
  *
  *  - **Scripts** run only with this request's nonce, or when a script that has it loads them (`'strict-dynamic'`): the bundles Next adds, and the
- *    theme script in the layout. No inline handler, no `javascript:` address, no `eval` (but in development, where React wants it). Nothing
- *    broader is allowed for WebAssembly: the cryptography is Web Crypto and JavaScript.
+ *    theme script in the layout. No inline handler, no `javascript:` address, no `eval` (but in development, where React wants it). **WebAssembly
+ *    may be compiled** (`'wasm-unsafe-eval'`, which is not `eval`): the passcode's Argon2id (`hash-wasm`) and the code scanner (`zxing-wasm`) are
+ *    served by this app, and nothing else is loaded.
  *  - **Style *elements*** carry the nonce too. **Style *attributes* are allowed**: React's `style` props and the design system's overlays position
  *    things with them, and an attribute can change how something looks but cannot run anything.
  *  - **Everything else comes from this origin**: images (and `data:` and `blob:`), fonts (the design system's own, served from here), `connect-src`
@@ -32,7 +33,7 @@ export function contentSecurityPolicy({ nonce, secure, development }: PolicyOpti
   const styles = development ? "'self' 'unsafe-inline'" : `'self' 'nonce-${nonce}'`;
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${development ? " 'unsafe-eval'" : ''}`,
     `style-src ${styles}`,
     `style-src-elem ${styles}`,
     "style-src-attr 'unsafe-inline'",
@@ -66,10 +67,12 @@ export const SECURITY_HEADERS: { key: string; value: string }[] = [
   { key: 'X-Frame-Options', value: 'DENY' },
   // A link followed from a page does not tell the other site where it came from.
   { key: 'Referrer-Policy', value: 'no-referrer' },
-  // Nothing here needs the device; a page cannot be made to ask for it.
+  // What the app uses of the device, for its own address only: the camera (scanning a card), the screen wake lock (showing one), and passkeys (unlocking).
+  // Everything else is off, so that a page cannot be made to ask for it.
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+    value:
+      'camera=(self), screen-wake-lock=(self), publickey-credentials-get=(self), publickey-credentials-create=(self), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), interest-cohort=()',
   },
   // Another site's window cannot hold a reference to this one's after a link is followed.
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
