@@ -47,3 +47,16 @@ html,
 body {
   overscroll-behavior-y: none;
 }
+
+/* Printing the recovery sheet (DESIGN.md §7.3): while it prints, only the sheet is on the page. */
+@media print {
+  body.printing-sheet > :not(article) {
+    display: none !important;
+  }
+  body.printing-sheet {
+    background: Canvas !important;
+  }
+  @page {
+    margin: 18mm;
+  }
+}

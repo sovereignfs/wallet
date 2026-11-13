@@ -1,0 +1,182 @@
+/* The card screens (DESIGN.md §13.4): a grid of cards in their colours, the form that adds one, and the full-screen code. Tokens only, but for the code
+   itself, which is black on white by design (src/barcode/CodeView.tsx). */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
+  gap: var(--sv-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+  min-height: 104px;
+  padding: var(--sv-space-3);
+  color: var(--sv-color-text-on-dark-fill);
+  text-decoration: none;
+  background-color: var(--card-fill, var(--sv-grey-800));
+  border-radius: var(--sv-radius-xl);
+  box-shadow: var(--sv-shadow-card);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.tileTitle {
+  font-size: var(--sv-font-size-lg);
+  font-weight: var(--sv-font-weight-semibold);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.tileSub {
+  font-size: var(--sv-font-size-sm);
+  opacity: 0.85;
+  overflow-wrap: anywhere;
+}
+
+.star {
+  position: absolute;
+  top: var(--sv-space-2);
+  right: var(--sv-space-2);
+}
+
+.slate {
+  --card-fill: var(--sv-grey-800);
+}
+.red {
+  --card-fill: var(--sv-red-800);
+}
+.amber {
+  --card-fill: var(--sv-amber-800);
+}
+.green {
+  --card-fill: var(--sv-green-800);
+}
+.blue {
+  --card-fill: var(--sv-blue-800);
+}
+.accent {
+  --card-fill: var(--sv-color-accent);
+  color: var(--sv-color-text-on-accent);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.swatch {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background-color: var(--card-fill);
+  border: 2px solid transparent;
+  border-radius: var(--sv-radius-full);
+  cursor: pointer;
+}
+
+.swatch[aria-checked='true'] {
+  border-color: var(--sv-color-text-primary);
+  box-shadow: 0 0 0 2px var(--sv-color-surface);
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 3px;
+}
+
+.scanner {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--sv-grey-950);
+  border-radius: var(--sv-radius-lg);
+}
+
+.video {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  object-fit: cover;
+}
+
+.preview {
+  width: min(100%, 320px);
+  margin: 0 auto;
+  padding: var(--sv-space-3);
+  background-color: var(--sv-white);
+  border-radius: var(--sv-radius-lg);
+}
+
+/* Showing a card (DESIGN.md §13.3): the screen is white and the code fills it. */
+.show {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sv-space-3);
+  padding: max(var(--sv-space-4), env(safe-area-inset-top)) var(--sv-space-4)
+    max(var(--sv-space-4), env(safe-area-inset-bottom));
+  overflow-y: auto;
+  color: var(--sv-black);
+  background-color: var(--sv-white);
+}
+
+.showTitle {
+  margin: 0;
+  font-size: var(--sv-font-size-xl);
+  font-weight: var(--sv-font-weight-semibold);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.showCode {
+  width: min(100%, 78vh, 640px);
+}
+
+.showNumber {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--sv-font-size-xl);
+  letter-spacing: 0.08em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.showHint {
+  margin: 0;
+  color: var(--sv-grey-600);
+  font-size: var(--sv-font-size-sm);
+  text-align: center;
+}
+
+.showBar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sv-space-2);
+  margin-top: auto;
+}
+
+/* The number printed under a code, on a card's own page. */
+.number {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--sv-font-size-lg);
+  letter-spacing: 0.06em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}

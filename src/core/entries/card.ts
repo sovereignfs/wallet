@@ -20,18 +20,8 @@ export type CardType = (typeof CARD_TYPES)[number];
 export const CODE_FORMATS = ['qr'] as const;
 export type CodeFormat = (typeof CODE_FORMATS)[number];
 
-/** Colours a card has, by name: the interface maps each to its own tokens, so that a colour follows the theme and no literal colour is stored. */
-export const CARD_COLORS = [
-  'slate',
-  'red',
-  'orange',
-  'amber',
-  'green',
-  'teal',
-  'blue',
-  'violet',
-  'pink',
-] as const;
+/** Colours a card has, by name: the interface maps each to the design system's tokens (which are the palette it has: grey, red, amber, green, blue and the accent), so that no literal colour is stored. */
+export const CARD_COLORS = ['slate', 'red', 'amber', 'green', 'blue', 'accent'] as const;
 export type CardColor = (typeof CARD_COLORS)[number];
 
 /** The longest payload: well inside what a QR code of a size a phone can scan holds (2,953 bytes at the lowest correction level). */

@@ -1,0 +1,83 @@
+/* The signed-in frame (DESIGN.md §26.2): one tree at every width. The navigation is a rail beside the content on a wide screen and a bar at the bottom on
+   a narrow one; the same links in the same order, only drawn differently (AGENTS.md: never fork a navigation decision by viewport). */
+.frame {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+  width: 200px;
+  flex-shrink: 0;
+  padding: var(--sv-space-3);
+  border-right: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  background-color: var(--sv-color-surface);
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-3);
+  min-height: var(--sv-touch-target-min);
+  padding: 0 var(--sv-space-3);
+  color: var(--sv-color-text-primary);
+  font-size: var(--sv-font-size-md);
+  text-decoration: none;
+  border-radius: var(--sv-radius-md);
+}
+
+.link:hover {
+  background-color: var(--sv-color-surface-sunken);
+}
+
+.link[aria-current='page'] {
+  color: var(--sv-color-accent);
+  background-color: var(--sv-color-accent-subtle);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  .frame {
+    flex-direction: column-reverse;
+  }
+
+  .nav {
+    flex-direction: row;
+    justify-content: space-around;
+    width: auto;
+    padding: var(--sv-space-1) var(--sv-space-2);
+    padding-bottom: max(var(--sv-space-1), env(safe-area-inset-bottom));
+    border-right: 0;
+    border-top: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  }
+
+  .link {
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    justify-content: center;
+    padding: var(--sv-space-1);
+    font-size: var(--sv-font-size-xs);
+  }
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-1);
+}

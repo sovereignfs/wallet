@@ -264,7 +264,9 @@ export class Wallet {
       keys = made.keys;
       this.keyring.rememberEntryKeys(id, keys);
     } else {
-      wrappedKey = last?.mutation.wrappedKey ?? row?.wrappedKey ?? '';
+      // The key of the latest change that carries one (a delete carries none), or the server's row.
+      const lastPut = [...pending].reverse().find((item) => item.mutation.wrappedKey);
+      wrappedKey = lastPut?.mutation.wrappedKey ?? row?.wrappedKey ?? '';
       const bytes = fromBase64Url(wrappedKey);
       if (!bytes) throw new InvalidEntry('That entry is not here.');
       keys = await this.keyring.entryKeys(id, bytes);

@@ -1,0 +1,17 @@
+.bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--sv-shell-footer-height, 0px) + var(--sv-space-16));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-3);
+  max-width: calc(100vw - var(--sv-space-8));
+  padding: var(--sv-space-2) var(--sv-space-3) var(--sv-space-2) var(--sv-space-4);
+  color: var(--sv-color-text-primary);
+  background-color: var(--sv-color-surface-raised);
+  border: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  box-shadow: var(--sv-shadow-overlay);
+  transform: translateX(-50%);
+}

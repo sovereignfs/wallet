@@ -34,6 +34,12 @@ export const ROUTES: RouteRule[] = [
   // these pages hold no entry, and the server could not open one.
   // Home: the front address `/` shows it to someone signed in (the proxy rewrites it), and `/home` itself is sent back to `/`.
   { route: '/home', page: { kind: 'account' } },
+  { route: '/setup', page: { kind: 'account' } },
+  { route: '/cards', page: { kind: 'account' } },
+  { route: '/cards/new', page: { kind: 'account' } },
+  { route: '/cards/[id]', page: { kind: 'account' } },
+  { route: '/cards/[id]/show', page: { kind: 'account' } },
+  { route: '/settings', page: { kind: 'account' } },
 
   // APIs
   // The one door every write to an entry comes through (DESIGN.md §11.3): the account is the session's, and the server applies what a device sends only to it.

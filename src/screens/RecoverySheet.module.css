@@ -1,0 +1,52 @@
+/* The recovery sheet (DESIGN.md §7.3): on one A4 or Letter page. Black on white is right for paper, so this is the one place the page's own colours are
+   not tokens of the theme: a printer has no dark theme, so the system's own paper colours are used there. */
+.sheet {
+  box-sizing: border-box;
+  max-width: 170mm;
+  padding: var(--sv-space-6);
+  color: var(--sv-color-text-primary);
+  background-color: var(--sv-color-surface);
+  border: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  font-size: var(--sv-font-size-md);
+  line-height: 1.5;
+}
+
+.title {
+  margin: 0 0 var(--sv-space-2);
+  font-size: var(--sv-font-size-2xl);
+}
+
+.meta {
+  margin: 0 0 var(--sv-space-4);
+  color: var(--sv-color-text-muted);
+}
+
+.code {
+  display: flex;
+  justify-content: center;
+  margin: var(--sv-space-4) 0;
+}
+
+.key {
+  margin: 0 0 var(--sv-space-4);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--sv-font-size-md);
+  letter-spacing: 0.04em;
+  word-break: break-word;
+}
+
+.how {
+  margin: 0 0 var(--sv-space-2);
+  font-size: var(--sv-font-size-lg);
+}
+
+@media print {
+  .sheet {
+    max-width: none;
+    padding: 0;
+    color: CanvasText;
+    background: Canvas;
+    border: 0;
+  }
+}
