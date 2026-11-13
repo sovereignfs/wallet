@@ -15,7 +15,7 @@ where an entry lives.
 
 ## Tasks
 
-#### 📋 9.1 — Setup
+#### ✅ 9.1 — Setup
 
 **Goal:** a new account to a working wallet, and a new device to an unlocked one. **Design:** §26.3. **Depends on:** 3.4, 3.5, 3.7, 3.8.
 
@@ -27,7 +27,9 @@ device?", unlock method, install. Every step at phone width.
 **Accepts when:** Playwright completes both paths in Chromium and WebKit (PRF steps in Chromium); closing after step 2 and reopening resumes at
 step 3.
 
-#### 📋 9.2 — The lock screen
+**Done as:** `src/screens/Setup.tsx`: welcome, wallet key (create, save, confirm; or import), recovery key (print or skip), a passkey or passcode, and done, one step at a time. The design system's step flow and passcode input (21.3) were not waited for: the steps are the screen's own.
+
+#### ✅ 9.2 — The lock screen
 
 **Goal:** what a locked Wallet shows. **Design:** §26.2, §9.3. **Depends on:** 3.6.
 
@@ -37,7 +39,9 @@ key, "I've lost my keys" (3.11); no entry data rendered; the lock button in the 
 **Accepts when:** a signed-in address while locked shows only the lock screen and returns there after unlocking; nothing of an entry is in the DOM
 while locked.
 
-#### 📋 9.3 — Home and search
+**Done as:** `src/screens/LockScreen.tsx`: it replaces everything while locked; passkey, passcode, or the wallet or recovery key (pasted or a file, a passphrase asked for when the file needs one), which also opens a new device and then offers a quick way. Nothing here asks the server.
+
+#### ✅ 9.3 — Home and search
 
 **Goal:** the first screen, and finding anything. **Design:** §26.4. **Depends on:** 4.3.
 
@@ -48,7 +52,9 @@ Online only results by shape, said.
 **Accepts when:** searching a card number finds the card; an accented name is found without its accent; an Online only entry is found by title and
 marked.
 
-#### 📋 9.4 — Settings
+**Done as:** Home shows favourites and cards from the device's own copy, and says in words what needs attention (no quick unlock, changes that could not be sent). **Search and Due are not built** (Due is epic 7).
+
+#### ✅ 9.4 — Settings
 
 **Goal:** every setting of §27 reachable. **Design:** §27. **Depends on:** 9.1.
 
@@ -56,6 +62,8 @@ marked.
 task adds its part); the `settings` entry for what follows the person, the device store for what does not.
 
 **Accepts when:** every section renders, with unavailable features explained; a preference in the `settings` entry reaches a second context.
+
+**Done as:** Settings with **Security** (locking, the ways this device unlocks, the keys), **Storage** (what has not been sent, what the server refused, what the browser keeps) and **Account** (who, and deleting). The rest of DESIGN.md §27 comes with its features.
 
 #### 📋 9.5 — The phone
 

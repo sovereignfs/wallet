@@ -15,7 +15,7 @@ review of the cryptography before 1.0.
 
 ## Tasks
 
-#### 📋 20.1 — The seed
+#### ✅ 20.1 — The seed
 
 **Goal:** a realistic wallet for development and tests. **Design:** §30 Testing. **Depends on:** 6.1, 7.1, 5.1.
 
@@ -25,7 +25,9 @@ expiring passport; extended by phase 2 (years of measurements, lab reports, jour
 
 **Accepts when:** a fresh database seeds and the key file unlocks it in the browser.
 
-#### 📋 20.2 — Security review before 0.1.0
+**Done as:** `pnpm seed` (`scripts/seed.ts`): an account, a vault with a wallet key and a recovery key written to `seed/`, and nine cards, made with the vault format and the server's own `applyMutation`; done when run again; `--remove` through `People.deletePerson`; refuses in production and on a database that is not local. Tested.
+
+#### ✅ 20.2 — Security review before 0.1.0
 
 **Goal:** a written review of phase 1. **Design:** §8.6, §30. **Depends on:** every phase 1 task but 20.3–20.5.
 
@@ -34,7 +36,9 @@ the git backup's contents, logs, what the server can read (§8.5) checked agains
 
 **Accepts when:** the review is merged and every finding is fixed or has a task.
 
-#### 📋 20.3 — The documents
+**Done as:** `docs/research/0002-security-review-0.1.0.md`: every claim of §8 and §30 matched to its code and its test, what the server can read, and ten findings, none a way to read an entry. **Not independent**; that is 20.8.
+
+#### ✅ 20.3 — The documents
 
 **Goal:** a README a person and an operator can follow. **Design:** §30 Deployment, §8.6. **Depends on:** 1.10.
 
@@ -42,6 +46,8 @@ the git backup's contents, logs, what the server can read (§8.5) checked agains
 backup and restore procedures, losing a key; the specifications linked.
 
 **Accepts when:** someone new runs Wallet alone from the README without help (checked by the owner).
+
+**Done as:** `README.md` (what Wallet protects and does not, running it, every setting, backups and a lost key, what 0.1.0 does not do), `deploy/README.md`, and the three specifications (`docs/specs/`). A test holds the README to every setting.
 
 #### 📋 20.4 — Release 0.1.0
 

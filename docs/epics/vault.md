@@ -17,7 +17,7 @@ ever written readable.
 
 ## Tasks
 
-#### 📋 3.1 — The vault format
+#### ✅ 3.1 — The vault format
 
 **Goal:** sealing and opening shapes and bodies, and wrapping entry keys, exactly as specified. **Design:** §8.1, §8.2, §8.4. **Depends on:** 1.2.
 
@@ -30,7 +30,9 @@ Node (tests) and the browser. **`docs/specs/vault-format.md`** written alongside
 **Accepts when:** values round-trip; changing any byte, the AAD's account, entry or part, or the version fails with the typed error; padded lengths
 fall on the buckets; the spec's vectors pass in Node and Chromium and WebKit.
 
-#### 📋 3.2 — File encryption
+**Done as:** `src/core/vault/` and `docs/specs/vault-format.md` with `vault-format.vectors.json`: the age header, a wrapped entry key bound to account, entry and vault key id, shapes and bodies in buckets bound to account, entry and part. The vectors are checked against Node's own AES-GCM and HKDF, and the header against the real `age`. Each safeguard's test was seen to fail with it off.
+
+#### ✅ 3.2 — File encryption
 
 **Goal:** large files encrypted and decrypted in pieces. **Design:** §8.3. **Depends on:** 3.1.
 
@@ -41,7 +43,9 @@ rendering before the end); test vectors in the spec.
 **Accepts when:** files of 0 bytes, one chunk, an exact multiple and 30 MB round-trip; truncating, reordering or dropping the last chunk fails; the
 padded size falls on its bucket.
 
-#### 📋 3.3 — The server's key
+**Done as:** `src/core/vault/stream.ts`: the 64 KiB STREAM with HKDF file keys, the length prefix and bucket padding, tested for 0 bytes, one chunk, an exact multiple and 30 MB, and for truncation, a dropped last chunk, a swapped chunk, appended data and padding that is not zeros. **The format only:** nothing uploads or fetches a file until 4.6.
+
+#### ✅ 3.3 — The server's key
 
 **Goal:** the server's own secrets encrypted at rest. **Design:** §8.7. **Depends on:** 1.5.
 
@@ -50,7 +54,9 @@ tests) and `credential`; a lint or test that `src/crypto/` is never imported by 
 
 **Accepts when:** Tusk's tests pass renamed; an envelope moved to another row fails; after rotation and removing the old key everything opens.
 
-#### 📋 3.4 — Creating or importing the wallet key
+**Done as:** `src/crypto/`, copied from Tusk (the instance key, an envelope bound to row and purpose, rotation with `_PREVIOUS`) without the operator key; an ESLint rule keeps server code from the vault format. `WALLET_ENCRYPTION_KEY` seals the server's own secrets and never an entry.
+
+#### ✅ 3.4 — Creating or importing the wallet key
 
 **Goal:** a vault for an account, from a new or existing age key. **Design:** §7.1, §7.2, §7.4. **Depends on:** 3.1, 2.1.
 
@@ -63,7 +69,9 @@ characters of the identity) is the screen's (9.1).
 **Accepts when:** a created key's file opens the header in Node with the `age` reference implementation (the CLI in CI, or typage in Node); a
 Tusk-format identity imports; a second `POST` is refused; the server never receives the identity (a request log in the test shows only recipients).
 
-#### 📋 3.5 — The recovery key
+**Done as:** `createIdentity`, `parseIdentity`, `keyFile`, an optional passphrase (an age scrypt file, armoured), import of a key file, pasted text or a protected file, in `src/core/vault/identity.ts`; `/api/vault` (`GET`, and `POST` once, 409 after); `src/screens/Setup.tsx`. A Tusk-format key imports; the server's request contains recipients and a sealed header and never a secret key (a test reads the request).
+
+#### ✅ 3.5 — The recovery key
 
 **Goal:** a second key that opens everything. **Design:** §7.3. **Depends on:** 3.4.
 
@@ -75,7 +83,9 @@ exists (wired in 6.3).
 **Accepts when:** either key opens the header; the sheet prints on one A4 and one Letter page; the identity is not in IndexedDB after the sheet is
 confirmed.
 
-#### 📋 3.6 — The keyring and locking
+**Done as:** The recovery key as a second recipient, a printable sheet (`RecoverySheet`: the key in groups of four and a QR code, on one page) or a downloaded file, confirmed by typing its last six characters, or skipped by ticking the acknowledgement. Unlocking with it by text works (`e2e/account.spec.ts`). **Scanning the sheet's QR code with the camera is not wired yet.**
+
+#### ✅ 3.6 — The keyring and locking
 
 **Goal:** keys in memory only while unlocked, and every lock of §9.2. **Design:** §9.1, §9.2. **Depends on:** 3.4.
 
@@ -88,7 +98,9 @@ and none is found.
 **Accepts when:** on a mocked clock the idle and hidden locks fire at their settings; after locking, the index is empty and decrypted object URLs
 fail; two tabs lock and unlock together; the raw-dump test passes (and fails when sealing is bypassed).
 
-#### 📋 3.7 — Unlocking with a passkey
+**Done as:** `src/keyring/keyring.ts`: locked or unlocked, the idle timer (1, 5, 15, 60 minutes), the hidden timer (at once, a minute, never), the lock button, sign-out, and every tab together through a `BroadcastChannel`, all tested on a mocked clock. The raw-dump test is in `wallet.test.ts` (the server and both stores) and `e2e/wallet.spec.ts` (IndexedDB, Cache Storage, local storage).
+
+#### ✅ 3.7 — Unlocking with a passkey
 
 **Goal:** Face ID, a fingerprint or Windows Hello unlocks, offline. **Design:** §9.3. **Depends on:** 3.6.
 
@@ -101,7 +113,9 @@ record it in the epic's Done as.
 **Accepts when:** in Chromium with the virtual authenticator (PRF on), unlocking offline works; with PRF off the option is not offered; a wrapper from
 one credential does not open with another.
 
-#### 📋 3.8 — Unlocking with a device passcode
+**Done as:** `src/keyring/wrappers.ts`: a WebAuthn credential made for unlocking, the PRF output through HKDF as the key that wraps the vault key; tested against a virtual authenticator that computes PRF as WebAuthn does, and in Chromium with its own. **Real-device PRF support (DESIGN.md §33.3) is not checked yet:** where it is missing the passkey is not offered.
+
+#### ✅ 3.8 — Unlocking with a device passcode
 
 **Goal:** a passcode where passkeys with PRF are missing. **Design:** §9.3. **Depends on:** 3.6.
 
@@ -111,6 +125,8 @@ the wrapper is deleted; Settings says a passcode is weaker than a passkey agains
 
 **Accepts when:** unlocking offline works; the fifth wrong passcode removes the wrapper and the key or a passkey still works; derivation takes under
 two seconds on a mid-range phone profile (Playwright's CPU throttling) or the parameters are revisited and the decision logged.
+
+**Done as:** Argon2id (64 MiB, three passes, `hash-wasm`) in a worker that falls back to the page, under a second layer from a non-extractable key; five wrong passcodes delete the wrapper, counted before each try. It takes well under two seconds here.
 
 #### 📋 3.9 — Changing keys
 

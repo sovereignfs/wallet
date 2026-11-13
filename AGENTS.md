@@ -20,8 +20,9 @@ legacy plugin `sovereignfs/sovereign-plugin-wallet`, none of whose code, data or
 full PWA on Next.js, with its own database (sqld, a SQLite file or PostgreSQL) and files under `/data`, signing people in locally, through a Sovereign
 core, or both, from one image. Four phases: cards and documents (the MVP), health, out into the world, sharing and native.
 
-**Nothing is built yet.** `DESIGN.md` is the design, `ROADMAP.md` the order, and Milestone A starts by copying Tusk's infrastructure (`DESIGN.md`
-§5.1).
+**0.1.0 is built** as a cut of phase 1 (`ROADMAP.md`, "The 0.1.0 cut"): the foundation, sign-in locally and through Sovereign, the whole encryption design (the
+vault, keys, unlocking, the `synced` tier's sync) and QR cards. `DESIGN.md` is the design of the whole, `ROADMAP.md` the order, and what is not built yet is
+marked ⏭ there.
 
 ## Source of truth
 
@@ -149,11 +150,23 @@ pnpm refuses a release less than a day old and an install script nobody decided 
 
 ## Commands
 
-None exist yet. Milestone A brings Tusk's set (`format`, `lint`, `typecheck`, `test`, `db:generate`, `db:dev`, `seed`, `boot-check`, `e2e`,
-`manifest:check`, `build`, `scripts/deploy-check.sh`), and this list is where they are written as they land. Until then, `verify` means the Markdown
-is formatted and every relative link resolves.
+| Command                                                         | What                                                                                                                                 |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm install --frozen-lockfile`                                | Install, from the lockfile                                                                                                           |
+| `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` | Format, lint (including the two import rules), types, unit and data-layer tests (a file; `WALLET_TEST_*` select sqld and PostgreSQL) |
+| `pnpm build`                                                    | The standalone build (it copies the scanner's `.wasm` into `public/zxing/` first)                                                    |
+| `pnpm e2e`                                                      | Playwright, against a build: Chromium, a phone, WebKit, and Chromium with a fake camera and authenticator                            |
+| `pnpm boot-check`                                               | A built server against the database the environment names                                                                            |
+| `pnpm db:generate <name>`, `pnpm db:dev`                        | Generate a migration for both dialects and both stores; start sqld or PostgreSQL in Docker                                           |
+| `pnpm manifest:check`                                           | `sovereign.manifest.json` is valid                                                                                                   |
+| `pnpm seed`, `pnpm seed -- --reset`, `--remove`                 | A development wallet with its key in `seed/` (never in production)                                                                   |
+| `scripts/deploy-check.sh`, `scripts/test-release.sh`            | Bring the image up in every documented setup; test the release script                                                                |
 
 ## Layout
 
-`DESIGN.md` §5.1 is where things go as the app is built. Today the repository holds only `DESIGN.md`, `ROADMAP.md`, `docs/epics/`,
-`docs/research/0001-nfc-bluetooth-and-phone-wallets.md`, this file and `CLAUDE.md`.
+`app/` routes (one signed-in page for every address of the area, `app/(app)/[...path]`, which the browser turns into a screen from the address), `src/core/`
+(portable: `vault/`, `entries/`, `sync/`; no React, Next.js, Node or DOM), `src/keyring/` (keys in memory, locking, unlock wrappers), `src/local/` (the device's
+store, the wallet, the sync loop), `src/server/` (entries and the vault header: stores ciphertext, never imports `src/core/vault`), `src/barcode/` (drawing and
+scanning codes), `src/screens/` and `src/ui/` (the screens), `src/db/`, `src/auth/`, `src/crypto/` (the server's own key), `src/sovereign/` (core's notices and
+`People.deletePerson`), `src/config/`, `src/security/`, `src/sw/`, `src/jobs/`, `src/limits/`, `src/access/` (the table of routes), `docs/specs/` (the
+formats), `docs/research/`, `docs/epics/`, `migrations/`, `deploy/`, `e2e/`, `scripts/`.

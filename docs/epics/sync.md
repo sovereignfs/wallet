@@ -16,7 +16,7 @@ fully offline mode are built here. **The screens of epics 6 and 7 read the devic
 
 ## Tasks
 
-#### 📋 4.1 — Entries and files on the server
+#### ✅ 4.1 — Entries and files on the server
 
 **Goal:** the tables and the rules that apply a mutation. **Design:** §10.2, §11.4, §29.3, §29.5. **Depends on:** 3.3, 1.5.
 
@@ -28,7 +28,9 @@ increments `seq`, stamps the row, records the mutation id; deletes become tombst
 **Accepts when:** each rule has a test that it refuses; a replay writes nothing; a stale `baseVersion` returns the current row; nothing is read of the
 sealed columns but their length.
 
-#### 📋 4.2 — The sync endpoint
+**Done as:** `src/server/entries/apply.ts`: one short transaction per mutation, with every rule of DESIGN.md §11.4 in a statement, and a test that refuses each. **Only the `synced` tier** is accepted in 0.1.0 (`tier_unavailable`); files and `entry_file` are for 4.6. Server code reads nothing of the sealed columns but their length.
+
+#### ✅ 4.2 — The sync endpoint
 
 **Goal:** `POST /api/sync` as specified, and its specification. **Design:** §11.2, §11.3. **Depends on:** 4.1.
 
@@ -38,7 +40,9 @@ vault header's version; a device too old is told to update. **`docs/specs/sync-p
 
 **Accepts when:** two simulated devices converge; a refused mutation carries its reason; a removed device is refused; the spec's examples are tests.
 
-#### 📋 4.3 — The device store and the in-memory index
+**Done as:** `POST /api/sync` (`src/server/entries/sync.ts`), `src/core/sync/protocol.ts` shared by both sides, and `docs/specs/sync-protocol.md` whose examples are tests. A device too old is told 426 and keeps its outbox. Rate limited per account.
+
+#### ✅ 4.3 — The device store and the in-memory index
 
 **Goal:** the encrypted store and what screens read. **Design:** §11.1, §29.4. **Depends on:** 3.6.
 
@@ -49,7 +53,9 @@ the **in-memory index** built on unlock (all shapes at once, bodies in the backg
 **Accepts when:** after unlocking, lists render from shapes before bodies finish; locking empties the index; the raw-dump test (3.6) finds no
 plaintext in the store.
 
-#### 📋 4.4 — The outbox and the sync loop
+**Done as:** `src/local/db.ts`, `store.ts`, `open.ts`, `wallet.ts`: one IndexedDB database per account, ciphertext only, with a schema version; the in-memory index opened at unlock (shapes first, bodies after) and emptied at lock; `useEntries` in `WalletProvider`. The store was written for this and not copied from Tusk's.
+
+#### ✅ 4.4 — The outbox and the sync loop
 
 **Goal:** writes never wait, and reach the server. **Design:** §11.1, §11.3. **Depends on:** 4.2, 4.3.
 
@@ -60,7 +66,9 @@ while locked; refusals other than `stale` go to a **Couldn't sync** list (Settin
 **Accepts when:** an entry written offline appears on a second context after going online; a refused write appears in Couldn't sync and is not lost;
 the loop keeps running while locked.
 
-#### 📋 4.5 — Merging a stale edit
+**Done as:** `Wallet.create/update/remove` (validate, seal, write the outbox in one transaction), `src/local/loop.ts` (debounce, load, focus, online, 30 seconds while visible, one tab at a time through a Web Lock, Background Sync registered where there is one), and Couldn't sync in Settings, Storage with Retry and Discard. The loop keeps running while locked.
+
+#### ✅ 4.5 — Merging a stale edit
 
 **Goal:** conflicts resolved on the device, field by field. **Design:** §11.5. **Depends on:** 4.4.
 
@@ -70,6 +78,8 @@ delete against an edit restores; bases kept in the store.
 
 **Accepts when:** the pure function's table of cases passes; two contexts editing different fields of one entry both keep their change; the same field
 shows the toast and Undo restores the other value.
+
+**Done as:** `src/core/sync/merge.ts` (pure, with a table of cases) and `Wallet.mergeStale`: field by field, this device's value kept on a clash and reported for Undo, an edit against a delete restores, a delete against an edit is let go, and a stale change waits while locked. Two devices are tested against the real server logic and in the browser.
 
 #### 📋 4.6 — Files
 
@@ -118,7 +128,7 @@ then; tier choices hidden; git backup paused (8.5); turning off: mode back, noth
 **Accepts when:** after turning on, the server holds no body or file for the account (a test reads the tables and `/data/blobs`); a second context
 sees shapes only; a body sent by an old client is refused.
 
-#### 📋 4.10 — The browser's storage
+#### ✅ 4.10 — The browser's storage
 
 **Goal:** persistence requested and the risk said. **Design:** §10.8. **Depends on:** 4.3.
 
@@ -127,6 +137,8 @@ entries held here and their size; the Safari-not-installed message on Home while
 the browser).
 
 **Accepts when:** in WebKit not installed, with a device-only entry, Home shows the message; usage in Settings grows after adding a large file.
+
+**Done as:** Settings, Storage asks the browser to persist and says what it holds and whether it promised to keep it, with the Safari warning; setup asks too. The message on Home for device-only entries is for 4.7.
 
 #### 📋 4.11 — Pruning
 
