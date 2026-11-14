@@ -58,7 +58,7 @@ time.
 
 **Accepts when:** the image for both architectures is published, pulled and booted by the workflow.
 
-**Done as:** version 0.1.0 is `package.json`'s, the changelog's `[0.1.0]` section is its notes, and the commit `Release wallet 0.1.0` is tagged `v0.1.0` **on the local clone only**: nothing was pushed (the owner asked for local commits). The gates ran by hand on a file, sqld and PostgreSQL (645 unit tests; 45 browser tests; `scripts/deploy-check.sh` on the final image). **Still to do, by the owner:** push `main` and the tag (the workflow then publishes the image for both architectures and brings it up as an operator would), make the package public the first time, and check passkeys with PRF on a real phone (`DESIGN.md` §33). Marked ✅ once the image is published and pulled.
+**Done as:** version 0.1.0 is `package.json`'s, the changelog's `[0.1.0]` section is its notes, and the commit `Release wallet 0.1.0` is tagged `v0.1.0`; `main` and the tag were pushed on 2026-11-14 at the owner's word. The gates ran by hand on a file, sqld and PostgreSQL (645 unit tests; 45 browser tests; `scripts/deploy-check.sh` on the final image). **Still to do:** both workflows (CI and Publish) were refused by GitHub before any job started ("recent account payments have failed or your spending limit needs to be increased"), so **CI has never run and no image is published**: fix the account's billing and re-run them (Actions, _Re-run all jobs_ on the `v0.1.0` run), make the package public the first time, and check passkeys with PRF on a real phone (`DESIGN.md` §33). Marked ✅ once the image is published and pulled.
 
 #### 📋 20.5 — Hosting on the instance
 

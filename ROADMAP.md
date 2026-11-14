@@ -4,7 +4,7 @@ The order of work. **This file tracks progress; it does not define behaviour.** 
 with this file, this file is stale and should be corrected. The detail of every task, with its technical notes and what makes it done, is in
 [`docs/epics/`](docs/epics/). How a task is run is in [`AGENTS.md`](AGENTS.md).
 
-State as of 2026-11-14: **0.1.0 is built, as a cut of phase 1 (below), and tagged on the owner's machine; publishing it is the owner's to do.** The developer assigns each task; the first row not done, with its
+State as of 2026-11-14: **0.1.0 is built, as a cut of phase 1 (below), tagged `v0.1.0` and pushed; the image is not published yet (GitHub Actions did not start: see 20.4).** The developer assigns each task; the first row not done, with its
 dependencies met, is what the order recommends.
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · ⏭ Planned, after 0.1.0 · 🚧 Waits on a decision or an input · ➖ Superseded_
