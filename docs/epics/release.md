@@ -49,7 +49,7 @@ backup and restore procedures, losing a key; the specifications linked.
 
 **Done as:** `README.md` (what Wallet protects and does not, running it, every setting, backups and a lost key, what 0.1.0 does not do), `deploy/README.md`, and the three specifications (`docs/specs/`). A test holds the README to every setting.
 
-#### 📋 20.4 — Release 0.1.0
+#### ⏳ 20.4 — Release 0.1.0
 
 **Goal:** the MVP published. **Design:** §2. **Depends on:** 20.2, 20.3.
 
@@ -57,6 +57,8 @@ backup and restore procedures, losing a key; the specifications linked.
 time.
 
 **Accepts when:** the image for both architectures is published, pulled and booted by the workflow.
+
+**Done as:** version 0.1.0 is `package.json`'s, the changelog's `[0.1.0]` section is its notes, and the commit `Release wallet 0.1.0` is tagged `v0.1.0` **on the local clone only**: nothing was pushed (the owner asked for local commits). The gates ran by hand on a file, sqld and PostgreSQL (645 unit tests; 45 browser tests; `scripts/deploy-check.sh` on the final image). **Still to do, by the owner:** push `main` and the tag (the workflow then publishes the image for both architectures and brings it up as an operator would), make the package public the first time, and check passkeys with PRF on a real phone (`DESIGN.md` §33). Marked ✅ once the image is published and pulled.
 
 #### 📋 20.5 — Hosting on the instance
 

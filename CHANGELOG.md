@@ -8,6 +8,8 @@ Each release's section is also its GitHub release notes: the release workflow re
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-14
+
 ### Added
 
 - Sign in to Wallet with your Sovereign instance, or with an email and password, a passkey and an authenticator app where the operator turns local sign-in on. Signing in never opens your wallet: that needs a key of your own.
@@ -19,4 +21,5 @@ Each release's section is also its GitHub release notes: the release workflow re
 - The formats are written down, with test vectors, in `docs/specs/` (the vault and the sync protocol), and a security review is in `docs/research/`.
 - One image on port 3006, three setups (an sqld service, a SQLite file, PostgreSQL), and `pnpm seed` for development.
 
-[Unreleased]: https://github.com/sovereignfs/wallet/commits/main
+[Unreleased]: https://github.com/sovereignfs/wallet/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/sovereignfs/wallet/releases/tag/v0.1.0

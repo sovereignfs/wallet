@@ -4,7 +4,7 @@ The order of work. **This file tracks progress; it does not define behaviour.** 
 with this file, this file is stale and should be corrected. The detail of every task, with its technical notes and what makes it done, is in
 [`docs/epics/`](docs/epics/). How a task is run is in [`AGENTS.md`](AGENTS.md).
 
-State as of 2026-11-13: **0.1.0 is being built as a cut of phase 1** (below). The developer assigns each task; the first row not done, with its
+State as of 2026-11-14: **0.1.0 is built, as a cut of phase 1 (below), and tagged on the owner's machine; publishing it is the owner's to do.** The developer assigns each task; the first row not done, with its
 dependencies met, is what the order recommends.
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · ⏭ Planned, after 0.1.0 · 🚧 Waits on a decision or an input · ➖ Superseded_
@@ -186,7 +186,7 @@ server no body, and sign-in through core works.
 | 73  | [20.1](docs/epics/release.md)  | The seed                     | P1       | 6.1, 7.1, 5.1            | ✅     |
 | 74  | [20.3](docs/epics/release.md)  | The documents                | P2       | 1.10                     | ✅     |
 | 75  | [20.2](docs/epics/release.md)  | Security review before 0.1.0 | P2       | every phase 1 task above | ✅     |
-| 76  | [20.4](docs/epics/release.md)  | Release 0.1.0                | P2       | 20.2, 20.3               | 📋     |
+| 76  | [20.4](docs/epics/release.md)  | Release 0.1.0                | P2       | 20.2, 20.3               | ⏳     |
 | 77  | [20.5](docs/epics/release.md)  | Hosting on the instance      | P2       | 20.4                     | ⏭      |
 
 ## Phase 2 — Health (0.2.0)
