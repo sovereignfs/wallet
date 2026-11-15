@@ -54,26 +54,35 @@ Directories are created when they are needed. Research (`docs/research/`), RFCs 
 - **`DESIGN.md` §33 lists what still waits on an input** (the medical review, Apple and Google accounts, PRF on real devices, the independent review);
   the task it blocks says so.
 
-## Working conventions
+<!-- sovereign:shared:begin -->
 
-- **One task, one branch, one draft PR.** Branch from an up-to-date `main`, named `feat/<slug>`, `fix/<slug>`, `docs/<slug>` or `chore/<slug>`. Do not
-  start a second task on a branch whose PR is not merged.
-- **Nothing goes to `main` directly,** except the owner's bypass, which is theirs to use.
-- **Never commit or push without being asked.** Prepare changes in the working tree and stop.
-- **Commits explain why.** `type(scope): summary` under 72 characters, body wrapped at 100, a `Verified:` line naming what was run, one logical change
-  per commit. Every commit an agent makes ends with `Co-Authored-By: Claude Code <noreply@anthropic.com>`: model-agnostic, never a specific model
-  name.
-- **PRs target `main`, are opened as drafts** (`gh pr create --draft --base main`), and are marked ready only on instruction. The body says what
-  changed and why, cites the `DESIGN.md` section, carries no task numbers, and ends with
-  `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
-- **Merge with rebase and merge,** never squash and never a merge commit. **Never merge a PR automatically.**
-- **Verify before claiming done.** Run the commands under Commands and show the output. A regression test is trusted only after it has been seen to
-  fail against the code it guards.
-- **Docs are part of the change.** A statement a change makes false is fixed in the same PR; a change to behaviour adds a line under `## [Unreleased]`
-  in `CHANGELOG.md`.
-- **Releases are their own PR,** as Tusk's: `scripts/release.sh`, a `vX.Y.Z` tag publishes the image. A patch has no migration and no setting change.
-- **Flag Docker-config impact immediately:** a new setting, port, path or WebAssembly asset updates the `Dockerfile` and `.dockerignore` in the same
-  change.
+## Working conventions (shared by every app of the suite)
+
+- **Two branches.** Work lands on `develop`, committed directly or through a feature branch (`feat/`, `fix/`, `docs/`, `chore/` and a
+  slug) cut from an up-to-date `develop` and merged into it by draft pull request with rebase and merge. `main` is what is released: it
+  is protected and changes only by a promotion pull request from `develop`, merged with a merge commit (`CONTRIBUTING.md`).
+- **Never commit or push without being asked.** Prepare changes in the working tree and stop. **Never merge a pull request
+  automatically.**
+- **Commits explain why, not just what:** `type(scope): summary` (`feat`, `fix`, `docs`, `chore`) under 72 characters, a body wrapped at
+  100, a `Verified:` line naming what was run, one logical change each. An agent's commits end with its own model-agnostic trailer:
+  `Co-Authored-By: Claude Code <noreply@anthropic.com>` or `Co-Authored-By: Codex <noreply@openai.com>`, never one naming a model (the
+  promotion check refuses it).
+- **Pull requests into `develop` are drafts,** marked ready only on instruction; the body says what changed and why and ends with the
+  agent's footer.
+- **A version is set with its changelog section,** in the same change: `version` in `package.json` and `## [X.Y.Z] - date` in
+  `CHANGELOG.md`, in plain words for someone upgrading. A promotion titled `Release vX.Y.Z` publishes it on merge (`RELEASING.md`).
+- **CI runs only for `main`:** on pull requests into it that are not drafts, before a release and by hand; never for `develop` or a
+  feature branch, which the pre-push hook (`npm run verify`) checks locally.
+- **Verify before claiming done,** and show the output. A regression test is trusted only after it has been seen to fail against the code
+  it guards.
+- **Docs are part of the change:** a statement a change makes false is fixed in the same change.
+- **Flag Docker-config impact immediately:** a new or renamed environment variable, port, on-disk path or native dependency updates the
+  `Dockerfile`, `.dockerignore` and Compose files in the same change.
+- **Shared files are written, not edited:** the files `npm create @sovereignfs app sync` writes (this section among them) are changed
+  in the template, in sovereignfs/sovereign, and taken with the next sync; a file this app keeps as its own is listed in `package.json`
+  under `sovereign.unmanaged`.
+
+<!-- sovereign:shared:end -->
 
 ## Rules of an app
 
@@ -160,7 +169,7 @@ pnpm refuses a release less than a day old and an install script nobody decided 
 | `pnpm db:generate <name>`, `pnpm db:dev`                        | Generate a migration for both dialects and both stores; start sqld or PostgreSQL in Docker                                           |
 | `pnpm manifest:check`                                           | `sovereign.manifest.json` is valid                                                                                                   |
 | `pnpm seed`, `pnpm seed -- --reset`, `--remove`                 | A development wallet with its key in `seed/` (never in production)                                                                   |
-| `scripts/deploy-check.sh`, `scripts/test-release.sh`            | Bring the image up in every documented setup; test the release script                                                                |
+| `scripts/deploy-check.sh`                                       | Bring the image up in every documented setup                                                                                         |
 
 ## Layout
 
