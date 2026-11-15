@@ -8,6 +8,8 @@ Each release's section is also its GitHub release notes: the release workflow re
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-15
+
 ### Fixed
 
 - The release's own checks pass on the commit they release. 0.1.0 was tagged but never published, because two tests failed only there; this is the same app as 0.1.0 and the first published release.
@@ -25,5 +27,6 @@ Each release's section is also its GitHub release notes: the release workflow re
 - The formats are written down, with test vectors, in `docs/specs/` (the vault and the sync protocol), and a security review is in `docs/research/`.
 - One image on port 3006, three setups (an sqld service, a SQLite file, PostgreSQL), and `pnpm seed` for development.
 
-[Unreleased]: https://github.com/sovereignfs/wallet/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sovereignfs/wallet/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/sovereignfs/wallet/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/sovereignfs/wallet/releases/tag/v0.1.0
