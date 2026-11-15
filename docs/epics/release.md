@@ -58,13 +58,13 @@ time.
 
 **Accepts when:** the image for both architectures is published, pulled and booted by the workflow.
 
-**Done as:** version 0.1.0 is `package.json`'s, the changelog's `[0.1.0]` section is its notes, and the commit `Release wallet 0.1.0` is tagged `v0.1.0`; `main` and the tag were pushed on 2026-11-14 at the owner's word. The gates ran by hand on a file, sqld and PostgreSQL (645 unit tests; 45 browser tests; `scripts/deploy-check.sh` on the final image). **Still to do:** both workflows (CI and Publish) were refused by GitHub before any job started ("recent account payments have failed or your spending limit needs to be increased"), so **CI has never run and no image is published**: fix the account's billing and re-run them (Actions, _Re-run all jobs_ on the `v0.1.0` run), make the package public the first time, and check passkeys with PRF on a real phone (`DESIGN.md` §33). Marked ✅ once the image is published and pulled.
+**Done as:** version 0.1.0 is `package.json`'s, the changelog's `[0.1.0]` section is its notes, and the commit `Release wallet 0.1.0` is tagged `v0.1.0`; `main` and the tag were pushed on 2026-11-14 at the owner's word. The gates ran by hand on a file, sqld and PostgreSQL (645 unit tests; 45 browser tests; `scripts/deploy-check.sh` on the final image). **Then:** both workflows (CI and Publish) were refused by GitHub before any job started (a billing block on the organization). Once billing was fixed (2026-11-15) they ran: every check passed but two test setups that only fail on a checkout of the release commit itself (the release script's tests found HEAD to be the real `Release wallet 0.1.0` commit, and the scanner's WebAssembly test ran before any build had copied the file), and Publish stopped at its tests. **0.1.0 is a tag that was never published**; both were fixed and the first published release is **0.1.1**, a patch with the same app. **Still to do:** publish 0.1.1, make the package public the first time, and check passkeys with PRF on a real phone (`DESIGN.md` §33). Marked ✅ once the image is published and pulled.
 
 #### 📋 20.5 — Hosting on the instance
 
 **Goal:** Wallet on `openfs-suite`. **Design:** §25.3. **Depends on:** 20.4.
 
-**Technical:** `./sv app add wallet --image ghcr.io/sovereignfs/wallet:0.1.0`, the app scopes granted, mail settings, `./sv push && ./sv deploy`,
+**Technical:** `./sv app add wallet --image ghcr.io/sovereignfs/wallet:0.1.1`, the app scopes granted, mail settings, `./sv push && ./sv deploy`,
 signed in through core, setup completed on a phone and a laptop.
 
 **Accepts when:** the owner uses Wallet hosted on two devices.
