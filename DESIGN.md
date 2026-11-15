@@ -1322,7 +1322,7 @@ docker run -v wallet:/data -e WALLET_DB_DIALECT=sqlite -e WALLET_SQLITE_URL=file
   `@sovereignfs/config`, in `.env.example` and in the README.
 - **Hosted:** `sv app add wallet`, from the manifest; the operator grants the three app scopes and sets `WALLET_SMTP_*` for mail when not using
   core's.
-- **Releases** as Tusk's: `scripts/release.sh`, a `vX.Y.Z` tag publishes amd64 and arm64 to `ghcr.io`; a patch has no migration.
+- **Releases** as every app's: a promotion titled `Release vX.Y.Z` tags and publishes amd64 and arm64 to `ghcr.io` on merge (`RELEASING.md`); a patch has no migration.
 - `/api/health` answers `200` once the database is ready and `/data` is writable.
 - **The operator's backups** are the database's and `/data`'s; a person's backups (§23) are theirs. An operator restoring an old database brings back
   old ciphertext, which devices treat as an older server state (the cursor is ahead: a fresh snapshot after sending the outbox).
