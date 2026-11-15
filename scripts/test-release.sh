@@ -86,7 +86,8 @@ fresh() {
          !skip { print }' "$CL" >"$CL.new"
     mv "$CL.new" "$CL"
     git add -A
-    git commit -q -m "scratch: this working tree under test"
+    # Even when the tree is HEAD's (CI checks out the release commit itself), so that HEAD is never a real release commit.
+    git commit -q --allow-empty -m "scratch: this working tree under test"
     git push -q -u origin main
   )
 }

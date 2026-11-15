@@ -30,7 +30,8 @@
     "seed": "node scripts/seed-run.mjs",
     "e2e": "playwright test",
     "predev": "node scripts/copy-wasm.mjs",
-    "prebuild": "node scripts/copy-wasm.mjs"
+    "prebuild": "node scripts/copy-wasm.mjs",
+    "pretest": "node scripts/copy-wasm.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "~1.7.16",

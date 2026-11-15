@@ -8,6 +8,10 @@ Each release's section is also its GitHub release notes: the release workflow re
 
 ## [Unreleased]
 
+### Fixed
+
+- The release's own checks pass on the commit they release. 0.1.0 was tagged but never published, because two tests failed only there; this is the same app as 0.1.0 and the first published release.
+
 ## [0.1.0] - 2026-11-14
 
 ### Added
