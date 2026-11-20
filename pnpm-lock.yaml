@@ -27,11 +27,11 @@ importers:
         specifier: 0.1.0
         version: 0.1.0
       '@sovereignfs/sdk':
-        specifier: 2.1.0
-        version: 2.1.0(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
+        specifier: 2.6.0
+        version: 2.6.0(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
       '@sovereignfs/ui':
-        specifier: 0.92.0
-        version: 0.92.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: 0.98.0
+        version: 0.98.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       age-encryption:
         specifier: 0.3.1
         version: 0.3.1
@@ -1302,8 +1302,8 @@ packages:
     engines: {node: '>=22.3'}
     hasBin: true
 
-  '@sovereignfs/sdk@2.1.0':
-    resolution: {integrity: sha512-fZ/VejE8bh7vwo6TBFmTon1m3LszQd3UnNgKXv/xh0hZ9CaceJXMho2rWHGgJB+Cn+JtVuyFqz6rd9I08ocWqQ==}
+  '@sovereignfs/sdk@2.6.0':
+    resolution: {integrity: sha512-oO0yveZ0C91/gKFozLNH3CkVaixv15XLIi7BjRxpk9iEHQxYzqO6MpQGthU19mTNJ0r48DSswfC9yFqtxW87bQ==}
     engines: {node: '>=22.3'}
     peerDependencies:
       next: '>=15'
@@ -1311,17 +1311,20 @@ packages:
       next:
         optional: true
 
-  '@sovereignfs/ui@0.92.0':
-    resolution: {integrity: sha512-umMcihzirOazmcRgpEZ0J20nyfVgO0VNsSscMok4GYKSht++rEUsps131Wbj64uZGHxq7xHZpQz0otfAI6t7uQ==}
+  '@sovereignfs/ui@0.98.0':
+    resolution: {integrity: sha512-WbuBpX0Hf21nJ4fX17oHht6VTWnM/X4goRt5mWSs76QamJE+OW6CCJQafPsxh+9o5qNP8SttBjrPofKf980jcw==}
     peerDependencies:
       '@dnd-kit/core': ^6.3.1
       '@dnd-kit/sortable': ^10.0.0
+      maplibre-gl: ^6.18.0
       react: ^19.0.0
       react-dom: ^19.0.0
     peerDependenciesMeta:
       '@dnd-kit/core':
         optional: true
       '@dnd-kit/sortable':
+        optional: true
+      maplibre-gl:
         optional: true
 
   '@standard-schema/spec@1.1.0':
@@ -3716,14 +3719,14 @@ snapshots:
 
   '@sovereignfs/manifest@0.1.1': {}
 
-  '@sovereignfs/sdk@2.1.0(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))':
+  '@sovereignfs/sdk@2.6.0(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))':
     dependencies:
       jose: 6.2.13
       openid-client: 6.8.9
     optionalDependencies:
       next: 16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
 
-  '@sovereignfs/ui@0.92.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@sovereignfs/ui@0.98.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
