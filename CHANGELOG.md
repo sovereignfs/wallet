@@ -6,7 +6,18 @@ All notable changes to Wallet are recorded here. The format follows [Keep a Chan
 Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
 titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
-## [0.2.0] - 2026-11-18
+## [0.3.0] - 2026-11-22
+
+### Added
+
+- Core's export of a person now holds their wallet: Sovereign's "Your data" download includes their vault and every card, sealed as the server holds them, so that it opens only with their wallet key or recovery key. Needs core 0.126.0 or later, which the manifest now asks for.
+
+### Changed
+
+- The service worker, the web manifest and the worker's registration are the suite's, from `@sovereignfs/pwa`. A new version of Wallet is announced with a Reload button instead of waiting for every window to close. With no connection, every page opens the wallet from the device, and an address that is not the wallet's says it needs a connection; before a first visit has kept the wallet, the suite's offline page says so. No entry, decrypted or not, is ever kept in a cache.
+- On the suite's current packages: `@sovereignfs/sdk` 2.11.0, `@sovereignfs/ui` 0.105.0, `@sovereignfs/manifest` 0.4.0 (manifest 5) and `@sovereignfs/create` 0.27.1, whose shared rules are now in `AGENTS.md` and `CONTRIBUTING.md`. Wallet keeps its own `Dockerfile`, `.dockerignore` and Compose setups, for its three databases.
+
+- 2026-11-18
 
 ### Added
 
@@ -31,5 +42,7 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 - The formats are written down, with test vectors, in `docs/specs/` (the vault and the sync protocol), and a security review is in `docs/research/`.
 - One image on port 3006, three setups (an sqld service, a SQLite file, PostgreSQL), and `pnpm seed` for development.
 
+[0.3.0]: https://github.com/sovereignfs/wallet/compare/v0.1.1...v0.3.0
+[0.2.0]: https://github.com/sovereignfs/wallet/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/sovereignfs/wallet/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/sovereignfs/wallet/releases/tag/v0.1.0

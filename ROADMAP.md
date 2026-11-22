@@ -279,7 +279,7 @@ configured.
 | --- | --------------------------------- | --------------------------------------- | -------- | ---------------- | ------ |
 | 112 | [17.1](docs/epics/share-links.md) | One-off encrypted links                 | P1       | 3.1, 3.2, 1.6    | 📋     |
 | 113 | [17.2](docs/epics/share-links.md) | Sharing a summary, report or document   | P1       | 17.1, 13.2, 13.3 | 📋     |
-| 114 | [21.6](docs/epics/upstream.md)    | A VAPID key in `generate`               | P2       | —                | 📋     |
+| 114 | [21.6](docs/epics/upstream.md)    | A VAPID key in `generate`               | P2       | —                | ✅     |
 | 115 | [10.4](docs/epics/notices.md)     | Web Push and reminders while closed     | P2       | 10.1, 7.4, 21.6  | 📋     |
 | 116 | [21.7](docs/epics/upstream.md)    | Barcode display and scanner (candidate) | P3       | 6.2, 6.3         | 📋     |
 

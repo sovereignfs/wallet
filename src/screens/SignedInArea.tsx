@@ -10,7 +10,7 @@ import { site } from '../site';
 import { AppShell } from '../ui/AppShell';
 import { Frame } from './Frame';
 import { LockScreen } from './LockScreen';
-import { RegisterWorker } from './RegisterWorker';
+import { ServiceWorkerRegistration } from '@sovereignfs/pwa/client';
 import { Setup } from './Setup';
 import { UndoProvider, useUndo } from './Undo';
 import { WalletProvider, useWallet } from './WalletProvider';
@@ -98,7 +98,8 @@ function WithUndo({
 function Shell({ name, email, children }: { name: string; email: string; children?: ReactNode }) {
   return (
     <AppShell name={site.name} account={<AccountMenu name={name} email={email} />}>
-      <RegisterWorker />
+      {/* Registers the service worker in production, and says when a new version is ready (`@sovereignfs/pwa`). */}
+      <ServiceWorkerRegistration appName={site.name} />
       {children}
     </AppShell>
   );
@@ -144,7 +145,7 @@ function Gate({
       bell={stand === 'unlocked' ? lock : null}
       account={<AccountMenu name={name} email={email} onLeave={() => keyring.lock('sign-out')} />}
     >
-      <RegisterWorker />
+      <ServiceWorkerRegistration appName={site.name} />
       {stand === 'starting' ? null : stand === 'needs-connection' ? (
         <main className={styles.page}>
           <div className={`${styles.column} ${styles.narrow}`}>

@@ -992,6 +992,11 @@ To show a doctor a summary, a report or a document without printing, and without
 entries there are; the inner layer is the entries' own encryption. Either key opens it, in Wallet or, for the outer layer, with the `age` command
 line.
 
+**Core's export of a person** (`signIn.export`, manifest 5): when the person downloads their data from Sovereign, core asks Wallet for its part at
+`/api/sovereign/export` with a signed token the SDK checks. The part is what the server holds, as a backup's inner layer holds it: the vault (its
+recipients and header) and every entry that is not deleted, its wrapped key, shape and body as stored, in base64url, in files marked end to end
+(`src/portability/core-export.ts`). It opens with the wallet key or the recovery key; the server reads none of it.
+
 ### 23.2 The backup file
 
 **Made in the browser,** from Settings > Backup or Due: `wallet-backup-<date>.age`, holding **everything this device can open**: Synced entries, the
@@ -1179,8 +1184,10 @@ favourite, archive, delete (with **Undo** for ten seconds, then a tombstone).
 
 **One responsive tree** (the guide's rule): the same routes and decisions at every width, only rendering forked.
 
-- **Installable as a full PWA,** as Tusk's §17.9: the service worker keeps the shell by allow-list and the one shell page; offline, a signed-in
-  address is answered by the shell, which reads the store. **No entry, decrypted or not, is ever in the service worker's cache.**
+- **Installable as a full PWA,** from the suite's `@sovereignfs/pwa` (its manifest, its worker and its registration, which announces a new version
+  with Reload): the service worker keeps the shell by allow-list and the one shell page; offline, every address is answered by the shell, which reads
+  the store, and says an address that is not the wallet's needs a connection. Background Sync is added after the package's text until its `sync` option
+  is released. **No entry, decrypted or not, is ever in the service worker's cache.**
 - **The manifest** has shortcuts (Cards, Add a card, and in phase 2 Journal entry, Weigh in), `display: standalone`, theme colours from the tokens.
 - **Share target (phase 2, where supported — Android):** sharing an image, a PDF, a `.vcf` or a `.pkpass` to Wallet opens "Add to Wallet" with the
   file; the service worker holds the shared file in memory (or, if the wallet is locked, in a store encrypted under a key wrapped like the unlock

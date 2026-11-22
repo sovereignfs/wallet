@@ -1,19 +1,22 @@
 'use client';
 
-import { Link } from './nav';
+import { Link, usePathname } from './nav';
 import { useEffect, useState } from 'react';
 import { type Identity, readIdentity } from '../identity';
 import { AppRoutes } from './AppRoutes';
+import { addressOf } from './addresses';
 import { SignedInArea } from './SignedInArea';
 
 /**
  * The wallet with no server document (DESIGN.md §26.6). The service worker answers an address of the signed-in area with the one page it keeps, `/shell`,
  * which holds nothing of a person and is the same for everyone; this is what that page is. It finds who is signed in on the device (`src/identity.ts`) and
- * makes the same composition the server's layout makes.
+ * makes the same composition the server's layout makes. The worker answers every address with this page when there is no network (`@sovereignfs/pwa`),
+ * so an address that is not one of the wallet's says it needs a connection.
  */
 export function OfflineApp() {
   // Not known until the page is in the browser: the server renders nothing of a person.
   const [who, setWho] = useState<Identity | null | undefined>(undefined);
+  const known = addressOf(usePathname() ?? '/') !== undefined;
   useEffect(() => setWho(readIdentity()), []);
 
   if (who === undefined) return null;
@@ -28,7 +31,20 @@ export function OfflineApp() {
     );
   return (
     <SignedInArea accountId={who.id} name={who.name} email={who.email}>
-      <AppRoutes />
+      {known ? (
+        <AppRoutes />
+      ) : (
+        <main style={{ padding: 'var(--sv-space-6)' }}>
+          <h1>This needs a connection</h1>
+          <p>
+            This page is read from the server, so it is not here while you are offline. Your wallet
+            is.
+          </p>
+          <p>
+            <Link href="/">Back to your wallet</Link>
+          </p>
+        </main>
+      )}
     </SignedInArea>
   );
 }
