@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { Database as AuthStore } from '@sovereignfs/auth/database';
+import { AppVault } from '@sovereignfs/sdk/vault';
 import { sql } from 'drizzle-orm';
 import { createAuth } from '../src/auth/auth';
 import type { AuthSettings } from '../src/auth/config';
@@ -158,28 +160,44 @@ export interface SeedResult {
   readonly recoveryFile: string;
 }
 
-async function findUser(auth: Database): Promise<string | undefined> {
-  const row = await dbGet<{ id: string }>(
-    auth,
-    sql`SELECT id FROM ${schema(auth).user} WHERE email = ${SEED_EMAIL}`,
-  );
-  return row?.id;
+async function findUser(auth: AuthStore): Promise<string | undefined> {
+  const { rows } = await auth.run('SELECT id FROM users WHERE email = ?', [SEED_EMAIL]);
+  return rows[0] ? String(rows[0].id) : undefined;
 }
 
-async function makeUser(auth: Database, settings: AuthSettings): Promise<string> {
+async function makeUser(auth: AuthStore, settings: AuthSettings): Promise<string> {
   const instance = createAuth({
     settings: { ...settings, signUp: 'open' },
     name: 'Wallet',
     database: auth,
   });
   const made = await instance.api.signUpEmail({
-    body: { name: SEED_NAME, email: SEED_EMAIL, password: SEED_PASSWORD },
+    body: { name: SEED_NAME, email: SEED_EMAIL, password: await signInValue(auth) },
   });
   return made.user.id;
 }
 
+/**
+ * What the sign-in page sends for `SEED_PASSWORD` (auth.md §4, rule 1): the value the page derives from it with this instance's vault id
+ * (`/api/sign-in-salt`), so that the account signs in by hand with the password.
+ */
+async function signInValue(auth: AuthStore): Promise<string> {
+  const { localVault } = await import('@sovereignfs/sdk/local-vault');
+  const none = {
+    get: async () => undefined,
+    set: async () => undefined,
+    delete: async () => undefined,
+  };
+  const vault = localVault({
+    clientId: 'wallet',
+    vaultId: await new AppVault(auth).vaultId(),
+    backend: none,
+  });
+  return (await vault.derive(SEED_PASSWORD, SEED_EMAIL.trim().toLowerCase())).signIn;
+}
+
 export async function runSeed(
-  stores: { app: Database; auth: Database },
+  stores: { app: Database; authStore: AuthStore },
   settings: AuthSettings,
   options: { now?: number; dir?: string } = {},
 ): Promise<SeedResult> {
@@ -187,9 +205,9 @@ export async function runSeed(
   const dir = options.dir ?? SEED_DIR;
   const walletFile = join(dir, 'wallet-key.txt');
   const recoveryFile = join(dir, 'recovery-key.txt');
-  let accountId = await findUser(stores.auth);
+  let accountId = await findUser(stores.authStore);
   const created = accountId === undefined;
-  accountId ??= await makeUser(stores.auth, settings);
+  accountId ??= await makeUser(stores.authStore, settings);
 
   // The vault: made once, with a wallet key and a recovery key, written to `seed/` so that a browser can open it.
   let vaultRecord = await readVault(stores.app, accountId);
@@ -268,13 +286,16 @@ export async function runSeed(
 }
 
 export async function removeSeed(
-  stores: { app: Database; auth: Database },
+  stores: { app: Database; authStore: AuthStore },
   dir = SEED_DIR,
 ): Promise<boolean> {
-  const accountId = await findUser(stores.auth);
+  const accountId = await findUser(stores.authStore);
   rmSync(dir, { recursive: true, force: true });
   if (!accountId) return false;
-  await deletePerson({ database: stores.app, authDatabase: stores.auth, now: Date.now }, accountId);
+  await deletePerson(
+    { database: stores.app, authDatabase: stores.authStore, now: Date.now },
+    accountId,
+  );
   return true;
 }
 

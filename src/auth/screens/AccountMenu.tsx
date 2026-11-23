@@ -28,6 +28,13 @@ export function AccountMenu({
     setOffline(false);
     setLeaving(true);
     onLeave?.();
+    // Where to go afterwards, asked while the session is still there: core's sign-out for a session that came from core, which decides
+    // whether it ends core's session too (auth.md §8).
+    const throughCore = await fetch('/api/account/sign-out', { cache: 'no-store' })
+      .then(async (reply) =>
+        reply.ok ? ((await reply.json()) as { url: string | null }).url : null,
+      )
+      .catch(() => null);
     const { error } = await authClient.signOut();
     setLeaving(false);
     // A session that is already gone is as signed out as one that was just ended; only a failure to reach the server is a failure.
@@ -35,7 +42,7 @@ export function AccountMenu({
       setOffline(true);
       return;
     }
-    window.location.assign('/');
+    window.location.assign(throughCore ?? '/');
   }
 
   return (

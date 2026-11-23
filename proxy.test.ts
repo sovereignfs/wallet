@@ -56,7 +56,7 @@ describe('the proxy', () => {
     for (const path of ['/home']) {
       const reply = proxy(
         new NextRequest(`https://wallet.example.com${path}`, {
-          headers: { cookie: 'wallet.session_token=x' },
+          headers: { cookie: 'better-auth.session_token=x' },
         }),
       );
       expect(reply.status, path).toBe(308);
@@ -70,7 +70,7 @@ describe('the proxy', () => {
 
   it('shows Home at the front address for a request with a session cookie, and keeps the address', () => {
     const rewrite = (response: Response) => response.headers.get('x-middleware-rewrite');
-    for (const name of ['wallet.session_token', '__Secure-wallet.session_token']) {
+    for (const name of ['better-auth.session_token', '__Secure-better-auth.session_token']) {
       const signedIn = new NextRequest('https://wallet.example.com/', {
         headers: { cookie: `${name}=anything` },
       });
@@ -83,7 +83,7 @@ describe('the proxy', () => {
       rewrite(
         proxy(
           new NextRequest('https://wallet.example.com/', {
-            headers: { cookie: 'wallet.session_token=' },
+            headers: { cookie: 'better-auth.session_token=' },
           }),
         ),
       ),
@@ -101,14 +101,14 @@ describe('the proxy', () => {
       rewrite(
         proxy(
           new NextRequest('https://wallet.example.com/sign-in', {
-            headers: { cookie: 'wallet.session_token=x' },
+            headers: { cookie: 'better-auth.session_token=x' },
           }),
         ),
       ),
     ).toBeNull();
     // A policy and a nonce are on it all the same.
     const signedIn = new NextRequest('https://wallet.example.com/', {
-      headers: { cookie: 'wallet.session_token=x' },
+      headers: { cookie: 'better-auth.session_token=x' },
     });
     expect(proxy(signedIn).headers.get('content-security-policy')).toContain('nonce-');
   });

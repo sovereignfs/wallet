@@ -15,7 +15,8 @@ export async function signUp(page: Page, email: string, name = 'Ada Lovelace') {
   await page.goto('/sign-up');
   await page.getByLabel('Name').fill(name);
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(PASSWORD);
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+  await page.getByLabel('Confirm password').fill(PASSWORD);
   await submitUntilThrough(
     page,
     'Create account',
@@ -34,7 +35,7 @@ async function submitUntilThrough(
 ) {
   const submit = page.getByRole('button', { name: button, exact: true });
   await submit.click();
-  const limited = page.getByText(/Too many tries/);
+  const limited = page.getByText(/Too many (tries|attempts)/);
   await expect(limited.or(arrived)).toBeVisible({ timeout: 20_000 });
   if (await limited.isVisible()) {
     await page.waitForTimeout(10_500);

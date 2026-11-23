@@ -14,7 +14,7 @@ test.use({ baseURL: `http://localhost:${PORTS.sovereign}` });
 async function throughSovereign(page: Page) {
   const arrived = page.getByRole('button', { name: 'Get started' });
   await page.getByRole('button', { name: 'Sign in with Sovereign' }).click();
-  const limited = page.getByText(/Too many tries/);
+  const limited = page.getByText(/Too many (tries|attempts)/);
   await expect(limited.or(arrived)).toBeVisible({ timeout: 30_000 });
   if (await limited.isVisible()) {
     await page.waitForTimeout(10_500);
@@ -74,10 +74,10 @@ test('core’s notices end the session, and a deletion removes the account, befo
   });
   await page.goto('/sign-in');
   await throughSovereign(page);
+  // A notice that names the person, not one of their core sessions: one that names a core session ends only the sessions that came from
+  // it (auth.md §8).
   const notice = async (kind: 'logout' | 'account-deleted', wrong?: string) =>
-    (
-      await request.post(`${control}/notice`, { data: { kind, sub, sid: 'core-session-1', wrong } })
-    ).text();
+    (await request.post(`${control}/notice`, { data: { kind, sub, wrong } })).text();
 
   // A notice that is not signed by core is refused, and nothing happens: the person is still signed in.
   const forged = await page.request.post('/api/sovereign/account-deleted', {

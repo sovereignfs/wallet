@@ -1,7 +1,7 @@
 import { createSovereign } from '@sovereignfs/sdk';
 import { sql } from 'drizzle-orm';
 import { getConfig } from '../config/current';
-import { getAuthDatabase, getDatabase } from '../db/boot';
+import { getAuthStore, getDatabase } from '../db/boot';
 import type { Database } from '../db/client';
 import { dbAll } from '../db/exec';
 import * as postgresSchema from '../db/schema/postgres';
@@ -113,7 +113,7 @@ export async function answerCoreExport(request: Request): Promise<Response | und
     request,
     { prefix: 'wallet', version: packageJson.version },
     async ({ sub, writer }) => {
-      const accountId = await accountOfSub(await getAuthDatabase(), sub);
+      const accountId = await accountOfSub(await getAuthStore(), sub);
       if (!accountId) return;
       for (const each of await personRecords(await getDatabase(), accountId))
         await writer.addRecords(each.path, each.kind, [...each.records], {

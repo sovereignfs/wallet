@@ -40,7 +40,7 @@ const bytes = (value: unknown) =>
 
 describe(`the seed (${leg})`, () => {
   it('makes an account, a vault, and cards that the key it writes opens, as a browser would', async () => {
-    const stores = { app, auth: t.auth.database };
+    const stores = { app, authStore: t.auth.store };
     const result = await runSeed(stores, t.auth.settings, { dir });
     expect(result.created).toBe(true);
     expect(result.cards).toBe(CARDS.length);
@@ -86,7 +86,7 @@ describe(`the seed (${leg})`, () => {
   });
 
   it('is done when run again, and changes nothing', async () => {
-    const stores = { app, auth: t.auth.database };
+    const stores = { app, authStore: t.auth.store };
     const again = await runSeed(stores, t.auth.settings, { dir });
     expect(again.created).toBe(false);
     expect(again.cards).toBe(0);
@@ -103,11 +103,11 @@ describe(`the seed (${leg})`, () => {
   });
 
   it('is taken away whole, with its keys, and leaves another account alone', async () => {
-    const stores = { app, auth: t.auth.database };
+    const stores = { app, authStore: t.auth.store };
     const found = await dbAll<{ id: string }>(
       t.auth.database,
       sql.raw(
-        `SELECT id FROM ${t.auth.database.dialect === 'postgres' ? '"wallet_auth"."user"' : '"user"'} WHERE email = '${SEED_EMAIL}'`,
+        `SELECT id FROM ${t.auth.database.dialect === 'postgres' ? '"wallet_auth"."users"' : '"users"'} WHERE email = '${SEED_EMAIL}'`,
       ),
     );
     const accountId = found[0]?.id ?? '';
@@ -120,7 +120,7 @@ describe(`the seed (${leg})`, () => {
     const left = await dbAll<{ n: number | string }>(
       t.auth.database,
       sql.raw(
-        `SELECT COUNT(*) AS n FROM ${t.auth.database.dialect === 'postgres' ? '"wallet_auth"."user"' : '"user"'}`,
+        `SELECT COUNT(*) AS n FROM ${t.auth.database.dialect === 'postgres' ? '"wallet_auth"."users"' : '"users"'}`,
       ),
     );
     expect(Number(left[0]?.n)).toBeGreaterThanOrEqual(2);

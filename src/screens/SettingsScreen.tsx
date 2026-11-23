@@ -13,7 +13,7 @@ import {
   Textarea,
 } from '@sovereignfs/ui';
 import { IDLE_CHOICES, type HiddenLock, type IdleMinutes } from '../keyring/keyring';
-import { authClient } from '../auth/client';
+import { authClient, signInValue } from '../auth/client';
 import { forgetIdentity } from '../identity';
 import { type RefusedItem, eraseLocal } from '../local/db';
 import { openSealed } from '../local/open';
@@ -412,11 +412,13 @@ function Account({ email }: { email: string }) {
     setError(null);
     setBusy(true);
     try {
+      // The password is never sent (auth.md §4, rule 1): what the server checks is the sign-in value the page makes from it.
+      const value = needsPassword && password ? await signInValue(password, email) : '';
       const response = await fetch('/api/account/delete', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: value }),
       });
       if (response.status === 403) {
         const body = (await response.json()) as { code?: string };

@@ -1,3 +1,4 @@
+import type { Database as AuthStore } from '@sovereignfs/auth/database';
 import type { Database } from '../db/client';
 import type { Limiter, Rule } from '../limits/rate';
 import { readCapped } from '../access/body';
@@ -11,7 +12,7 @@ import { deletePerson } from './people';
  */
 export interface DeleteDeps {
   readonly database: Database;
-  readonly authDatabase: Database;
+  readonly authDatabase: AuthStore;
   readonly limiter: Limiter;
   readonly now: () => number;
   /** Whether this is the password of the account the request is for. */

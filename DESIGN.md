@@ -175,7 +175,7 @@ As Tusk's: `app/` for routes, `src/` for everything else, tests beside the code.
 | `src/server/blobs/`             | The file store under `/data/blobs`, quotas, serving (§11.6)                                                                        |
 | `src/server/vault/`             | The vault header and recipients, devices (§7, §6.3)                                                                                |
 | `src/db/`                       | Configuration, clients, schemas per dialect, migrations at start-up (§29) — **copied from Tusk**                                   |
-| `src/auth/`                     | better-auth, its settings, the sign-up policy, the screens, the fake Sovereign for tests (§25) — **copied from Tusk**              |
+| `src/auth/`                     | the sign-in on `@sovereignfs/auth`: its settings, the store and its move, the screens, the fake Sovereign for tests (§25)          |
 | `src/access/`                   | Every page, route and operation with who may use it (§5.2)                                                                         |
 | `src/crypto/`                   | **The server's** instance key and envelope encryption, for credentials only (§8.7) — **copied from Tusk**                          |
 | `src/backup/`, `src/providers/` | The git connection and job; the git host interface, GitHub's implementation, an in-memory one (§23) — **from Tusk**                |
@@ -1064,16 +1064,23 @@ Few, and about the account, since the server cannot read entries:
 
 ### 25.1 Sign-in
 
-**As Tusk's §6, with `WALLET_` for `TUSK_`:** better-auth in a store of its own; local accounts (password, passkey, authenticator app with backup
-codes) when `WALLET_AUTH_LOCAL=1`; a Sovereign core through `genericOAuth` with PKCE when `WALLET_CORE_*` are set; either or both, from one image.
-Email is verified and passwords reset only with mail set up. A person is their better-auth user id; a `sub` is identity; an email is never matched to
-an account at sign-in. **Signing in never opens the wallet: unlocking does** (§9.4).
+**The suite's `@sovereignfs/auth`** (since 0.4.0; `sovereign`'s auth.md), with `WALLET_` settings: better-auth on the package's preset, in a
+store of its own (`wallet_auth`, opened again in the package's shape, `src/auth/store.ts`); local accounts (password, passkey, authenticator app
+with backup codes) when `WALLET_AUTH_LOCAL=1`; a Sovereign core through the package's `./core` on the SDK's steps when `WALLET_CORE_*` are set,
+`WALLET_CORE_URL` being the instance's own address; either or both, from one image. **The server never receives a password:** the page derives
+a sign-in value from it, the address and the instance's vault id (`/api/sign-in-salt`), and checks the length itself. A password stored before
+0.4.0 moves at its next sign-in, for 90 days (`movePasswords`). Email is verified and passwords reset only with mail set up. A person is their
+better-auth user id; a `sub` is identity; an email is never matched to an account at sign-in, and linking a Sovereign account to a local one asks
+for the password (`/api/auth/sv/link-sovereign`); there is no unlinking. A session through core is checked against core every hour, and signing
+out of one goes through core. Wallet keeps none of core's tokens (`src/auth/sdk-stores.ts`). **Signing in never opens the wallet: unlocking
+does** (§9.4).
 
 ### 25.2 Core's notices
 
 Back-channel logout at `/api/sovereign/backchannel-logout` (ends the session; the device locks and keeps its store) and account deleted at
-`/api/sovereign/account-deleted` (running `People.deletePerson`, answering `200` only once rows and files are gone), verified by the SDK, replays
-refused (`notice_seen`). Copied from Tusk.
+`/api/sovereign/account-deleted` (running `People.deletePerson`, answering `200` only once rows and files are gone), verified by the package's `coreNotices`,
+replays refused by their `jti` in the auth store, behind Wallet's own body cap and rate limit (`src/sovereign/notices.ts`). A logout that names a
+core session ends only the sessions that came from it.
 
 ### 25.3 The manifest
 

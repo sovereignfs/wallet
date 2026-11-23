@@ -46,6 +46,12 @@ export const ROUTES: RouteRule[] = [
     route: '/api/account/delete',
     methods: { GET: { kind: 'account' }, POST: { kind: 'account' } },
   },
+  // Where signing out of this session goes once the device has let go: core's sign-out for a session that came from core (auth.md §8), or
+  // none. It reads only the session's own sign-in through core.
+  { route: '/api/account/sign-out', methods: { GET: { kind: 'account' } } },
+  // The salt of the sign-in value and whether a password stored before the package can still move (auth.md §4, §8.1): no secret, the
+  // same for everyone. Absent, with a 404, without accounts of Wallet's own.
+  { route: '/api/sign-in-salt', methods: { GET: { kind: 'public' } } },
   { route: '/api/health', methods: { GET: { kind: 'public' } } },
   // The service worker's text (DESIGN.md §26.6): the same for everyone, the build's version and the names of its files, and nothing of an account.
   { route: '/sw.js', methods: { GET: { kind: 'public' } } },
@@ -70,7 +76,9 @@ export const ROUTES: RouteRule[] = [
       POST: { kind: 'public', because: 'a token signed by Sovereign, checked against its keys' },
     },
   },
-  // better-auth's own: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). Absent, with a 404, when sign-in is off.
+  // better-auth on `@sovereignfs/auth`: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). It holds
+  // signing in through core (/sign-in/sovereign, /callback/sovereign) and the move of a password stored before the package (/sv/move-password,
+  // which opens no session). Absent, with a 404, when sign-in is off.
   {
     route: '/api/auth/[...all]',
     methods: {
