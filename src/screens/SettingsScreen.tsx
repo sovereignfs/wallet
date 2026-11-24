@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Button,
+  ButtonLink,
   ConfirmDialog,
   FormField,
   Input,
@@ -14,6 +15,7 @@ import {
 } from '@sovereignfs/ui';
 import { IDLE_CHOICES, type HiddenLock, type IdleMinutes } from '../keyring/keyring';
 import { authClient, signInValue } from '../auth/client';
+import { coreLink } from '../auth/core-links';
 import { forgetIdentity } from '../identity';
 import { type RefusedItem, eraseLocal } from '../local/db';
 import { openSealed } from '../local/open';
@@ -397,16 +399,20 @@ function Account({ email }: { email: string }) {
   const [password, setPassword] = useState('');
   const [typed, setTyped] = useState('');
   const [needsPassword, setNeedsPassword] = useState(true);
+  // Core's address in suite mode (DESIGN.md §25.1), where the account is looked after and deleted; null alone, and until the server has said.
+  const [core, setCore] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
     void fetch('/api/account/delete', { credentials: 'same-origin' })
-      .then((r) => r.json() as Promise<{ password: boolean }>)
-      .then((r) => setNeedsPassword(r.password))
+      .then((r) => r.json() as Promise<{ password: boolean; core: string | null }>)
+      .then((r) => {
+        setNeedsPassword(r.password);
+        setCore(r.core);
+      })
       .catch(() => undefined);
-  }, [open]);
+  }, []);
 
   async function remove() {
     setError(null);
@@ -420,15 +426,9 @@ function Account({ email }: { email: string }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ password: value }),
       });
-      if (response.status === 403) {
-        const body = (await response.json()) as { code?: string };
-        setError(
-          body.code === 'SESSION_NOT_FRESH'
-            ? 'Sign in again, and then delete the account.'
-            : 'That password is not right.',
-        );
-        return;
-      }
+      if (response.status === 403) return setError('That password is not right.');
+      if (response.status === 429)
+        return setError('That was tried too many times. Wait a few minutes.');
       if (!response.ok) return setError('The account could not be deleted. Try again.');
       keyring.lock('sign-out');
       // The store cannot be deleted while this page holds it open, and nothing is to be sent for an account that is gone.
@@ -455,19 +455,42 @@ function Account({ email }: { email: string }) {
           Your name and address are the only things the server can read about you. Everything you
           keep in your wallet is locked in your browser first.
         </p>
+        {core ? (
+          <p className={screens.muted}>
+            You sign in through Sovereign, which has your password, passkeys and two-factor sign-in.{' '}
+            <a href={coreLink(core, '/profile')}>Your profile</a> and{' '}
+            <a href={coreLink(core, '/security')}>your security</a> are there.
+          </p>
+        ) : null}
       </section>
       <section className={screens.section}>
         <h2 className={screens.sectionTitle}>Delete my account</h2>
-        <p className={screens.muted}>
-          This deletes your wallet and everything in it from the server, for good, and erases it
-          from this device. Other devices erase it the next time they connect. Nobody can bring it
-          back.
-        </p>
-        <div>
-          <Button variant="destructive" onClick={() => setOpen(true)}>
-            Delete my account…
-          </Button>
-        </div>
+        {core ? (
+          <>
+            <p className={screens.muted}>
+              Your account is Sovereign’s, so deleting it is done there. Wallet is told, and deletes
+              your wallet and everything in it from the server, for good. Nobody can bring it back.
+            </p>
+            <div>
+              <ButtonLink href={coreLink(core, '/delete-account')} variant="secondary">
+                Delete it in Sovereign
+              </ButtonLink>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className={screens.muted}>
+              This deletes your wallet and everything in it from the server, for good, and erases it
+              from this device. Other devices erase it the next time they connect. Nobody can bring
+              it back.
+            </p>
+            <div>
+              <Button variant="destructive" onClick={() => setOpen(true)}>
+                Delete my account…
+              </Button>
+            </div>
+          </>
+        )}
       </section>
       <ConfirmDialog
         open={open}

@@ -39,13 +39,6 @@ export interface AuthDependencies {
 }
 
 /**
- * How recently a session must have been made to stand in for a password an account does not have: deleting an account that came in
- * through Sovereign alone (`/api/account/delete`). Wallet's own check, on the session's `createdAt`; better-auth's `freshAge` stays 0, and
- * an account with a password is asked for it again.
- */
-export const FRESH_SESSION_SECONDS = 10 * 60;
-
-/**
  * The paths that set up a second step or a passkey. An account that has no password (it came in through Sovereign alone) has neither:
  * Sovereign has its own (DESIGN.md §6). The pages do not show them, and these refuse, so that the page is not the only thing that says so.
  */

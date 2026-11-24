@@ -1077,7 +1077,8 @@ Shopper's (its §15.1), from one image:
   `/api/auth/sign-in/sovereign`, and `/sign-up` asks core to open its sign-up page (`prompt=create`: Sovereign 0.140.0 or later; before it, core shows
   its sign-in, which has no way to make an account). Coming back from core with `?error=` shows a small page with the reason and _Try again_ and does not
   redirect, so that a failure at core cannot loop; a core that cannot be reached is said so. The landing page's button says _Sign in with Sovereign_. There
-  is no password, sign-up, reset, passkey or second step here: they are core's, and their routes answer 404.
+  is no password, sign-up, reset, passkey or second step here: they are core's, and their routes answer 404. Settings > Account says who core says the
+  person is and links to core's profile and security pages; **deleting the account is core's too** (§28).
 - **Standalone, the forms are the design system's** (`SignInForm`, `SignUpForm` and the reset pair of `@sovereignfs/ui`, as core renders them). **The
   server never receives a password:** the page derives a sign-in value from it, the address and the instance's vault id (`/api/sign-in-salt`), and checks
   the length itself. A password stored before 0.4.0 moves at its next sign-in, for 90 days (`movePasswords`). Email is verified and passwords reset only
@@ -1257,8 +1258,10 @@ last.
   connection and its credential, notices, mail queued, applied mutations, rate counters, and in phase 3 published cards, share links, reminders and
   push subscriptions, and better-auth's rows.
 - **Not touched:** the person's git repository and any backup file they downloaded.
-- Reached from **Settings > Account**, after the password or a fresh session and typing "delete", saying what goes and that git backups stay; and from
-  **core's account-deleted notice** (§25.2), answered `200` only once rows and files are gone. This device's store is erased; other devices learn at
+- **Standalone**, reached from **Settings > Account**, after the password and typing "delete", saying what goes and that git backups stay. **In suite
+  mode deleting the account is core's** (§25.1): Settings > Account links to core's delete page, `/api/account/delete` says where core is and refuses a
+  deletion, and nothing here stands in for a password (a session made a moment ago once did, and proved only that core's session was alive). It is reached
+  from **core's account-deleted notice** (§25.2), answered `200` only once rows and files are gone. This device's store is erased; other devices learn at
   their next sync and erase theirs.
 - A test seeds one row of every table and a file for the person and a second person, and finds nothing of the first after, the second intact. A new
   table that holds something of a person fails it until it is handled.

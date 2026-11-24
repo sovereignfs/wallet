@@ -13,7 +13,6 @@ const BY_CODE: Record<string, string> = {
     'There is already an account with that email address. Try signing in instead.',
   SIGNUP_CLOSED: 'Sign-up is closed on this instance.',
   UNAUTHORIZED: 'You need to sign in first.',
-  SESSION_NOT_FRESH: 'For your security, sign out, sign in again, and then try this once more.',
   FAILED_TO_UNLINK_LAST_ACCOUNT:
     'Sovereign is the only way you can sign in here, so it cannot be unlinked.',
   LINKING_DIFFERENT_EMAILS_NOT_ALLOWED:

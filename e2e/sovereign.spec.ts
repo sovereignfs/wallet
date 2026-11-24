@@ -1,4 +1,5 @@
 import { type Page, expect, test } from '@playwright/test';
+import { goTo, setUp } from './helpers';
 import { PORTS } from './ports';
 
 /**
@@ -77,6 +78,49 @@ test('sign-up is core’s, and the rest of local sign-in is not here on an insta
     expect([400, 404], path).toContain(reply.status());
     expect(reply.headers()['set-cookie'] ?? '', path).not.toContain('session_token');
   }
+});
+
+test('deleting the account is core’s: Wallet says where it is, and does not do it', async ({
+  page,
+}) => {
+  await page.request.post(`${control}/sign-in-as`, {
+    data: {
+      sub: person('core-del'),
+      email: `${person('del')}@example.com`,
+      name: 'Dee Core',
+      emailVerified: true,
+    },
+  });
+  await throughSovereign(page);
+  // No password to ask for, and core's address to go to.
+  const preview = await page.request.get('/api/account/delete');
+  expect(await preview.json()).toEqual({
+    password: false,
+    core: `http://localhost:${PORTS.coreAuth}`,
+  });
+  // A session, even one made a moment ago, deletes nothing from here: that is core's.
+  const attempt = await page.request.post('/api/account/delete', {
+    headers: { origin: `http://localhost:${PORTS.sovereign}` },
+    data: { password: '' },
+  });
+  expect(attempt.status()).toBe(404);
+  const session = await page.request.get('/api/auth/get-session');
+  expect(await session.json()).not.toBeNull();
+
+  // And Settings says the same: a way to core's pages, and no button that deletes.
+  await setUp(page);
+  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await goTo(page, 'Settings');
+  await page.getByRole('tab', { name: 'Account' }).click();
+  await expect(page.getByRole('link', { name: 'Delete it in Sovereign' })).toHaveAttribute(
+    'href',
+    `http://localhost:${PORTS.coreAuth}/delete-account`,
+  );
+  await expect(page.getByRole('link', { name: 'your security' })).toHaveAttribute(
+    'href',
+    `http://localhost:${PORTS.coreAuth}/security`,
+  );
+  await expect(page.getByRole('button', { name: 'Delete my account…' })).toHaveCount(0);
 });
 
 test('core’s notices end the session, and a deletion removes the account, before it answers', async ({

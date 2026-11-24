@@ -41,7 +41,8 @@ export const ROUTES: RouteRule[] = [
   { route: '/api/sync', methods: { POST: { kind: 'account' } } },
   // The vault header and its recipients (DESIGN.md §7.4, §8.1): read by the account's devices, made once. Only public keys and a sealed header; the account is the session's.
   { route: '/api/vault', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
-  // Deleting the account (DESIGN.md §28): what it would do, and doing it with the password; the account is the session's.
+  // Deleting the account (DESIGN.md §28): standalone, what it would do and doing it with the password; in suite mode it is core's, so the preview says where
+  // core is and a POST is not there. The account is the session's.
   {
     route: '/api/account/delete',
     methods: { GET: { kind: 'account' }, POST: { kind: 'account' } },
