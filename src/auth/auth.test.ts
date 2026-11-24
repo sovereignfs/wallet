@@ -111,6 +111,19 @@ describe(`local sign-in, first account only (${leg})`, () => {
     expect(await userCount(t)).toBe(1);
   });
 
+  it('gives an address that has an account the same refusal as one that has none, in words, status and code', async () => {
+    const known = await signUp(visitor(t), await firstEmail(t));
+    const unknown = await signUp(visitor(t));
+    // Not "User already exists": that would tell anyone which addresses have an account.
+    expect(known.reply.status).toBe(unknown.reply.status);
+    expect(known.reply.body).toEqual(unknown.reply.body);
+    expect(known.reply.body).toMatchObject({
+      code: 'SIGNUP_CLOSED',
+      message: 'Sign-up is closed.',
+    });
+    expect(await userCount(t)).toBe(1);
+  });
+
   describe('signing in', () => {
     it('works with the right password, and the session is the person’s', async () => {
       const client = visitor(t);
@@ -238,20 +251,6 @@ describe(`local sign-in, first account only (${leg})`, () => {
       expect((await client.get('/api/auth/get-session')).body.user).toBeTruthy();
     });
   });
-
-  // The length is the page's to check (`signUpProblem`, src/auth/screens/SignUpForm.tsx): the server only ever sees the sign-in value. What
-  // it refuses is anything that is not one, a password sent as itself above all (auth.md §4, rule 1).
-  it('takes only the sign-in value the page derives, never a password as itself', async () => {
-    const before = await userCount(t);
-    const reply = await visitor(t).postRaw('/api/auth/sign-up/email', {
-      name: 'Ada',
-      email: newEmail(),
-      password: 'a password sent as itself',
-    });
-    expect(reply.status).toBe(400);
-    expect(reply.body?.code).toBe('PASSWORD_NOT_DERIVED');
-    expect(await userCount(t)).toBe(before);
-  });
 });
 
 describe(`local sign-in, open to anyone (${leg})`, () => {
@@ -277,5 +276,19 @@ describe(`local sign-in, open to anyone (${leg})`, () => {
     const taken = await signUp(visitor(t), a.email);
     expect(taken.reply.status).toBe(422);
     expect(await userCount(t)).toBe(2);
+  });
+
+  // On an instance that takes sign-ups, since a closed one refuses before it looks at the password. The length is the page's to check (`signUpProblem`, src/auth/screens/SignUpForm.tsx): the server only ever sees the sign-in value. What
+  // it refuses is anything that is not one, a password sent as itself above all (auth.md §4, rule 1).
+  it('takes only the sign-in value the page derives, never a password as itself', async () => {
+    const before = await userCount(t);
+    const reply = await visitor(t).postRaw('/api/auth/sign-up/email', {
+      name: 'Ada',
+      email: newEmail(),
+      password: 'a password sent as itself',
+    });
+    expect(reply.status).toBe(400);
+    expect(reply.body?.code).toBe('PASSWORD_NOT_DERIVED');
+    expect(await userCount(t)).toBe(before);
   });
 });

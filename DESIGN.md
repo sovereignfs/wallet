@@ -220,7 +220,8 @@ send mail. **It is the only personal data the server can read,** and Settings sa
 
 ### 6.2 Who may sign up
 
-**Standalone, `closed` (the first account only) unless `WALLET_AUTH_SIGNUP` says `open`.** In suite mode (§25.1) it has nothing to decide: who may sign up is
+**Standalone, `closed` (the first account only) unless `WALLET_AUTH_SIGNUP` says `open`.** A closed sign-up answers every address alike, and says
+nothing of whether one has an account; an open one with no mail cannot, since it signs the person in at once, and says an address is taken. In suite mode (§25.1) it has nothing to decide: who may sign up is
 core's, and signing in through core always gets an account (`app-manifest.md` §4). Wallet has no invitations until phase 4 (§31.1).
 
 ### 6.3 Devices

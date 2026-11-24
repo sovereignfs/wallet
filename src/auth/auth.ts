@@ -12,7 +12,8 @@ import {
 } from '@sovereignfs/auth/server';
 import type { Mailer } from '../mail/mailer';
 import { resetMessage, verificationMessage } from '../mail/templates';
-import type { AuthSettings } from './config';
+import { type AuthSettings, SIGNUP_CLOSED } from './config';
+import { countUsers } from './users';
 
 /**
  * Sign-in (DESIGN.md §6) on `@sovereignfs/auth`: better-auth on the package's preset, in the auth store, with Wallet's settings and mail. The
@@ -111,6 +112,19 @@ export function createAuth({
       ...(background ? { background } : {}),
       hooks: {
         beforeRequest: async (ctx) => {
+          // A closed sign-up is refused here, before better-auth looks for the address: its own answer for an address that has an account ("User already
+          // exists") would otherwise tell anyone which addresses do, where the package's policy, which runs after that look, says only that sign-up is closed.
+          // The same answer, the same status and the same work for every address, and the package's policy still runs as well.
+          if (
+            settings.local &&
+            settings.signUp === 'closed' &&
+            ctx.path === '/sign-up/email' &&
+            (await countUsers(database)) > 0
+          )
+            throw new APIError('UNPROCESSABLE_ENTITY', {
+              message: 'Sign-up is closed.',
+              code: SIGNUP_CLOSED,
+            });
           if (!FOR_PASSWORD_ACCOUNTS.has(ctx.path)) return;
           const session = await getSessionFromCtx(ctx);
           if (!session) return; // the route says so itself

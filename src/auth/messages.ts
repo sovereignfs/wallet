@@ -1,7 +1,9 @@
 /**
  * What to tell a person when sign-in goes wrong. better-auth answers with a code and an English message meant for developers; these say what the
  * person can do. A code that is not here falls back to better-auth's own message if it is short, and failing that to a plain sentence. **No message
- * says whether an email address has an account** (DESIGN.md §6).
+ * says whether an email address has an account** (DESIGN.md §6), with the one exception that cannot be helped: an instance that is open to
+ * anyone and sends no mail must say that an address is taken, to sign a person in at once (`USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` below). A closed one, the
+ * default, answers every address alike (`src/auth/auth.ts`).
  */
 const BY_CODE: Record<string, string> = {
   INVALID_EMAIL_OR_PASSWORD:
