@@ -6,7 +6,7 @@
 
 ## Overview
 
-People sign in locally, through a Sovereign core, or both, exactly as in Tusk; core's notices are honoured; Wallet keeps its own profile; one routine
+People sign in with Wallet's own accounts when it runs alone, or through a Sovereign core when it is hosted, one way per instance (2.8); core's notices are honoured; Wallet keeps its own profile; one routine
 deletes everything of a person; and every browser is a device the person can see and remove. Signing in never opens the wallet: that is epic 3.
 
 ## Related
@@ -37,7 +37,7 @@ only; core's sign-in always gets an account.
 
 **Accepts when:** sign-in against the fake Sovereign makes an account; an email match never links an account; both ways on at once work.
 
-**Done as:** Tusk's `genericOAuth` provider and fake Sovereign, with `WALLET_CORE_*` and the scopes `openid profile email`. `e2e/sovereign.spec.ts` signs a person in through the fake core on an instance that takes only Sovereign; **signing in never opens a wallet**, and the next screen is setup.
+**Done as:** Tusk's `genericOAuth` provider and fake Sovereign, with `WALLET_CORE_*` and the scopes `openid profile email`. `e2e/sovereign.spec.ts` signs a person in through the fake core on an instance that takes only Sovereign; **signing in never opens a wallet**, and the next screen is setup. (Both ways on at once, in "Accepts when", is superseded by 2.8: an instance signs people in one way.)
 
 #### ✅ 2.3 — Core's notices
 
@@ -94,3 +94,24 @@ third-party content.
 **Accepts when:** the page renders at both widths in both themes, with no request to another origin.
 
 **Done as:** `src/landing/`: plain sentences, no script, no third-party content, and a test that it promises nothing that is not built and uses none of the words DESIGN.md §4 forbids.
+
+#### ✅ 2.8 — One way in per instance
+
+**Goal:** an instance signs people in one way: through its Sovereign core when it is hosted (suite mode), with Wallet's own accounts when it runs alone
+(standalone mode), never both. **Design:** §25.1, §28. **Depends on:** 2.1, 2.2, 2.5.
+
+**Technical:** `WALLET_CORE_*` set is suite mode, and `WALLET_AUTH_LOCAL` is then ignored, with one start-up warning that names what to remove; in suite mode the
+proxy sends `/sign-in` and `/sign-up` (asking for `prompt=create`) to core, a page shows a failure at core or an unreachable core with _Try again_, and the
+local routes answer 404; the standalone sign-in form has no Sovereign button; deleting the account is core's in suite mode (the route says where core is and
+refuses a deletion) and needs the password alone; Settings > Account links to core's pages. `@sovereignfs/auth` 0.7.0 and `@sovereignfs/sdk` 2.12.0.
+
+**Accepts when:** an instance set up both ways starts in suite mode and says so once; in suite mode a visitor to `/sign-in` or `/sign-up` is redirected to
+core at once, `/forgot-password` and the password routes are 404, and the account cannot be deleted from Wallet; alone, nothing changes but the missing button.
+
+**Done as:** taken from Shopper (its 0.4.0: the "one way in" and "Create an account opens core's sign-up" commits, its DESIGN §15.1 and §19), without its
+invitations, and keeping Wallet's `closed` sign-up default: `src/auth/suite.ts` and `suite-page.tsx`, `localIgnored` in `src/auth/config.ts` and
+`src/config/edge.ts`, the redirect in `proxy.ts`, an unreachable core in `app/api/auth/[...all]/route.ts`, `src/auth/core-links.ts`. **Different from
+Shopper:** the delete route itself refuses in suite mode (Shopper's still accepts a session made in the last ten minutes, which proves nothing), and the
+test for it is new. Left out: `coreSignedInAt` (nothing in Wallet asks for a recent sign-in now), core's picture of the person, and an end-to-end instance set
+up both ways (the config, proxy and route tests cover it, and the built server was started both ways by hand). `scripts/deploy-check.sh sovereign` was
+changed and not run. It also closes the gap `src/auth/sovereign.test.ts` kept as an expected failure: the SDK did not check the signature of core's ID token before 2.11.1.

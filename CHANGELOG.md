@@ -6,6 +6,37 @@ All notable changes to Wallet are recorded here. The format follows [Keep a Chan
 Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
 titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
+## [0.5.0] - 2026-11-24
+
+**Before upgrading:** an instance now signs people in one way. If yours is set up both ways (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=1`), it now signs
+people in through Sovereign only, and says once at start-up which settings to remove (`WALLET_AUTH_LOCAL`, `WALLET_AUTH_SIGNUP` and
+`WALLET_AUTH_PASSWORD_MIN_LENGTH`, whichever you set). **Accounts that only have a password can no longer sign in there**, and a person whose address is the
+same as one of them is told to ask whoever runs the instance: their wallets are still on the server, and sign-in comes back if you take `WALLET_CORE_*` out
+again. To make the people of such an instance sign in through Sovereign, they need accounts there. The new Create an account link (`/sign-up`) asks
+Sovereign for its sign-up page, which needs **Sovereign 0.140.0 or later**; on an older one it shows Sovereign's sign-in page, which has no way to make an
+account. The manifest still asks only for Sovereign 0.126.0.
+
+### Changed
+
+- **An instance signs people in one way, never both**: through its Sovereign instance when it is hosted, and with Wallet's own accounts (a password,
+  passkeys, an authenticator app) when it runs alone. Hosted, `/sign-in` and `/sign-up` send the browser to Sovereign at once, there is no password, sign-up,
+  reset, passkey or authenticator app to find, and the front page says "Sign in with Sovereign". If Sovereign cannot be reached, the sign-in page says so and
+  offers to try again; any other failure there is shown once, with the same offer, and never sends the person round again. Alone, nothing changes except
+  that the sign-in form no longer has a Sovereign button.
+- **Hosted, deleting the account is Sovereign's.** Settings > Account links to Sovereign's page for it, and Wallet deletes everything of the person when
+  Sovereign tells it the account is gone, as before. Wallet no longer deletes an account on the strength of a Sovereign session made in the last ten
+  minutes, and its address for deleting refuses it. Deleting only a hosted person's Wallet data, and keeping their Sovereign account, is not offered. Alone,
+  the password is still asked for.
+- Settings > Account links to Sovereign's profile and security pages for a person who signs in there.
+- `@sovereignfs/auth` 0.7.0 and `@sovereignfs/sdk` 2.12.0.
+
+### Fixed
+
+- **Signing in through Sovereign checks the signature of the ID token** that Sovereign's token endpoint returns, which the SDK did not do before 2.11.1:
+  someone able to answer for that endpoint could sign a person in as anyone.
+- **A Sovereign session made a moment ago no longer stands in for a password** when deleting an account (above). It proved only that Sovereign's own session was
+  alive, and opening a new one there is silent while it is.
+
 ## [0.4.0] - 2026-11-23
 
 **Before upgrading:** take a backup. Every session open at the upgrade ends, and each person signs in once more. The move of the sign-in's tables
