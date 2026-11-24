@@ -6,6 +6,7 @@ export const landing = {
   heading: 'Only you can read your wallet',
   lead: 'The cards in your pocket, in one place, locked with a key only you hold. Not us, not the server, not whoever runs it.',
   signIn: 'Sign in',
+  signInSuite: 'Sign in with Sovereign',
   signUp: 'Create an account',
   noSignIn: 'Signing in is not set up on this server.',
   features: [

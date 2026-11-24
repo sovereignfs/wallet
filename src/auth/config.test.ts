@@ -88,7 +88,8 @@ describe('sign-in settings', () => {
     expect(authOf(loadConfig({ ...coreOnly, WALLET_AUTH_SIGNUP: 'closed' }))?.signUp).toBe(
       'closed',
     );
-    expect(authOf(loadConfig({ ...coreOnly, WALLET_AUTH_LOCAL: '1' }))?.signUp).toBe('closed');
+    // Set both ways, it runs in suite mode, where who may sign up is the core's: open, not Wallet's own `closed`.
+    expect(authOf(loadConfig({ ...coreOnly, WALLET_AUTH_LOCAL: '1' }))?.signUp).toBe('open');
     expect(authOf(loadConfig(ON))?.signUp).toBe('closed');
   });
 
@@ -112,17 +113,33 @@ describe('sign-in settings', () => {
         clientSecret: 'wallet-client-secret',
       },
     });
-    expect(authOf(loadConfig({ ...only, WALLET_AUTH_LOCAL: '1' }))).toMatchObject({
-      local: true,
-      sovereign: { clientId: 'wallet-client' },
-    });
     expect(authOf(loadConfig(ON))).toMatchObject({ local: true, sovereign: undefined });
+    expect(authOf(loadConfig(ON))?.localIgnored).toBeUndefined();
     expect(problems(loadConfig({ ...CORE, WALLET_AUTH_SECRET: SECRET })).join(' ')).toContain(
       'Sovereign sign-in is set, so WALLET_URL',
     );
     expect(problems(loadConfig({ ...CORE, WALLET_URL: ON.WALLET_URL })).join(' ')).toContain(
       'WALLET_AUTH_SECRET',
     );
+  });
+
+  it('start in suite mode when both ways in are set: local sign-in off, and the settings to remove named', () => {
+    const both = {
+      ...ON,
+      WALLET_AUTH_SIGNUP: 'closed',
+      WALLET_AUTH_PASSWORD_MIN_LENGTH: '12',
+      ...CORE,
+    };
+    expect(authOf(loadConfig(both))).toMatchObject({
+      local: false,
+      localIgnored: ['WALLET_AUTH_LOCAL', 'WALLET_AUTH_SIGNUP', 'WALLET_AUTH_PASSWORD_MIN_LENGTH'],
+      sovereign: { issuer: 'https://sovereign.example.com' },
+    });
+    // Only what was given is named, and a core alone, or local alone, has nothing to say.
+    expect(authOf(loadConfig({ ...ON, ...CORE }))?.localIgnored).toEqual(['WALLET_AUTH_LOCAL']);
+    const { WALLET_AUTH_LOCAL: _local, ...coreOnly } = { ...ON, ...CORE };
+    expect(authOf(loadConfig(coreOnly))?.localIgnored).toBeUndefined();
+    expect(authOf(loadConfig(ON))?.localIgnored).toBeUndefined();
   });
 
   it('read the client secret from a file, and keep it out of what they report', () => {

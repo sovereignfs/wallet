@@ -17,8 +17,8 @@ passes, NFC tags and one-off share links. **Everything is end to end encrypted**
 ciphertext and never holds a key that opens an entry. **Offline first**, with each entry living on this device only, synced, or online only, and a
 fully offline mode. A Sovereign instance can host it, and **it runs fully on its own, with every feature, needing no instance**. It replaces the
 legacy plugin `sovereignfs/sovereign-plugin-wallet`, none of whose code, data or interface is carried over (its finance track is Ledger's). It is a
-full PWA on Next.js, with its own database (sqld, a SQLite file or PostgreSQL) and files under `/data`, signing people in locally, through a Sovereign
-core, or both, from one image. Four phases: cards and documents (the MVP), health, out into the world, sharing and native.
+full PWA on Next.js, with its own database (sqld, a SQLite file or PostgreSQL) and files under `/data`, signing people in with its own accounts when it runs
+alone and through a Sovereign core when it is hosted (one way per instance, never both), from one image. Four phases: cards and documents (the MVP), health, out into the world, sharing and native.
 
 **0.1.0 is built** as a cut of phase 1 (`ROADMAP.md`, "The 0.1.0 cut"): the foundation, sign-in locally and through Sovereign, the whole encryption design (the
 vault, keys, unlocking, the `synced` tier's sync) and QR cards. `DESIGN.md` is the design of the whole, `ROADMAP.md` the order, and what is not built yet is
@@ -122,7 +122,8 @@ Directories are created when they are needed. Research (`docs/research/`), RFCs 
 
 Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DESIGN.md` designs it.
 
-- **Every feature works with no Sovereign instance.** Core adds a way in, a bell, email and activity; a feature that only works with core is not done.
+- **Every feature works with no Sovereign instance.** In a suite, core is the way in (never beside Wallet's own accounts, `DESIGN.md` §25.1) and adds a bell,
+  email and activity; a feature that only works with core is not done.
   A call to core that fails, is refused or is not supported changes nothing but that call (`DESIGN.md` §25.4). **Files and backups are always Wallet's
   own.**
 - **The server never reads an entry.** Every entry's shape, body and files are sealed in the browser through `src/core/vault/` (`DESIGN.md` §8) before

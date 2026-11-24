@@ -112,8 +112,8 @@ export function createAuth({
       // One policy for every way an account can come to be (DESIGN.md §6); a sign-in through core always gets an account.
       registration: signUpPolicy(database, settings.signUp),
       localAccounts: settings.local,
-      // Linking to core is the package's route, after the password (auth.md §8.2); better-auth's own link and unlink, which asked for
-      // neither, are off. Wallet has no page to unlink from.
+      // An instance signs people in one way, so there is nothing to link a Sovereign account to and nothing to unlink it from (DESIGN.md §25.1):
+      // better-auth's own link and unlink are off.
       disabledPaths: ['/link-social', '/unlink-account'],
       ...(background ? { background } : {}),
       hooks: {

@@ -220,8 +220,8 @@ send mail. **It is the only personal data the server can read,** and Settings sa
 
 ### 6.2 Who may sign up
 
-As Tusk's: **`open` when core is the only way in, `closed` (the first account only) when local accounts are on**, set by `WALLET_AUTH_SIGNUP` (`open`,
-`closed`). Wallet has no invitations until phase 4 (§31.1). Signing in through core always gets an account (`app-manifest.md` §4).
+**Standalone, `closed` (the first account only) unless `WALLET_AUTH_SIGNUP` says `open`.** In suite mode (§25.1) it has nothing to decide: who may sign up is
+core's, and signing in through core always gets an account (`app-manifest.md` §4). Wallet has no invitations until phase 4 (§31.1).
 
 ### 6.3 Devices
 
@@ -1065,15 +1065,28 @@ Few, and about the account, since the server cannot read entries:
 ### 25.1 Sign-in
 
 **The suite's `@sovereignfs/auth`** (since 0.4.0; `sovereign`'s auth.md), with `WALLET_` settings: better-auth on the package's preset, in a
-store of its own (`wallet_auth`, opened again in the package's shape, `src/auth/store.ts`); local accounts (password, passkey, authenticator app
-with backup codes) when `WALLET_AUTH_LOCAL=1`; a Sovereign core through the package's `./core` on the SDK's steps when `WALLET_CORE_*` are set,
-`WALLET_CORE_URL` being the instance's own address; either or both, from one image. **The server never receives a password:** the page derives
-a sign-in value from it, the address and the instance's vault id (`/api/sign-in-salt`), and checks the length itself. A password stored before
-0.4.0 moves at its next sign-in, for 90 days (`movePasswords`). Email is verified and passwords reset only with mail set up. A person is their
-better-auth user id; a `sub` is identity; an email is never matched to an account at sign-in, and linking a Sovereign account to a local one asks
-for the password (`/api/auth/sv/link-sovereign`); there is no unlinking. A session through core is checked against core every hour, and signing
-out of one goes through core. Wallet keeps none of core's tokens (`src/auth/sdk-stores.ts`). **Signing in never opens the wallet: unlocking
-does** (§9.4).
+store of its own (`wallet_auth`, opened again in the package's shape, `src/auth/store.ts`). **An instance signs people in one way, never both**, as
+Shopper's (its §15.1), from one image:
+
+| Mode                                     | Who signs in, and how                                                                                                                                                 |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Suite mode** (`WALLET_CORE_*` are set) | Everyone, through core: the package's `./core` on the SDK's steps (PKCE, matched by `sub`), `WALLET_CORE_URL` being the instance's own address                        |
+| **Standalone mode** (no core)            | Everyone, with Wallet's own accounts (`WALLET_AUTH_LOCAL=1`): a password, passkeys and an authenticator app with backup codes; verified and reset by mail when set up |
+
+- **In suite mode `/sign-in` and `/sign-up` show nothing:** someone with a session goes to the front address, anyone else straight to
+  `/api/auth/sign-in/sovereign`, and `/sign-up` asks core to open its sign-up page (`prompt=create`: Sovereign 0.140.0 or later; before it, core shows
+  its sign-in, which has no way to make an account). Coming back from core with `?error=` shows a small page with the reason and _Try again_ and does not
+  redirect, so that a failure at core cannot loop; a core that cannot be reached is said so. The landing page's button says _Sign in with Sovereign_. There
+  is no password, sign-up, reset, passkey or second step here: they are core's, and their routes answer 404.
+- **Standalone, the forms are the design system's** (`SignInForm`, `SignUpForm` and the reset pair of `@sovereignfs/ui`, as core renders them). **The
+  server never receives a password:** the page derives a sign-in value from it, the address and the instance's vault id (`/api/sign-in-salt`), and checks
+  the length itself. A password stored before 0.4.0 moves at its next sign-in, for 90 days (`movePasswords`). Email is verified and passwords reset only
+  with mail set up.
+- **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=1`) **starts in suite mode** and says once at start-up that its local
+  sign-in is off and which settings to remove; nothing else changes. Its password accounts cannot sign in while it is in suite mode.
+- **There is no linking** of a core account and a local one: an instance has one kind. A person is their better-auth user id; a `sub` is identity; an
+  email is never matched to an account at sign-in. A session through core is checked against core every hour, and signing out of one goes through core.
+  Wallet keeps none of core's tokens (`src/auth/sdk-stores.ts`). **Signing in never opens the wallet: unlocking does** (§9.4).
 
 ### 25.2 Core's notices
 
@@ -1114,13 +1127,13 @@ core session ends only the sessions that came from it.
 
 ### 25.4 Core's services
 
-| What                  | Hosted                                                             | Alone                      |
-| --------------------- | ------------------------------------------------------------------ | -------------------------- |
-| Sign-in               | Core, and local accounts if `WALLET_AUTH_LOCAL=1`                  | Local accounts             |
-| Notices               | Wallet's bell, and core's bell (`notifications:send`)              | Wallet's bell              |
-| Email                 | Core's (`email:send`) for linked accounts; Wallet's SMTP otherwise | Wallet's (`WALLET_SMTP_*`) |
-| Backup, export, keys  | A line on the person's activity page (`activity:write`)            | Nothing                    |
-| Files, backup, passes | **Wallet's own, always**                                           | Wallet's own               |
+| What                  | Hosted                                                          | Alone                      |
+| --------------------- | --------------------------------------------------------------- | -------------------------- |
+| Sign-in               | Core only (suite mode, §25.1)                                   | Local accounts             |
+| Notices               | Wallet's bell, and core's bell (`notifications:send`)           | Wallet's bell              |
+| Email                 | Core's (`email:send`) for accounts; Wallet's SMTP for addresses | Wallet's (`WALLET_SMTP_*`) |
+| Backup, export, keys  | A line on the person's activity page (`activity:write`)         | Nothing                    |
+| Files, backup, passes | **Wallet's own, always**                                        | Wallet's own               |
 
 A call to core that fails, is refused or is not supported changes nothing but that call.
 

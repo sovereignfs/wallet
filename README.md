@@ -5,7 +5,7 @@ locked in your browser with a key only you hold. The server stores scrambled byt
 basement, on a plane. It runs on its own, or on a [Sovereign](https://github.com/sovereignfs/sovereign) instance you already use, signing in the same way as
 your other apps.
 
-> **Version 0.1.0** is the foundation: sign-in (locally and through Sovereign), the whole of the encryption design, offline sync, and QR cards. Documents,
+> **Version 0.1.0** is the foundation: sign-in (with Wallet's own accounts, or through Sovereign), the whole of the encryption design, offline sync, and QR cards. Documents,
 > family members, backups, health and more follow, in the order of [`ROADMAP.md`](ROADMAP.md). What 0.1.0 does not do is said at the end of this page.
 
 ## What it protects, and what it does not
@@ -45,8 +45,9 @@ updating, and what an operator can and cannot see.
 ### On a Sovereign instance
 
 `sv app add wallet --image ghcr.io/sovereignfs/wallet` hosts it from [`sovereign.manifest.json`](sovereign.manifest.json). The instance gives it a database
-and tells it where it is; people sign in through it, with no password to keep here. **Signing in through Sovereign never opens a wallet:** each person still
-makes a key of their own.
+and tells it where it is; **everyone signs in through the instance**, with no password to keep here, no sign-up page and no reset: Wallet's own accounts exist
+only when it runs on its own. An instance signs people in one way, never both. **Signing in through Sovereign never opens a wallet:** each person still makes
+a key of their own.
 
 ### Developing
 
@@ -67,23 +68,23 @@ A development wallet with a few cards and a key file for it: `pnpm seed` (never 
 Settings are environment variables with the prefix `WALLET_`. A secret may be given as `NAME_FILE=/path` instead of `NAME=value`. The server **checks them
 all at start-up and stops on a wrong one, naming it and never its value.** [`.env.example`](.env.example) has them with their defaults.
 
-| Setting                                                                                                | What it is                                                                                                                                                 |
-| ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WALLET_URL`                                                                                           | The address people use: https (http for localhost), no path. Links, cookies, passkeys and the sign-in redirect are made from it                            |
-| `WALLET_AUTH_LOCAL`                                                                                    | `1` for email and password, passkeys and an authenticator app. Off means off: the pages answer 404                                                         |
-| `WALLET_AUTH_SECRET`                                                                                   | 32 characters or more, to sign sessions (`openssl rand -base64 48`)                                                                                        |
-| `WALLET_AUTH_SIGNUP`                                                                                   | `closed` (the first account only, the default with local sign-in) or `open`                                                                                |
-| `WALLET_AUTH_PASSWORD_MIN_LENGTH`                                                                      | The shortest password, 8 to 128. Default 10                                                                                                                |
-| `WALLET_CORE_URL`, `WALLET_CORE_CLIENT_ID`, `WALLET_CORE_CLIENT_SECRET`                                | Sign-in through a Sovereign instance: all three, or none. The redirect address to register is `<WALLET_URL>/api/auth/callback/sovereign`                   |
-| `WALLET_ENCRYPTION_KEY`, `WALLET_ENCRYPTION_KEY_PREVIOUS`                                              | **The server's own key** (`openssl rand -base64 32`): it seals the server's own secrets and never what is in a wallet. The previous one is for changing it |
-| `WALLET_DB_DIALECT`                                                                                    | `sqld` (default), `sqlite` or `postgres`                                                                                                                   |
-| `WALLET_SQLD_URL`, `WALLET_SQLD_ADMIN_URL`                                                             | The sqld service and the address that makes its namespaces                                                                                                 |
-| `WALLET_SQLITE_URL`                                                                                    | A `file:` URL for one SQLite file (`file:/data/wallet.db`)                                                                                                 |
-| `WALLET_POSTGRES_URL`, `WALLET_POSTGRES_POOL_MAX`                                                      | The PostgreSQL address, and the most connections the app may hold                                                                                          |
-| `WALLET_DB_CONNECT_TIMEOUT_MS`, `WALLET_MIGRATIONS_DIR`                                                | How long to wait for a database that is starting (30000), and where the migrations are, if not beside the server                                           |
-| `WALLET_WORKER`                                                                                        | `on` (default) or `off`: whether this process runs background jobs. With several processes on one database, `off` on all but one                           |
-| `WALLET_SMTP_HOST`, `WALLET_SMTP_PORT`, `WALLET_SMTP_FROM`, `WALLET_SMTP_USER`, `WALLET_SMTP_PASSWORD` | Mail: with a host, an address is verified and a password reset by mail. Without one neither is offered                                                     |
-| `WALLET_STORAGE_MAX_ACCOUNT_MB`, `WALLET_ENTRY_MAX_KB`, `WALLET_LIMIT_ENTRIES`                         | What an account may hold: 500 MB, a body of 256 KB, 50,000 entries. Going over is refused with a sentence                                                  |
+| Setting                                                                                                | What it is                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WALLET_URL`                                                                                           | The address people use: https (http for localhost), no path. Links, cookies, passkeys and the sign-in redirect are made from it                                            |
+| `WALLET_AUTH_LOCAL`                                                                                    | `1` for email and password, passkeys and an authenticator app, when Wallet runs on its own. Off means off: the pages answer 404. Ignored with a core                       |
+| `WALLET_AUTH_SECRET`                                                                                   | 32 characters or more, to sign sessions (`openssl rand -base64 48`)                                                                                                        |
+| `WALLET_AUTH_SIGNUP`                                                                                   | `closed` (the first account only, the default with local sign-in) or `open`                                                                                                |
+| `WALLET_AUTH_PASSWORD_MIN_LENGTH`                                                                      | The shortest password, 8 to 128. Default 10                                                                                                                                |
+| `WALLET_CORE_URL`, `WALLET_CORE_CLIENT_ID`, `WALLET_CORE_CLIENT_SECRET`                                | Sign-in through a Sovereign instance, instead of Wallet's own accounts: all three, or none. The redirect address to register is `<WALLET_URL>/api/auth/callback/sovereign` |
+| `WALLET_ENCRYPTION_KEY`, `WALLET_ENCRYPTION_KEY_PREVIOUS`                                              | **The server's own key** (`openssl rand -base64 32`): it seals the server's own secrets and never what is in a wallet. The previous one is for changing it                 |
+| `WALLET_DB_DIALECT`                                                                                    | `sqld` (default), `sqlite` or `postgres`                                                                                                                                   |
+| `WALLET_SQLD_URL`, `WALLET_SQLD_ADMIN_URL`                                                             | The sqld service and the address that makes its namespaces                                                                                                                 |
+| `WALLET_SQLITE_URL`                                                                                    | A `file:` URL for one SQLite file (`file:/data/wallet.db`)                                                                                                                 |
+| `WALLET_POSTGRES_URL`, `WALLET_POSTGRES_POOL_MAX`                                                      | The PostgreSQL address, and the most connections the app may hold                                                                                                          |
+| `WALLET_DB_CONNECT_TIMEOUT_MS`, `WALLET_MIGRATIONS_DIR`                                                | How long to wait for a database that is starting (30000), and where the migrations are, if not beside the server                                                           |
+| `WALLET_WORKER`                                                                                        | `on` (default) or `off`: whether this process runs background jobs. With several processes on one database, `off` on all but one                                           |
+| `WALLET_SMTP_HOST`, `WALLET_SMTP_PORT`, `WALLET_SMTP_FROM`, `WALLET_SMTP_USER`, `WALLET_SMTP_PASSWORD` | Mail: with a host, an address is verified and a password reset by mail. Without one neither is offered                                                                     |
+| `WALLET_STORAGE_MAX_ACCOUNT_MB`, `WALLET_ENTRY_MAX_KB`, `WALLET_LIMIT_ENTRIES`                         | What an account may hold: 500 MB, a body of 256 KB, 50,000 entries. Going over is refused with a sentence                                                                  |
 
 ## Backups, and a lost key
 

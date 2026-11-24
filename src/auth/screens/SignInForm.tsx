@@ -18,21 +18,12 @@ import {
 import { authClient, deriveForSignIn, passwordMoves } from '../client';
 
 /**
- * Email and password (`local`), and/or Sovereign, which takes the person away to sign in there and back (DESIGN.md §6): the design system's
- * forms on `@sovereignfs/auth`'s flows (auth.md §7). The password never leaves the browser: what is sent is the sign-in value made from it,
- * except once to move a password Wallet stored before (`passwordMoves`). No message says whether an address has an account. `failure` is
- * what went wrong on the way back from Sovereign, if anything.
+ * Email and password, for a standalone instance (DESIGN.md §25.1): the design system's forms on `@sovereignfs/auth`'s flows (auth.md §7). In suite
+ * mode there is no form: `/sign-in` sends the browser to core (`src/auth/suite-page.tsx`). The password never leaves the browser: what is sent is the
+ * sign-in value made from it, except once to move a password Wallet stored before (`passwordMoves`). No message says whether an address has an account.
  */
-export function SignInForm({
-  local,
-  sovereign,
-  failure: returned,
-}: {
-  local: { canSignUp: boolean; canReset: boolean } | undefined;
-  sovereign: boolean;
-  failure?: string | null;
-}) {
-  const [error, setError] = useState<string | undefined>(returned ?? undefined);
+export function SignInForm({ canSignUp, canReset }: { canSignUp: boolean; canReset: boolean }) {
+  const [error, setError] = useState<string | undefined>();
   const [pending, setPending] = useState(false);
   const [unverified, setUnverified] = useState(false);
   const [secondStep, setSecondStep] = useState(false);
@@ -90,24 +81,6 @@ export function SignInForm({
     ? { pending: passkeyPending, onClick: () => void onPasskey() }
     : undefined;
 
-  // Signing in through core is a navigation: the browser goes to Sovereign and comes back, here with the reason when it did not work.
-  const throughCore = sovereign ? (
-    <AuthButton
-      variant={local ? 'secondary' : 'primary'}
-      onClick={() => window.location.assign('/api/auth/sign-in/sovereign?returnTo=%2F')}
-    >
-      Sign in with Sovereign
-    </AuthButton>
-  ) : null;
-
-  if (!local)
-    return (
-      <>
-        {error ? <AuthError>{error}</AuthError> : null}
-        {throughCore ?? <AuthNotice tone="warning">This app has no way to sign in.</AuthNotice>}
-      </>
-    );
-
   if (secondStep)
     return (
       <TwoFactorForm
@@ -130,9 +103,8 @@ export function SignInForm({
       renderUnverified={(email) => <SendAgain email={email} />}
       passkey={passkey}
       onSubmit={(values) => void onPassword(values)}
-      forgotPasswordHref={local.canReset ? '/forgot-password' : undefined}
-      otherWays={throughCore}
-      signUpHref={local.canSignUp ? '/sign-up' : undefined}
+      forgotPasswordHref={canReset ? '/forgot-password' : undefined}
+      signUpHref={canSignUp ? '/sign-up' : undefined}
     />
   );
 }

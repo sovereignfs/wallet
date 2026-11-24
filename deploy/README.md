@@ -59,10 +59,12 @@ WALLET_POSTGRES_URL=postgres://user:password@host:5432/wallet
 `sv app add` hosts Wallet from `sovereign.manifest.json`, which is also the image's label: the instance builds nothing of its own, gives the app a database, and
 tells it where it is. What it sets is the settings above under Wallet's own names: `WALLET_URL`, `WALLET_CORE_URL`, `WALLET_CORE_CLIENT_ID` and
 `WALLET_CORE_CLIENT_SECRET` (or `_FILE`), the database (`WALLET_DB_DIALECT` and its address) and `PORT`, and it makes `WALLET_AUTH_SECRET` and `WALLET_ENCRYPTION_KEY`
-once and keeps them. With `WALLET_AUTH_LOCAL` unset, people sign in through the instance only: there is no password, sign-up or reset to find.
+once and keeps them. An instance signs people in one way: with the instance's `WALLET_CORE_*` set, people sign in through it only, whatever `WALLET_AUTH_LOCAL` says,
+and there is no password, sign-up or reset to find; `/sign-in` and `/sign-up` send the browser to the instance (`/sign-up` asking for its sign-up page, which needs
+Sovereign 0.140.0 or later; before it, the instance shows its sign-in). Set both, and Wallet starts that way and says once which settings to remove.
 
 Sign-up is open there without being set: with the instance as the only way in, it already decides who may sign in, so Wallet gives an account to
-anyone it signs in (`WALLET_AUTH_SIGNUP=closed` turns that off). Mail (`WALLET_SMTP_*`) is not used when there is no password. The instance can end a person's sessions here, and delete their account, by
+anyone it signs in (`WALLET_AUTH_SIGNUP` has nothing to decide there). Mail (`WALLET_SMTP_*`) is not used when there is no password. The instance can end a person's sessions here, and delete their account, by
 signed notices to `/api/sovereign/backchannel-logout` and `/api/sovereign/account-deleted`; both are answered only when they carry a token the instance
 signed.
 
