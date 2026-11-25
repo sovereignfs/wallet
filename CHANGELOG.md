@@ -6,6 +6,24 @@ All notable changes to Wallet are recorded here. The format follows [Keep a Chan
 Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
 titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
+## [0.5.2] - 2026-11-25
+
+**Before upgrading:** nothing to do. One thing to know, which the 0.4.0 notes below now say too: **a password stored before 0.4.0 that has not moved within 90 days of
+the upgrade can be given back only by mail**, so an instance with no mail should have everyone sign in by then. Wallet has no command yet for an operator to
+make that link.
+
+### Fixed
+
+- **The sign-in's salt is read from the database once, not twice for every request.** It is the document every sign-in and sign-up page reads first, and anyone may
+  ask for it. The instance's vault id never changes and is kept; "no password can move" is believed for a minute; "a password can still move" is never kept, so a
+  page never sends a password it need not.
+
+### Changed
+
+- **The notes and the design say what the move of an old password does.** For 90 days after the upgrade to 0.4.0, a password an earlier Wallet stored is sent
+  itself, once, over https, to move it, when a sign-in with the value derived from it does not open the account and a password can still move. The 0.4.0 notes said
+  the password never reaches the server, and promised an operator a link to give a password back; they are corrected.
+
 ## [0.5.1] - 2026-11-25
 
 **Before upgrading:** nothing changes unless you set the new `WALLET_AUTH_TRUSTED_PROXIES`, which is optional and needs no change to the compose files or the
@@ -65,7 +83,9 @@ account. The manifest still asks only for Sovereign 0.126.0.
 
 ## [0.4.0] - 2026-11-23
 
-**Before upgrading:** take a backup. Every session open at the upgrade ends, and each person signs in once more. The move of the sign-in's tables
+**Before upgrading:** take a backup. Every session open at the upgrade ends, and each person signs in once more, and that sign-in moves their password across
+(see below); **one who does not sign in within 90 days can be given a new password only by mail**, so an instance with no mail should have everyone sign in by
+then. The move of the sign-in's tables
 happens by itself at the first start and cannot be undone: an older Wallet cannot read them after it. `WALLET_CORE_URL` is the instance's own address
 with no path (`https://sovereign.example.com`); one ending in `/api/auth` now stops Wallet at start, naming the variable. The core it is registered
 with must let it come back to `/sign-in` after signing out (the manifest's `postLogout`).
@@ -73,8 +93,9 @@ with must let it come back to `/sign-in` after signing out (the manifest's `post
 ### Changed
 
 - **Sign-in is the suite's `@sovereignfs/auth`**, not better-auth configured by hand: the same rules as Sovereign itself and every app, and its
-  tables. **The password never reaches the server any more**: the page sends a value it derives from it. A password stored by an earlier Wallet
-  moves across at its next sign-in, for 90 days after the upgrade; after that, it is reset by mail, or by a link the operator makes.
+  tables. **The password does not reach the server any more**: the page sends a value it derives from it. The one exception is a password stored by an
+  earlier Wallet, which moves across at its next sign-in, for 90 days after the upgrade: the page then sends it itself, once, over https, to move it. After
+  that, it is reset by mail. (Wallet has no command yet for an operator to make that link, which an instance with no mail would need.)
 - The sign-in, sign-up and new-password pages are the design system's forms. A password's length is checked on the page.
 - **Signing in through Sovereign** follows the person's Sovereign session: an hour after it was last checked, it is checked again on the next page,
   and ends if they have signed out there. Signing out of it goes through Sovereign, which decides whether it signs them out there too. A notice from

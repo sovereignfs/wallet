@@ -21,8 +21,8 @@ export const authClient = createAuthClient({
 const SALT_DOCUMENT = '/api/sign-in-salt';
 
 /**
- * The sign-in value, made in the page from the password, the address and the instance's vault id (auth.md §4, rule 1): the password never
- * leaves the browser. Wallet's keys do not come from the password (DESIGN.md §9), so nothing is opened with what else it makes.
+ * The sign-in value, made in the page from the password, the address and the instance's vault id (auth.md §4, rule 1): the password does not
+ * leave the browser, but once to move one stored before the package (`passwordMoves`, below). Wallet's keys do not come from the password (DESIGN.md §9), so nothing is opened with what else it makes.
  */
 export const { deriveForSignIn, signInValue } = signInDerivation(
   saltReader(SALT_DOCUMENT, 'vaultId'),

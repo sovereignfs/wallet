@@ -1081,9 +1081,13 @@ Shopper's (its §15.1), from one image:
   is no password, sign-up, reset, passkey or second step here: they are core's, and their routes answer 404. Settings > Account says who core says the
   person is and links to core's profile and security pages; **deleting the account is core's too** (§28).
 - **Standalone, the forms are the design system's** (`SignInForm`, `SignUpForm` and the reset pair of `@sovereignfs/ui`, as core renders them). **The
-  server never receives a password:** the page derives a sign-in value from it, the address and the instance's vault id (`/api/sign-in-salt`), and checks
-  the length itself. A password stored before 0.4.0 moves at its next sign-in, for 90 days (`movePasswords`). Email is verified and passwords reset only
-  with mail set up.
+  server never receives a password, with one exception that ends:** the page derives a sign-in value from it, the address and the instance's vault id
+  (`/api/sign-in-salt`), and checks the length itself. The exception is a password stored before 0.4.0, which moves at its next sign-in, for 90 days from the
+  first start after the upgrade (`movePasswords`, the package's protocol: auth.md §8.1). While one can still move, which the salt document says, a sign-in
+  that the derived value does not open sends the password itself, once, with the derived value, over https, to the package's route, limited to five tries an
+  hour for an email address and five a minute for a caller, which checks it against the old hash, puts a hash of the derived value in its place and signs nobody in. Wallet logs nothing of a
+  request's body. An instance made at 0.4.0 or later has no such window, and neither has one in suite mode. Email is verified and passwords reset only with
+  mail set up; **a password that did not move in time can be given back only by mail**, since Wallet has no command yet for an operator to make that link.
 - **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=1`) **starts in suite mode** and says once at start-up that its local
   sign-in is off and which settings to remove; nothing else changes. Its password accounts cannot sign in while it is in suite mode.
 - **There is no linking** of a core account and a local one: an instance has one kind. A person is their better-auth user id; a `sub` is identity; an
