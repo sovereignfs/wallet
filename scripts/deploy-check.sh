@@ -90,7 +90,7 @@ check_admin() {
   docker exec "$1" node tools/wallet-admin.mjs --help >/dev/null 2>&1 || fail "$2: tools/wallet-admin.mjs does not run"
   out="$(docker exec "$1" node tools/wallet-admin.mjs accounts reset-link nobody@example.invalid 2>&1)" || code=$?
   [ "$code" = 1 ] || fail "$2: wallet-admin for an address with no account exits $code, not 1 ($out)"
-  echo "$out" | grep -q 'no account with that address' || fail "$2: wallet-admin does not say there is no account ($out)"
+  grep -q 'no account with that address' <<<"$out" || fail "$2: wallet-admin does not say there is no account ($out)"
 }
 
 # With no mail, the page a reset link leads to is there (an operator makes the link), and asking for one by mail is not. $1 the setup's name.
@@ -101,6 +101,7 @@ check_reset_pages() {
 
 # $1 the setup's name, $2 the compose files, $3 the database it must be on.
 check_compose() {
+  local logs
   echo "== $1"
   project="wallet-check-$1"
   files="$2"
@@ -114,7 +115,10 @@ check_compose() {
   docker compose -p "$project" $files down >/dev/null 2>&1 || fail "$1: could not stop"
   up "$1 (again)"
   [ "$(database)" = "$3" ] || fail "$1: after a restart the database is '$(database)', not '$3'"
-  docker compose -p "$project" $files logs web 2>&1 | grep -q 'migrations applied' || fail "$1: the migrations were not reported as applied"
+  # Read first and matched after, with no pipe: `grep -q` stops at the first match, and a `logs` still writing the line after it is killed by SIGPIPE, which `pipefail` reports
+  # as the log not saying what it does say. (The same for every `grep -q` below that is given a page or a refusal.)
+  logs="$(docker compose -p "$project" $files logs web 2>&1)" || fail "$1: could not read the logs"
+  grep -q 'migrations applied' <<<"$logs" || fail "$1: the migrations were not reported as applied"
 
   stop_and_check "$(docker compose -p "$project" $files ps -q web)" "$1"
   docker compose -p "$project" $files down -v --remove-orphans >/dev/null 2>&1 || true
@@ -199,13 +203,13 @@ check_sovereign() {
     [ "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 10 "$base/$path")" = "307 $want" ] || fail "sovereign: /$path does not send the browser to core"
   done
   page="$(curl -sSL --max-time 20 "$base/sign-in")"
-  echo "$page" | grep -q 'could not be reached' || fail "sovereign: a core that cannot be reached is not said so on the sign-in page"
-  if echo "$page" | grep -qi 'type="password"'; then fail "sovereign: the sign-in page asks for a password"; fi
+  grep -q 'could not be reached' <<<"$page" || fail "sovereign: a core that cannot be reached is not said so on the sign-in page"
+  if grep -qi 'type="password"' <<<"$page"; then fail "sovereign: the sign-in page asks for a password"; fi
   [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/forgot-password")" = 404 ] || fail "sovereign: /forgot-password is not a 404"
   [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/reset-password?token=x")" = 404 ] || fail "sovereign: /reset-password is not a 404"
   # The operator tool has nothing to do here: the passwords are Sovereign's, and it says so and exits 1.
   out="$(docker exec wallet-check-sov node tools/wallet-admin.mjs accounts reset-link x@example.invalid 2>&1)" && code=0 || code=$?
-  { [ "$code" = 1 ] && echo "$out" | grep -q 'through Sovereign'; } || fail "sovereign: wallet-admin does not refuse, saying why ($out)"
+  { [ "$code" = 1 ] && grep -q 'through Sovereign' <<<"$out"; } || fail "sovereign: wallet-admin does not refuse, saying why ($out)"
 
   # Its icon, to a visitor with no session; and the addresses of its notices, which are there (a 400 for a request with no token, and not a 404).
   [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/icons/icon.svg")" = 200 ] || fail "sovereign: the icon is not served"
@@ -235,8 +239,8 @@ check_refusal() {
   status=$?
   set -e
   [ "$status" -ne 0 ] || fail "a plain-http WALLET_URL did not stop the image"
-  echo "$out" | grep -q 'WALLET_URL' || fail "the refusal does not name WALLET_URL: $out"
-  if echo "$out" | grep -q 'wallet.example.com'; then fail "the refusal repeats the value"; fi
+  grep -q 'WALLET_URL' <<<"$out" || fail "the refusal does not name WALLET_URL: $out"
+  if grep -q 'wallet.example.com' <<<"$out"; then fail "the refusal repeats the value"; fi
   echo "   ok"
 }
 

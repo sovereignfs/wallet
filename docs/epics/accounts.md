@@ -114,7 +114,7 @@ invitations, and keeping Wallet's `closed` sign-up default: `src/auth/suite.ts` 
 Shopper:** the delete route itself refuses in suite mode (Shopper's still accepts a session made in the last ten minutes, which proves nothing), and the
 test for it is new. Left out: `coreSignedInAt` (nothing in Wallet asks for a recent sign-in now), core's picture of the person, and an end-to-end instance set
 up both ways (the config, proxy and route tests cover it, and the built server was started both ways by hand). `scripts/deploy-check.sh sovereign` was
-changed and not run. It also closes the gap `src/auth/sovereign.test.ts` kept as an expected failure: the SDK did not check the signature of core's ID token before 2.11.1.
+changed, and run on the built image with the rest of the script (all five setups, 2026-11-25). It also closes the gap `src/auth/sovereign.test.ts` kept as an expected failure: the SDK did not check the signature of core's ID token before 2.11.1.
 
 #### ✅ 2.9 — An operator's reset link
 
@@ -133,5 +133,6 @@ Wallet's ignore files already reserved; esbuild was already a dev dependency. `s
 the bundle and runs it), the build stage and `COPY` of the Dockerfile, checks in `scripts/deploy-check.sh` for every setup, and the gate's change in `src/auth/mail-routes.ts`
 and `app/reset-password/page.tsx`. **Different from core's:** a smaller command (one subcommand), run with `node tools/wallet-admin.mjs` as Tusk's tool is and not by a wrapper in
 `PATH`, and it never says the address. Left out: an end-to-end test in the browser (the integration test uses the package's call, and the bundle was tried by hand on a built server);
-the Docker build and `scripts/deploy-check.sh` were changed and not run, since no base image is local. An upstream gap is recorded as finding 11 of
+the image was built and `scripts/deploy-check.sh` run on it in all five setups on 2026-11-25, which also found, and the same change removed, an intermittent failure in the script itself (a
+`grep -q` fed by a pipe under `pipefail`). An upstream gap is recorded as finding 11 of
 `docs/research/0003-security-review-0.5.0.md`: a reset does not clear the package's legacy-password mark.
