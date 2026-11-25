@@ -87,14 +87,14 @@ of the database and the browser's storage holds nothing readable.
 | 17  | [3.2](docs/epics/vault.md)     | File encryption                      | P0       | 3.1                | ➖     |
 | 18  | [3.4](docs/epics/vault.md)     | Creating or importing the wallet key | P0       | 3.1, 2.1           | ➖     |
 | 19  | [3.5](docs/epics/vault.md)     | The recovery key                     | P1       | 3.4                | ➖     |
-| 20  | [3.6](docs/epics/vault.md)     | The keyring and locking              | P0       | 3.4                | ➖     |
-| 21  | [3.7](docs/epics/vault.md)     | Unlocking with a passkey             | P1       | 3.6                | ➖     |
-| 22  | [3.8](docs/epics/vault.md)     | Unlocking with a device passcode     | P1       | 3.6                | ➖     |
+| 20  | [3.6](docs/epics/vault.md)     | The keyring and locking              | P0       | 3.14               | ✅     |
+| 21  | [3.7](docs/epics/vault.md)     | Unlocking with a passkey             | P1       | 3.6                | ✅     |
+| 22  | [3.8](docs/epics/vault.md)     | Unlocking with a device passcode     | P1       | 3.6                | ✅     |
 | 129 | [3.13](docs/epics/vault.md)    | The standalone vault and key return  | P0       | 2.8                | 📋     |
 | 130 | [3.14](docs/epics/vault.md)    | One interface over both modes        | P0       | 3.13               | 📋     |
-| 131 | [3.15](docs/epics/vault.md)    | Entries under the app key            | P0       | 3.14               | 📋     |
+| 131 | [3.15](docs/epics/vault.md)    | Entries under derived keys           | P0       | 3.14               | 📋     |
 | 132 | [3.16](docs/epics/vault.md)    | Retiring age                         | P0       | 3.15               | 📋     |
-| 133 | [3.17](docs/epics/vault.md)    | Quick unlock                         | P2       | 3.14               | 🚧     |
+| 133 | [3.17](docs/epics/vault.md)    | Quick unlock on real phones          | P2       | 3.14               | 🚧     |
 | 23  | [21.3](docs/epics/upstream.md) | A passcode input and a step flow     | P1       | —                  | ⏭      |
 | 24  | [9.2](docs/epics/screens.md)   | The lock screen                      | P0       | 3.6                | ✅     |
 | 25  | [9.1](docs/epics/screens.md)   | Setup                                | P0       | 3.4, 3.5, 3.7, 3.8 | ✅     |
@@ -104,19 +104,19 @@ of the database and the browser's storage holds nothing readable.
 Entries are written offline, sealed, synced, merged and moved between tiers. **Done when** an entry written offline on one browser appears on another,
 each tier behaves as `DESIGN.md` §10.2 says, and a wiped browser's entries show as lost.
 
-| #   | ID                            | Task                                 | Priority | Depends on    | Status |
-| --- | ----------------------------- | ------------------------------------ | -------- | ------------- | ------ |
-| 26  | [4.1](docs/epics/sync.md)     | Entries and files on the server      | P0       | 3.3, 1.5      | ✅     |
-| 27  | [4.2](docs/epics/sync.md)     | The sync endpoint                    | P0       | 4.1           | ✅     |
-| 28  | [4.3](docs/epics/sync.md)     | The device store and in-memory index | P0       | 3.6           | ✅     |
-| 29  | [4.4](docs/epics/sync.md)     | The outbox and the sync loop         | P0       | 4.2, 4.3      | ✅     |
-| 30  | [4.5](docs/epics/sync.md)     | Merging a stale edit                 | P1       | 4.4           | ✅     |
-| 31  | [4.6](docs/epics/sync.md)     | Files                                | P0       | 3.2, 4.4, 1.6 | ⏭      |
-| 32  | [4.7](docs/epics/sync.md)     | Tiers and moving between them        | P0       | 4.6           | ⏭      |
-| 33  | [2.6](docs/epics/accounts.md) | Devices                              | P1       | 4.2, 3.6      | ⏭      |
-| 34  | [4.8](docs/epics/sync.md)     | Holders and lost entries             | P1       | 4.7, 2.6      | ⏭      |
-| 35  | [4.10](docs/epics/sync.md)    | The browser's storage                | P1       | 4.3           | ✅     |
-| 36  | [4.11](docs/epics/sync.md)    | Pruning                              | P2       | 4.2, 1.6      | ⏭      |
+| #   | ID                            | Task                                 | Priority | Depends on     | Status |
+| --- | ----------------------------- | ------------------------------------ | -------- | -------------- | ------ |
+| 26  | [4.1](docs/epics/sync.md)     | Entries and files on the server      | P0       | 3.3, 1.5       | ✅     |
+| 27  | [4.2](docs/epics/sync.md)     | The sync endpoint                    | P0       | 4.1            | ✅     |
+| 28  | [4.3](docs/epics/sync.md)     | The device store and in-memory index | P0       | 3.6            | ✅     |
+| 29  | [4.4](docs/epics/sync.md)     | The outbox and the sync loop         | P0       | 4.2, 4.3       | ✅     |
+| 30  | [4.5](docs/epics/sync.md)     | Merging a stale edit                 | P1       | 4.4            | ✅     |
+| 31  | [4.6](docs/epics/sync.md)     | Files                                | P0       | 3.15, 4.4, 1.6 | ⏭      |
+| 32  | [4.7](docs/epics/sync.md)     | Tiers and moving between them        | P0       | 4.6            | ⏭      |
+| 33  | [2.6](docs/epics/accounts.md) | Devices                              | P1       | 4.2, 3.6       | ⏭      |
+| 34  | [4.8](docs/epics/sync.md)     | Holders and lost entries             | P1       | 4.7, 2.6       | ⏭      |
+| 35  | [4.10](docs/epics/sync.md)    | The browser's storage                | P1       | 4.3            | ✅     |
+| 36  | [4.11](docs/epics/sync.md)    | Pruning                              | P2       | 4.2, 1.6       | ⏭      |
 
 ### Milestone D — The shell and family
 
@@ -160,12 +160,12 @@ family member.
 
 ### Milestone G — Backups, keys, notices and core
 
-**Done when** a backup file restores a lost entry, a git backup holds only ciphertext and opens with the recovery key, fully offline mode leaves the
+**Done when** a backup file restores a lost entry, a git backup holds only ciphertext and opens with the account's key, fully offline mode leaves the
 server no body, and sign-in through core works.
 
 | #   | ID                            | Task                             | Priority | Depends on    | Status |
 | --- | ----------------------------- | -------------------------------- | -------- | ------------- | ------ |
-| 55  | [8.1](docs/epics/backup.md)   | The backup format                | P0       | 3.1, 3.2      | ⏭      |
+| 55  | [8.1](docs/epics/backup.md)   | The backup format                | P0       | 3.15          | ⏭      |
 | 56  | [8.2](docs/epics/backup.md)   | Backup files                     | P1       | 8.1, 4.6      | ⏭      |
 | 57  | [4.9](docs/epics/sync.md)     | Fully offline mode               | P1       | 4.7, 8.2      | ⏭      |
 | 58  | [8.7](docs/epics/backup.md)   | Backup reminders                 | P2       | 8.2, 7.4      | ⏭      |
@@ -284,7 +284,7 @@ configured.
 
 | #   | ID                                | Task                                    | Priority | Depends on       | Status |
 | --- | --------------------------------- | --------------------------------------- | -------- | ---------------- | ------ |
-| 112 | [17.1](docs/epics/share-links.md) | One-off encrypted links                 | P1       | 3.1, 3.2, 1.6    | 📋     |
+| 112 | [17.1](docs/epics/share-links.md) | One-off encrypted links                 | P1       | 3.15, 1.6        | 📋     |
 | 113 | [17.2](docs/epics/share-links.md) | Sharing a summary, report or document   | P1       | 17.1, 13.2, 13.3 | 📋     |
 | 114 | [21.6](docs/epics/upstream.md)    | A VAPID key in `generate`               | P2       | —                | ✅     |
 | 115 | [10.4](docs/epics/notices.md)     | Web Push and reminders while closed     | P2       | 10.1, 7.4, 21.6  | 📋     |

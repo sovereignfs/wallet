@@ -23,8 +23,9 @@ instance to run.
 
 What it must not give up, whatever the convenience:
 
-- **Only the person can read it.** Everything is encrypted in the browser under an age key the person holds (§7, §8). The server, its operator, the
-  database, its dumps and the git backups hold ciphertext and nothing else of meaning. There is no "operator key" mode and no plain-text mode.
+- **Encrypted in the browser, under keys that stay there.** Everything is encrypted in the browser under the suite's keys (§7, §8). The server, the
+  database, its dumps and the git backups hold ciphertext and nothing else of meaning; there is no "operator key" mode and no plain-text mode. It is
+  **not a promise against whoever runs the server**, whose code the browser runs (§8.6), and it is **not yet audited**.
 - **It works offline, first.** What is on the device opens and is edited with no network, and syncs later (§11). Signing in needs a network; unlocking
   does not (§9).
 - **The person decides where each thing lives** (§10): on this device only, synced to the server and every device, or online only. A whole wallet can
@@ -46,12 +47,12 @@ is migrated. Its interface is designed anew (§26).
 
 The owner's direction: **everything is planned now, the MVP is phase 1, and the rest follows a release at a time.**
 
-| Phase                               | Release | What it delivers                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ----------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **1, the MVP: cards and documents** | 0.1.0   | A full PWA, alone or hosted; sign-in, locally and through core; the wallet key, created or imported, and a recovery key; locking with a passkey, a device passcode or the key; the three tiers, shapes and fully offline mode; sync; family members; **cards** with every code format, scanning and full-screen display; **ID documents** with scans and expiries; the Due panel; an encrypted backup file, a readable export, and encrypted backup to git; devices; deletion. |
-| **2, Health**                       | 0.2.0   | Measurements with BMI and charts; lab reports with structured results, unit conversion and trends per test; the medical ID, allergies, conditions, medications and vaccinations; the **journal** of symptoms and mood; the **medical summary** and the **doctor's report** as printable pages; receiving files from other apps.                                                                                                                                                |
-| **3, Out into the world**           | 0.3.0   | The **business card** (vCard QR, `.vcf`, the share sheet, an optional public page) and received contacts; **Apple Wallet and Google Wallet** passes for business cards and cards; **NFC tags** on Android; watermarked copies of documents; `.pkpass` import; insurance, tickets and secure notes; **one-off encrypted share links**; reminders while Wallet is closed, opt-in.                                                                                                |
-| **4, Sharing and native**           | 0.4.0+  | Sharing entries end to end with family members' own accounts; a portable core and a native shell, for what only a native app can do (§31).                                                                                                                                                                                                                                                                                                                                     |
+| Phase                               | Release | What it delivers                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1, the MVP: cards and documents** | 0.1.0   | A full PWA, alone or hosted; sign-in, locally and through core; the suite's keys and a recovery kit; locking with a passkey or a device passcode; the three tiers, shapes and fully offline mode; sync; family members; **cards** with every code format, scanning and full-screen display; **ID documents** with scans and expiries; the Due panel; an encrypted backup file, a readable export, and encrypted backup to git; devices; deletion. |
+| **2, Health**                       | 0.2.0   | Measurements with BMI and charts; lab reports with structured results, unit conversion and trends per test; the medical ID, allergies, conditions, medications and vaccinations; the **journal** of symptoms and mood; the **medical summary** and the **doctor's report** as printable pages; receiving files from other apps.                                                                                                                   |
+| **3, Out into the world**           | 0.3.0   | The **business card** (vCard QR, `.vcf`, the share sheet, an optional public page) and received contacts; **Apple Wallet and Google Wallet** passes for business cards and cards; **NFC tags** on Android; watermarked copies of documents; `.pkpass` import; insurance, tickets and secure notes; **one-off encrypted share links**; reminders while Wallet is closed, opt-in.                                                                   |
+| **4, Sharing and native**           | 0.4.0+  | Sharing entries end to end with family members' own accounts; a portable core and a native shell, for what only a native app can do (§31).                                                                                                                                                                                                                                                                                                        |
 
 **0.1.0 is a cut of phase 1** (decision log, 2026-11-13): the foundation, sign-in locally and through core, the whole encryption design (vault, keys,
 unlocking, sync of the `synced` tier), and **QR cards**. Family members, files and photos, the other tiers, documents and Due, backups, notices and mail,
@@ -72,8 +73,8 @@ design, and say "after 0.1.0" where the cut matters.
 
 ## 3. User journeys
 
-1. **Setting up.** Ana signs in, and Wallet asks for a key. She creates one: the browser makes it, she downloads the key file and confirms she kept
-   it, prints the recovery sheet and puts it in a drawer, turns on Face ID unlock, and installs Wallet to her home screen. Her name becomes "Me".
+1. **Setting up.** Ana signs up, and Wallet shows her recovery kit once; she prints it and puts it in a drawer. She turns on Face ID unlock, which is what
+   opens Wallet on this phone with or without signal, and installs Wallet to her home screen. Her name becomes "Me".
 2. **A card at the till.** At the supermarket she opens Wallet, looks at her phone to unlock, taps the store's card, and the code fills a white screen
    that stays awake. The cashier scans it. It worked without signal in the basement.
 3. **Adding a card.** She taps Add, points the camera at a gym card's barcode, Wallet reads the format and number, she names it and picks a colour,
@@ -120,12 +121,12 @@ Never in the interface: "plugin", "tenant", "vault" (an internal word), "DEK", "
                browser (a PWA)                                         server (one image, one process)
  ┌──────────────────────────────────────────┐              ┌───────────────────────────────────────────────────┐
  │ UI (React 19, @sovereignfs/ui)           │              │ Next.js: the shell, routes                         │
- │ the keyring: wallet key → vault key →    │  /api/sync   │ better-auth (§25)                                  │
+ │ the keyring: app key → root →            │  /api/sync   │ better-auth (§25)                                  │
  │   entry keys, in memory, locks (§9)      │ ◀──────────▶ │ sync: checks owner, tier, sizes, version; orders   │
  │ seals and opens every entry (§8)         │              │   and stores ciphertext; never reads it (§11)       │
  │ device store: IndexedDB, ciphertext      │  /api/blobs  │ files: ciphertext under /data/blobs (§11.6)        │
- │   only, one database per account         │ ◀──────────▶ │ /api/vault: the vault header, recipients (§8)      │
- │ in-memory index of what is open: lists,  │  /api/vault  │ /api/devices, /api/ops: online changes             │
+ │   only, one database per account         │ ◀──────────▶ │ /api/keys: the vault, the wrapped root (§7)        │
+ │ in-memory index of what is open: lists,  │  /api/keys   │ /api/devices, /api/ops: online changes             │
  │   search, Due, charts, merge (§11.5)     │  /api/ops    │ backup: git commits of ciphertext (§23)            │
  │ codes: draw (bwip-js), scan (zxing-wasm) │              │ phase 3: passes, public cards, share links, push   │
  │ service worker: the shell only           │              │ jobs: backup, mail, pruning, (3) reminders         │
@@ -141,8 +142,8 @@ Never in the interface: "plugin", "tenant", "vault" (an internal word), "DEK", "
 - **The server is a careful store and courier.** It checks who owns a row, which tier it is in, its sizes and version, orders it, stores ciphertext,
   and hands it to the account's devices. It reaches GitHub for backups, SMTP and core for notices, and in phase 3 Apple's signing (offline, with a
   certificate), Google's pass links and push services. **It never holds a key that opens an entry.**
-- **Offline first for entries, online for decisions about the account:** entries are written to the device and synced (§11); the vault header,
-  devices, the backup connection and (phase 3) publishing are online operations.
+- **Offline first for entries, online for decisions about the account:** entries are written to the device and synced (§11); the keyring's
+  first creation, the suite's key records, devices, the backup connection and (phase 3) publishing are online operations.
 - **What the server can read** is exactly §8.5's list, and the threat model is §8.6.
 - **Next.js with React 19**, a long-running server, because of the jobs. **SQLite by default, PostgreSQL if the operator prefers** (§29).
 - **Jobs run in the web process** on a timer from `instrumentation.ts`, with `WALLET_WORKER=off` for all but one process if several share a database;
@@ -154,38 +155,39 @@ Never in the interface: "plugin", "tenant", "vault" (an internal word), "DEK", "
 
 As Tusk's: `app/` for routes, `src/` for everything else, tests beside the code.
 
-| Path                            | What                                                                                                                               |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `app/`                          | Routes: the landing page, sign-in, setup, unlock, the signed-in area, print pages, `/api/*`; phase 3 `/c/[slug]`, `/s/[id]`        |
-| `src/core/vault/`               | The vault format: keys, envelopes, padding, file streams, the vault header (§8) — **portable, browser and Node**                   |
-| `src/core/entries/`             | Every entry kind's model, its shape and body, validators, defaults (§10, §12–§22) — portable                                       |
-| `src/core/sync/`                | The protocol's types and validators (shared by both sides), the client's merge (§11) — portable                                    |
-| `src/core/backup/`              | The backup format: building and reading snapshots and files (§23) — portable                                                       |
-| `src/core/due/`                 | What is due (§15) — pure                                                                                                           |
-| `src/core/health/`              | BMI, units, the test catalogue, conversion, trends (§16) — pure                                                                    |
-| `src/core/journal/`             | Symptom vocabulary, aggregates for charts and reports (§17) — pure                                                                 |
-| `src/core/vcard/`               | vCard and MECARD writing and reading (§19) — pure                                                                                  |
-| `src/core/search/`              | Search over what is open (§26.4) — pure                                                                                            |
-| `src/keyring/`                  | The browser's keyring: unlock, lock, idle timers, passkey and passcode wrappers (§9) — browser only                                |
-| `src/local/`                    | The device store over IndexedDB, the outbox, the sync loop, file prefetch, the in-memory index (§11) — browser only, **from Tusk** |
-| `src/media/`                    | Images in the browser: decode, orient, strip metadata, re-encode; PDF page rendering (§11.6) — browser only                        |
-| `src/barcode/`                  | Drawing (bwip-js) and scanning (BarcodeDetector, then zxing-wasm) codes (§13) — browser only                                       |
-| `src/server/entries/`           | Applying mutations, tier rules, sizes, the stream counter (§11) — server only                                                      |
-| `src/server/blobs/`             | The file store under `/data/blobs`, quotas, serving (§11.6)                                                                        |
-| `src/server/vault/`             | The vault header and recipients, devices (§7, §6.3)                                                                                |
-| `src/db/`                       | Configuration, clients, schemas per dialect, migrations at start-up (§29) — **copied from Tusk**                                   |
-| `src/auth/`                     | the sign-in on `@sovereignfs/auth`: its settings, the store and its move, the screens, the fake Sovereign for tests (§25)          |
-| `src/access/`                   | Every page, route and operation with who may use it (§5.2)                                                                         |
-| `src/crypto/`                   | **The server's** instance key and envelope encryption, for credentials only (§8.7) — **copied from Tusk**                          |
-| `src/backup/`, `src/providers/` | The git connection and job; the git host interface, GitHub's implementation, an in-memory one (§23) — **from Tusk**                |
-| `src/notices/`, `src/mail/`     | The bell, the mail outbox, (3) Web Push (§24) — **from Tally**                                                                     |
-| `src/passes/`                   | Phase 3: Apple `.pkpass` signing and Google Wallet links (§20)                                                                     |
-| `src/sovereign/`                | Core's notices, `People.deletePerson`, the bell, email and activity calls (§25, §28) — **from Tusk**                               |
-| `src/jobs/`                     | The runner and claims — **copied from Tusk**                                                                                       |
-| `src/sw/`                       | The service worker: the shell by allow-list, the offline shell page, share target (§26.6) — **from Tusk**                          |
-| `src/screens/`, `src/ui/`       | The signed-in screens and the shell                                                                                                |
-| `docs/specs/`                   | `vault-format.md`, `sync-protocol.md`, `backup-format.md`: the formats as standalone specifications (§31.2)                        |
-| `migrations/`, `deploy/`        | Generated SQL (`sqlite/`, `postgres/`, `auth/`); the Compose setups                                                                |
+| Path                            | What                                                                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `app/`                          | Routes: the landing page, sign-in, setup, unlock, the signed-in area, print pages, `/api/*`; phase 3 `/c/[slug]`, `/s/[id]`          |
+| `src/core/vault/`               | What Wallet adds to the SDK's cipher: derived entry keys, document ids, padding (§8) — **portable, browser and Node**                |
+| `src/core/entries/`             | Every entry kind's model, its shape and body, validators, defaults (§10, §12–§22) — portable                                         |
+| `src/core/sync/`                | The protocol's types and validators (shared by both sides), the client's merge (§11) — portable                                      |
+| `src/core/backup/`              | The backup format: building and reading snapshots and files (§23) — portable                                                         |
+| `src/core/due/`                 | What is due (§15) — pure                                                                                                             |
+| `src/core/health/`              | BMI, units, the test catalogue, conversion, trends (§16) — pure                                                                      |
+| `src/core/journal/`             | Symptom vocabulary, aggregates for charts and reports (§17) — pure                                                                   |
+| `src/core/vcard/`               | vCard and MECARD writing and reading (§19) — pure                                                                                    |
+| `src/core/search/`              | Search over what is open (§26.4) — pure                                                                                              |
+| `src/keys/`                     | One interface over both modes: the suite's key (`appKeys` hosted, `localVault` standalone), the keyring root (§7, §9) — browser only |
+| `src/keyring/`                  | The browser's keyring: unlock, lock, idle timers, passkey and passcode wrappers (§9) — browser only                                  |
+| `src/local/`                    | The device store over IndexedDB, the outbox, the sync loop, file prefetch, the in-memory index (§11) — browser only, **from Tusk**   |
+| `src/media/`                    | Images in the browser: decode, orient, strip metadata, re-encode; PDF page rendering (§11.6) — browser only                          |
+| `src/barcode/`                  | Drawing (bwip-js) and scanning (BarcodeDetector, then zxing-wasm) codes (§13) — browser only                                         |
+| `src/server/entries/`           | Applying mutations, tier rules, sizes, the stream counter (§11) — server only                                                        |
+| `src/server/blobs/`             | The file store under `/data/blobs`, quotas, serving (§11.6)                                                                          |
+| `src/server/vault/`             | The wrapped root (`keyring`), the suite's key records through the SDK, devices (§7, §6.3)                                            |
+| `src/db/`                       | Configuration, clients, schemas per dialect, migrations at start-up (§29) — **copied from Tusk**                                     |
+| `src/auth/`                     | the sign-in on `@sovereignfs/auth`: its settings, the store and its move, the screens, the fake Sovereign for tests (§25)            |
+| `src/access/`                   | Every page, route and operation with who may use it (§5.2)                                                                           |
+| `src/crypto/`                   | **The server's** instance key and envelope encryption, for credentials only (§8.7) — **copied from Tusk**                            |
+| `src/backup/`, `src/providers/` | The git connection and job; the git host interface, GitHub's implementation, an in-memory one (§23) — **from Tusk**                  |
+| `src/notices/`, `src/mail/`     | The bell, the mail outbox, (3) Web Push (§24) — **from Tally**                                                                       |
+| `src/passes/`                   | Phase 3: Apple `.pkpass` signing and Google Wallet links (§20)                                                                       |
+| `src/sovereign/`                | Core's notices, `People.deletePerson`, the bell, email and activity calls (§25, §28) — **from Tusk**                                 |
+| `src/jobs/`                     | The runner and claims — **copied from Tusk**                                                                                         |
+| `src/sw/`                       | The service worker: the shell by allow-list, the offline shell page, share target (§26.6) — **from Tusk**                            |
+| `src/screens/`, `src/ui/`       | The signed-in screens and the shell                                                                                                  |
+| `docs/specs/`                   | `vault-format.md`, `sync-protocol.md`, `backup-format.md`: the formats as standalone specifications (§31.2)                          |
+| `migrations/`, `deploy/`        | Generated SQL (`sqlite/`, `postgres/`, `auth/`); the Compose setups                                                                  |
 
 **Copied** (building-an-app §15: until the kit is published, an app copies, and says which files): from Tusk, `src/db/`, `src/jobs/`, `src/auth/` and
 its fake Sovereign, `src/sovereign/`, `src/crypto/` (for the server's credentials only), `src/mail/`, `src/config/`, `src/security/` and `proxy.ts`,
@@ -228,8 +230,8 @@ core's, and signing in through core always gets an account (`app-manifest.md` §
 Every browser that signs in becomes a **device**: a random id the browser makes and keeps in its store, a label it seals ("iPhone · Safari",
 editable), the session it belongs to, when it was first and last seen. Settings > Security lists them.
 
-- **A new device is noticed:** the account's other devices see "New device: Firefox on Linux" in the bell, and an email goes out (§24). A wallet key
-  is needed on it before anything opens (§9), so a stolen password alone reads nothing.
+- **A new device is noticed:** the account's other devices see "New device: Firefox on Linux" in the bell, and an email goes out (§24). A new device brings the
+  root with the account's key (§9.3), so **a stolen password opens the wallet on a new device**: the notice is the person's warning, and it is always on.
 - **Removing a device** ends its session; its device-only entries stay as shapes marked "on a removed device" until the person deletes them or
   restores them from a backup (§10.5).
 - **A browser that was wiped** comes back as a new device. Setup on it asks: "Is this the same device as _iPhone · Safari_ (last seen 3 days ago)?" If
@@ -253,6 +255,10 @@ that cannot be exported. **Wallet never sees the account key,** so a compromised
   move to core. It opens at sign-in: the browser derives two values from the password with Argon2id, the **sign-in value**, sent where the password used to go, and an **unlocking
   value** that never leaves the browser and unwraps the account key.
 
+**The app key wraps one more key, the keyring root** (§8.1): 32 random bytes made by the account's first device, kept on the server only wrapped under the app key, and held by each device
+under its own unlock wrapper (§9.3). The app key itself cannot be exported and opens only through the suite (the SDK fetches the session's secret from the server on every open), so **the
+root is what lets Wallet open with no signal.**
+
 ### 7.2 The recovery kit
 
 Shown once after sign-up, standalone: 14 groups of four, to print or keep, which wraps the account key (`kitPending`, `keepKit`). **A password reset gives back the account, not
@@ -261,42 +267,49 @@ password and a lost kit lose the wallet for good.** Hosted: core's kit and passk
 
 ### 7.3 Ways to unlock
 
-- **Standalone:** the password (every sign-in), the kit (after a reset), and a quick unlock where the device offers one (§9.3).
-- **Hosted:** core's: its password, its passkeys (PRF), its kit and its lock.
+- **On a device that has been set up:** a passkey (Face ID, a fingerprint) or a device passcode, offline and every time (§9.3).
+- **To bring the root to a new device, or after a reset:** the suite's key. Standalone, the password at sign-in and, after a reset, the kit. Hosted, core's: its password, passkeys (PRF), kit and lock.
 
 ### 7.4 What the server keeps
 
-Standalone: the vault's records in the auth store (`sv_key_*`): wrapped keys and public keys, never a key that opens anything, and the **vault id**, which is the salt of the sign-in
-value. Hosted: no key of anyone's (core's vault has them). In both, Wallet's own tables keep, for each entry, a **wrapped entry key** (§8.1) that only the app key opens.
+Standalone: the vault's records in the auth store (`sv_key_*`): wrapped keys and public keys, never a key that opens anything, and the **vault id**, which is the salt of the sign-in value.
+Hosted: no key of anyone's (core's vault has them). In both, Wallet's own `keyring` holds, for each account, the **wrapped root** and its epoch (one row per epoch), which only the app key
+opens. No entry carries a key of its own (§8.1).
 
 ### 7.5 Changing keys
 
-A password change re-wraps the account key and replaces the sign-in value in one request (`prepareChange`, `finishChange`); a new kit is made the same way. **Replacing the app key**
-re-wraps every entry's key under the new one and re-encrypts no entry (task 3.10), because the entries' own keys sit under it (§8.1). Hosted: core's.
+A password change re-wraps the account key and replaces the sign-in value in one request (`prepareChange`, `finishChange`); a new kit is made the same way. **Replacing the app key** re-wraps the one
+root record and re-encrypts no entry. **Rotating the root** (for a root that may have been seen by someone else) is a new epoch: every entry and file re-encrypted by the browser in resumable batches
+through the ordinary sync path, the account marked `rotating`; backups made before stay readable with the old root (task 3.10). Hosted: core's, for the account and app keys.
 
 ### 7.6 Resetting a wallet
 
-For a person who has lost the password, the kit and every unlocked device: **Reset wallet**, after a fresh sign-in and typing "reset", deletes every entry and file on the server
-and Wallet's records in the vault, and starts again. The account, its sign-in and its devices stay. Device stores are emptied at their next sync (task 3.11).
+For a person who has lost the password, the kit and every unlocked device: **Reset wallet**, after a fresh sign-in and typing "reset", deletes every entry and file on the server,
+Wallet's wrapped roots and, standalone, the account's key records (the vault's `deleteAccount`), and starts again with new keys. The account, its sign-in and its devices stay.
+Device stores are emptied at their next sync (task 3.11).
 
 ## 8. Encrypting an entry
 
 ### 8.1 Keys
 
 ```
- account key  ── wraps ─▶  app key  (AES-GCM, random, Wallet's own; cannot be exported)
-                              │ AES-256-GCM wrap, bound to account and entry
-                  entry key  (32 random bytes, one per entry; the SDK's "document key")
+ account key  ── wraps ─▶  app key  (AES-GCM, random, Wallet's own; cannot be exported; opens only through the suite)
+                              │ AES-256-GCM wrap, bound to account and epoch (the server keeps it: keyring)
+                  keyring root  (32 random bytes, one per account and epoch; held by each device under its unlock wrapper, §9.3)
+                              │ HKDF-SHA-256, info "wallet/v2/entry|<account id>|<entry id>"
+                  entry key  (32 bytes; the SDK's "document key"; derived, never stored)
                               │ importDocumentKey: an HKDF key that cannot be exported
         ┌─────────────────────┼────────────────────────────┐
   shape (encryptBytes)   body (encryptBytes)     files (encryptContent, 64 KiB chunks)
 ```
 
 - **Wallet holds no cipher:** the SDK's `encryptBytes`, `decryptBytes`, `encryptContent` and `decryptContent` do the encrypting, each bound to a document id and a version, so what they
-  check is what the suite checks. What Wallet adds is the **padding** (§8.2) and which key and which id each value is bound to.
-- **An entry key per entry** keeps a future share (phase 4) to one entry, and makes moving an entry between tiers or devices free of re-encryption.
-- **Wrapped entry key:** `AES-256-GCM(app key, nonce, entry key, AAD = "wallet/v2/key|<account id>|<entry id>")`, stored as the entry's `wrapped_key`, as Shopper wraps its keyrings. It is
-  opened with WebCrypto into the 32 bytes `importDocumentKey` takes, which the caller overwrites at once.
+  check is what the suite checks. What Wallet adds is the **padding** (§8.2), the derivation, and which key and which id each value is bound to.
+- **Derived entry keys,** as Shopper derives its lists' keys: one root on a device opens every entry and makes the key of a new one, **offline**, with nothing wrapped per entry for a server to
+  release. A key per entry still keeps a future share (phase 4) to one entry: it is the derived 32 bytes that a share carries, never the root. Moving an entry between tiers or devices needs no
+  re-encryption.
+- **The wrapped root:** `AES-256-GCM(app key, nonce, root, AAD = "wallet/v2/root|<account id>|<epoch>")`, in `keyring`; opened with WebCrypto into raw bytes that are imported as a
+  non-extractable HKDF key and overwritten at once. **Made online:** the account's first device makes it and the server keeps the first one it is given (a second device that raced it adopts the stored one).
 
 ### 8.2 Envelopes
 
@@ -305,7 +318,7 @@ and Wallet's records in the vault, and starts again. The account, its sign-in an
 ```
 plaintext    UTF-8 JSON, then 0x80, then 0x00 bytes to the next multiple of the bucket
              (shape: 256 bytes; body: 1,024 bytes)  (ISO/IEC 7816-4 padding)
-envelope     encryptBytes(contentKey, { documentId: "<account id>/<entry id>/<part>", version: <the entry's version> }, plaintext)
+envelope     encryptBytes(entryKey, { documentId: "<account id>/<entry id>/<part>", version: <the entry's version> }, plaintext)
              (part: "shape" or "body")
 ```
 
@@ -331,7 +344,7 @@ holder's label and state. The **body** holds the rest.
 ### 8.5 What the server can read
 
 The account itself (its sign-in, `profile`'s name and email, §6.1), and for each entry: its **id**, **tier**, **holder device** (for device-only), the
-**sizes** of its padded shape, body and files, the **number of files**, its **version** and **sync counter**, and **when** it was created, changed and
+**sizes** of its padded shape, body and files, the **number of files**, its **key epoch**, **version** and **sync counter**, and **when** it was created, changed and
 deleted. Devices: their ids, sessions and times. The backup connection. **The keys' records** (§7.4): wrapped keys and public keys, which open nothing. **Not** the kind of an entry, its title, its family member, its dates, or
 anything in it.
 
@@ -359,43 +372,49 @@ name and email, and in phase 3 push subscriptions and published cards. **It neve
 
 ## 9. Locking and unlocking
 
-### 9.1 The key in memory
+### 9.1 The keyring
 
-When unlocked, the browser holds the **app key**, as the suite keeps it: a key that cannot be exported, in IndexedDB, wrapped by a device key and by a secret only the live session has, so
-what the browser kept opens nothing once the session has ended. It holds, as they are used, **entry keys** as non-extractable `CryptoKey`s, and the **opened entries** in an in-memory
-index (§11.1). **Locking forgets the key** (`forget()`) and drops all of it: the keys, the index, every rendered page's data (the app navigates to the lock screen and clears its state) and
-every object URL of a decrypted file.
+When unlocked, the browser holds in memory the **keyring root**, as a non-extractable HKDF `CryptoKey`, and, as they are used, **entry keys** derived from it (the SDK's document keys, held as
+non-extractable `CryptoKey`s), and the **opened entries** in an in-memory index (§11.1). Locking drops all of it: the root, the keys, the index, every rendered page's data (the app navigates to
+the lock screen and clears its state), and every object URL of a decrypted file. **The suite's app key is not what a lock drops:** it stays for the session, as the SDK keeps it, and it is what
+brings the root back from the server when no wrapper does. The root is never kept in the clear: a device keeps it only under an unlock wrapper (§9.3).
 
 **Sync runs while locked:** the outbox drains and pulls arrive, since the store holds ciphertext only.
 
 ### 9.2 When it locks
 
-- **By hand:** the lock button in the header. **At sign-out** and **when the session ends,** when the SDK forgets the key with the session.
-- **After a time without use:** 1, 5, 15 or 60 minutes, set per device. **When Wallet is hidden** (another app, the screen off): at once, after 1 minute, or never. **These two are
-  on only where a quick unlock exists to come back with** (§9.3), since without one a lock means typing the password.
-- **Hosted:** also core's lock (`sovereign`'s RFC 0006): a locked session gets the lock page, and its keys stay closed.
+- **After a time without use:** 1, 5 (the default), 15 or 60 minutes, set per device.
+- **When Wallet is hidden** (another app, the screen off): at once, after 1 minute (the default), or never.
+- **By hand:** the lock button in the header.
+- **At sign-out** and when the session ends, when the SDK forgets the app key with the session. The device's wrappers stay with its ciphertext, as they did.
+- **Hosted:** also core's lock (`sovereign`'s RFC 0006), which closes the app key.
 
-Tabs share one lock (BroadcastChannel): unlocking or locking one does the same in every tab of the account.
+Tabs share one lock (BroadcastChannel): unlocking or locking one does the same in every tab of the account. **A device with no wrapper set has nothing to come back with**: its lock needs the
+suite's key, which needs a connection, so setup asks for a passkey or a passcode and says why.
 
 ### 9.3 Ways to unlock
 
-| Way                                                      | How                                                                                                                                                                                        |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Password** (standalone)                                | Argon2id of it gives the unlocking value, which unwraps the account key (about a second); `afterSignIn(secret)`                                                                            |
-| **Recovery kit** (standalone, after a reset)             | The typed kit opens the account key, and the new password takes its place (`unlockWithKit`)                                                                                                |
-| **Core's** (hosted)                                      | Its password, passkeys (PRF), kit and lock; Wallet asks for its app key at `/keys/return`                                                                                                  |
-| **Quick unlock** (Face ID, a fingerprint, Windows Hello) | **Optional, standalone, and waits on a device check (RFC 0001):** a passkey of Wallet's own, with PRF, wraps the unlocking value the password gave (not the app key); unlocking unwraps it |
+Each device keeps one or more **unlock wrappers** in its store: the root, wrapped by something only this device and person can produce. They are 0.1.x's wrappers with a new root.
 
-- **A quick unlock is offered only where `PublicKeyCredential.getClientCapabilities()` reports PRF, and only once it has been seen to give an output on the device.** Where it does not,
-  the password stays the way in, and nothing is offered.
+| Way                                                 | How                                                                                                                                                                                                     |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Passkey (Face ID, a fingerprint, Windows Hello)** | A WebAuthn credential made for unlocking, with the **PRF extension**. Its output for the salt `"wallet/v1/unlock"`, through HKDF, is an AES-256-GCM key that wraps the root                             |
+| **Device passcode**                                 | At least 6 characters (digits allowed). Argon2id (64 MiB, 3 passes, `hash-wasm`) of it and a random salt is a key that wraps the root, which is then wrapped again under a device key kept in the store |
+| **The suite's key** (online)                        | Standalone, the password at sign-in; hosted, core's release. It fetches the wrapped root and opens it with the app key, so a new device, or one with no wrapper, gets the root                          |
+| **Recovery kit** (standalone, after a reset)        | The typed kit opens the account key again, and with it the app key and the root                                                                                                                         |
+
+- **Setup offers the passkey first** where `PublicKeyCredential.getClientCapabilities()` reports PRF, and the passcode otherwise. A device can have both. **A passkey that gives no PRF output on
+  a device is not offered there**; the passcode is. This needs a device check (RFC 0001).
+- **Five wrong passcodes** delete that device's passcode wrapper; the person then unlocks with a passkey or the suite's key, and may set a new passcode.
+- **A passcode is weaker than a passkey** against someone who copies the browser's store and guesses offline. Settings says so.
 - **The unlock passkey is not the sign-in passkey.** A person may have both; Settings lists them apart.
-- **It is weaker than the password's wrap in one way:** whoever can use the device's passkey (its biometric or PIN) can open the wallet on that device. Settings says so.
 
 ### 9.4 Signing in and unlocking
 
-**One act.** Signing in with a password derives the sign-in value and the unlocking value together, so signing in unlocks, and the wallet needs a network only at sign-in: afterwards the
-session's kept key opens it offline. Hosted, signing in through Sovereign and the key's release are core's two redirects, silent while core's session is unlocked; **for the release to
-be silent the page must send its origin as the referrer** (§30). Nothing of the wallet depends on a file the person must keep: the kit is the way back after a reset.
+Signing in proves the account to the server and needs a network, and **signing in also opens the suite's key** (a password derives the unlocking value; hosted, core releases the app key), which is what
+fetches the root onto a device. **Unlocking proves the key to the device and happens every time,** offline, with the wrapper. So day to day, **Face ID is the way in**, as the owner asked, and
+the password is the way back in after a new device or a reset. Hosted, signing in through Sovereign and the key's release are core's two redirects, silent while core's session is unlocked; **for the
+release to be silent the page must send its origin as the referrer** (§30). Nothing of the wallet depends on a file the person must keep: the kit is the way back after a reset.
 
 ## 10. Entries and where they live
 
@@ -497,9 +516,9 @@ The design goal is Tusk's: **a person does not feel any of this.** The shape is 
 ### 11.1 The model
 
 - **The device holds,** in IndexedDB through `idb`, one database per account (`wallet-<account id>`): every entry's row as the server has it (shape,
-  wrapped key, body for Synced and Device only entries, version), the files of Synced and held Device only entries, the vault header, the unlock
-  wrappers, the device's id, the cursor, the outbox, and for each entry the **base** (the last version agreed with the server) for merging (§11.5).
-  **Everything in it is ciphertext,** as the owner asked: device-only data is encrypted at rest too.
+  key epoch, body for Synced and Device only entries, version), the files of Synced and held Device only entries, the unlock wrappers (the root, wrapped), the
+  device's id, the cursor, the outbox, and for each entry the **base** (the last version agreed with the server) for merging (§11.5). **Everything in it is
+  ciphertext,** as the owner asked: device-only data is encrypted at rest too, and the root is there only under a wrapper (§9.3).
 - **Unlocked, the browser opens what it holds into an in-memory index:** shapes of every entry, bodies as they are needed (all of them for search, in
   the background after unlocking). Screens read the index.
 - **A write** is sealed in memory, written to the store and the outbox in one IndexedDB transaction, and applied to the index. The loop sends it.
@@ -507,13 +526,13 @@ The design goal is Tusk's: **a person does not feel any of this.** The shape is 
 ### 11.2 Mutations
 
 A mutation is one entry's change, made by the device:
-`{ id, entry, op (put | delete | move | lost), baseVersion, tier, holder, wrapped_key, shape, body?, files: [file id…] }`. Validators in
+`{ id, entry, op (put | delete | move | lost), baseVersion, tier, holder, key_epoch, shape, body?, files: [file id…] }`. Validators in
 `src/core/sync/` check structure and sizes on both sides; the browser validates the plaintext model before sealing.
 
 ### 11.3 The endpoint
 
 `POST /api/sync`, with the session cookie and `Origin` checked. A request carries the device id, the outbox in order, and the cursor; the answer
-carries what was applied, what was refused and why, the account's `mode` and vault header version, and the changes since the cursor.
+carries what was applied, what was refused and why, the account's `mode` and newest key epoch, and the changes since the cursor.
 
 - **Order is a counter per account** (`account_stream.seq`), incremented in the short transaction that applies a mutation and stamped on the row, with
   the mutation id recorded so a replay writes nothing.
@@ -564,7 +583,7 @@ is edited offline.** On iPhone, sync happens only while Wallet is open.
 
 ### 11.8 First load, sign-out, an ended session
 
-- **First load** on a device pulls shapes first, then bodies, then files, in pages; the wallet unlocks as soon as the header arrives.
+- **First load** on a device pulls shapes first, then bodies, then files, in pages; the wallet unlocks as soon as the root is on the device (a wrapper, or fetched once).
 - **Sign-out asks** when the device holds device-only entries or unsent changes: **"Sign out and keep this device's encrypted data"** (the default:
   the store stays, for the same account to open after signing in again) or **"Sign out and erase this device"**, which names how many device-only
   entries will be lost. With neither, sign-out erases the store.
@@ -953,30 +972,29 @@ To show a doctor a summary, a report or a document without printing, and without
 `src/core/backup/` and `docs/specs/backup-format.md`. A **snapshot** is a ZIP (stored, not compressed, since ciphertext does not compress) of:
 
 - `manifest.json`: `format: "sovereign-wallet-backup"`, `version`, when it was made, by which app version, the account id, counts.
-- `vault.age`: the vault header (§7.4), itself an age file to the account's recipients.
-- `entries.jsonl`: every entry's row as the server or the device has it: id, tier, holder, version, wrapped key, shape, body (when present), file ids
+- `keyring.json`: the account's wrapped roots (§7.4) and the vault's records (RFC 0008's export), which open nothing without the account's key.
+- `entries.jsonl`: every entry's row as the server or the device has it: id, tier, holder, version, key epoch, shape, body (when present), file ids
   and each file's SHA-256.
 - `files/<sha256>`: the files' ciphertext (in a backup file), or nothing (in git, where files are kept apart, §23.3).
 
-**The whole snapshot is encrypted again with age to the account's recipients** (wallet key and recovery key): the outer layer hides even how many
-entries there are; the inner layer is the entries' own encryption. Either key opens it, in Wallet or, for the outer layer, with the `age` command
-line.
+**A snapshot is not encrypted again:** every entry and file in it is already ciphertext, and an outer layer would be a format of Wallet's own beside the suite's (§8). So it
+shows how many entries there are, as the server's copy does. **It opens with the account's key:** the password or the recovery kit, standalone; core's release, hosted.
 
 **Core's export of a person** (`signIn.export`, manifest 5): when the person downloads their data from Sovereign, core asks Wallet for its part at
-`/api/sovereign/export` with a signed token the SDK checks. The part is what the server holds, as a backup's inner layer holds it: the vault (its
-recipients and header) and every entry that is not deleted, its wrapped key, shape and body as stored, in base64url, in files marked end to end
-(`src/portability/core-export.ts`). It opens with the wallet key or the recovery key; the server reads none of it.
+`/api/sovereign/export` with a signed token the SDK checks. The part is what the server holds, as a snapshot holds it: the wrapped roots and every entry that is not
+deleted, its shape and body as stored, in base64url, in files marked end to end (`src/portability/core-export.ts`). It opens with the account's key, as core's own export
+does (RFC 0008); the server reads none of it.
 
 ### 23.2 The backup file
 
-**Made in the browser,** from Settings > Backup or Due: `wallet-backup-<date>.age`, holding **everything this device can open**: Synced entries, the
+**Made in the browser,** from Settings > Backup or Due: `wallet-backup-<date>.zip`, holding **everything this device can open**: Synced entries, the
 Device only entries it holds, and Online only entries fetched for the purpose, with their files. Downloaded or shared (§20.4). A device remembers when
 it last made one (for Due, §10.7).
 
-- **Restore** (Settings > Backup, or a lost entry's **Restore**): the file is opened with the wallet key or the recovery key, checked whole, and the
+- **Restore** (Settings > Backup, or a lost entry's **Restore**): the file is opened with the account's key (the password or the recovery kit), checked whole, and the
   person chooses **everything** or **only what is missing or lost**. Restored entries keep their ids and tiers (Device only ones become held by this
-  device); an entry newer in the wallet than in the file is kept, and the restore says how many it skipped. A file from another account's vault is
-  re-keyed: its entries are opened with that file's key and sealed into this vault, with new ids.
+  device); an entry newer in the wallet than in the file is kept, and the restore says how many it skipped. A file from another account is re-keyed: its
+  entries are opened with that account's key, asked for by its password or kit, and sealed into this wallet, with new ids.
 - A file from a newer format version is refused with a sentence.
 
 ### 23.3 Backup to git
@@ -987,8 +1005,8 @@ it last made one (for Due, §10.7).
   repository must be private**; the credential kept through `src/crypto/` (§8.7). `WALLET_GITHUB_API_URL` covers Enterprise Server. Any repository
   works, a Fjord one included (`wallet/` is an ordinary folder outside every vault).
 - **What is committed:** under `wallet/` on the default branch:
-  - `wallet/snapshots/YYYY-mm-dd_hh-mm-ss.age`: a snapshot (§23.1) **without file contents**, encrypted with age to the recipients. **The server can
-    make it without reading anything:** it holds only ciphertext and the recipients' public keys.
+  - `wallet/snapshots/YYYY-mm-dd_hh-mm-ss.zip`: a snapshot (§23.1) **without file contents**. **The server can make it without reading anything:** it holds
+    only ciphertext and the wrapped roots.
   - `wallet/files/<sha256>`: each file's ciphertext, **written once, named by its hash, never changed**, so a 300 MB wallet is not committed again
     every day. A file is committed in the first backup after it arrives.
 - **Device only entries are in it as shapes only** (which is what the server has), so a restore from git shows them as lost; their content is in
@@ -1015,13 +1033,13 @@ produce it.
 
 Few, and about the account, since the server cannot read entries:
 
-| Kind             | When                                                   | Channels                                 |
-| ---------------- | ------------------------------------------------------ | ---------------------------------------- |
-| `new_device`     | A device signs in to the account for the first time    | Bell on other devices, email (always on) |
-| `keys_changed`   | The wallet key or recovery key was replaced or removed | Bell, email (always on)                  |
-| `backup_stopped` | Auto backup stopped (§23.3)                            | Bell, email                              |
-| `rotation_done`  | Rotating everything finished (§7.5)                    | Bell                                     |
-| `reminder` (3)   | A reminder's moment (§15.2), content-free              | Push, email                              |
+| Kind             | When                                                              | Channels                                 |
+| ---------------- | ----------------------------------------------------------------- | ---------------------------------------- |
+| `new_device`     | A device signs in to the account for the first time               | Bell on other devices, email (always on) |
+| `keys_changed`   | The password or recovery kit was changed, or the wallet was reset | Bell, email (always on)                  |
+| `backup_stopped` | Auto backup stopped (§23.3)                                       | Bell, email                              |
+| `rotation_done`  | Rotating everything finished (§7.5)                               | Bell                                     |
+| `reminder` (3)   | A reminder's moment (§15.2), content-free                         | Push, email                              |
 
 - **The bell** is Wallet's own (Tally's notices and `NotificationsPanel`), raised in the change's transaction. Hosted, core's bell gets the same
   (`notifications:send`).
@@ -1060,7 +1078,7 @@ Shopper's (its §15.1), from one image:
   package's own split). **An operator gives an account back with a link** (`docker compose exec web node tools/wallet-admin.mjs accounts reset-link EMAIL`, task 2.9): it works once, for an hour, and ends
   every session of the account when it is used. It is the package's `resetLink` and nothing else: it runs no migration, opens no app store, prints only the link on the standard
   output and says nothing of it that holds the link or the address, and refuses in suite mode, where the passwords are Sovereign's (core has `sovereign-admin accounts
-reset-link` for those). **A reset gives back the account, not the wallet:** the wallet key is the person's own (§9), and a lost authenticator app is not reset by it.
+reset-link` for those). **A reset gives back the account, not the wallet's keys:** it replaces the sign-in value but cannot open the account key, so the person unlocks with the recovery kit and chooses the new password for it (§7.5), and a lost authenticator app is not reset by it.
 - **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=1`) **starts in suite mode** and says once at start-up that its local
   sign-in is off and which settings to remove; nothing else changes. Its password accounts cannot sign in while it is in suite mode.
 - **There is no linking** of a core account and a local one: an instance has one kind. A person is their better-auth user id; a `sub` is identity; an
@@ -1145,18 +1163,18 @@ Designed anew, with `@sovereignfs/ui`.
 
 ### 26.3 Setup
 
-`/setup`, shown after the first sign-in on an account with no vault, one step at a time (the design system's step flow, §26.7):
+`/setup`, shown after the first sign-in on an account with no keyring root, one step at a time (the design system's step flow, §26.7):
 
-1. **Welcome:** what Wallet is, and "Only you can read your wallet. That means nobody, including us, can recover it if you lose your key."
-2. **Your wallet key:** create (then save the file, optionally with a passphrase, and confirm) or import.
-3. **Your recovery key:** print or save the sheet and confirm, or skip with the acknowledgement (§7.3).
-4. **Unlocking this device:** a passkey (offered first where PRF exists), a passcode, or both; the lock timers.
-5. **Where things live:** the defaults per kind, or fully offline (§10.6, §10.7).
-6. **Install Wallet:** the platform's way to install, and persistent storage requested.
-7. **Me:** the name, from the profile, editable; done.
+1. **Welcome:** what Wallet is, and "Your wallet is encrypted in your browser. Keep your recovery kit: it is the way back if you forget your password."
+2. **Your recovery kit** (standalone; hosted, core's): shown once, to print or save, and confirmed (§7.2).
+3. **Unlocking this device:** a passkey (offered first where PRF exists), a passcode, or both, **at least one**, since without one a restart with no signal cannot open the
+   wallet (§9.2); the lock timers. This is where the device first makes the keyring root (§8.1).
+4. **Where things live:** the defaults per kind, or fully offline (§10.6, §10.7).
+5. **Install Wallet:** the platform's way to install, and persistent storage requested.
+6. **Me:** the name, from the profile, editable; done.
 
-**A new device** on an account with a vault: sign in, then "Unlock with your wallet key or recovery key" (file, paste, or the sheet's QR code by
-camera), "Is this the same device as…?" (§6.3), the unlock method, install.
+**A new device** on an account with a wallet: sign in (the password, or core's release) opens the suite's key and fetches the root, then "Is this the same device
+as…?" (§6.3), the unlock method, install.
 
 ### 26.4 Home and search
 
@@ -1216,8 +1234,8 @@ Imported from `@sovereignfs/ui` directly, pinned exactly; style with `--sv-*` to
 `/settings`, from the avatar menu:
 
 - **Profile:** name and email (§6.1); units for health (phase 2).
-- **Security:** the wallet key (replace), the recovery key (add, replace, remove), rotate everything, reset wallet; this device's unlock methods
-  (passkey, passcode) and lock timers (§9.2); devices (rename, remove; §6.3).
+- **Security:** the password and the recovery kit (change, make a new kit: the suite's; hosted, core's), rotate everything (a new root, §7.5), reset wallet; this
+  device's unlock methods (passkey, passcode) and lock timers (§9.2); devices (rename, remove; §6.3).
 - **Storage:** fully offline (§10.7); default tier per kind (§10.6); this device: persistent storage granted or not, space used and quota, entries
   held here, lost entries; the Safari message (§10.8).
 - **Backup:** make and restore a backup file, the reminder interval (§23.2); git backup: connect, mode, last and next, restore (§23.3); readable
@@ -1271,11 +1289,11 @@ Beyond better-auth's, in the auth store.
 | Table                                                   | Columns                                                                                                                                                                                                                     | Phase |
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | `profile`                                               | `account_id` (key), `core_sub`, (k) name, email, `created_at`, `updated_at`                                                                                                                                                 | 1     |
-| `vault`                                                 | `account_id` (key), `version`, `recipients` (JSON: recipient, label `wallet` or `recovery`, added_at), `header` (age, binary), `vault_key_id`, `state` (`active`, `rotating`), `created_at`, `updated_at`                   | 1     |
+| `keyring`                                               | `account_id`, `epoch` (key), `wrapped_root` (binary), `created_at`                                                                                                                                                          | 1     |
 | `account_stream`                                        | `account_id` (key), `seq`, `mode` (`normal`, `offline`)                                                                                                                                                                     | 1     |
-| `entry`                                                 | `id`, `account_id`, `tier` (`device`, `synced`, `server`), `holder_device_id`, `version`, `seq`, `wrapped_key`, `shape`, `body`, `file_count`, `bytes`, `deleted_at`, `created_at`, `updated_at`                            | 1     |
+| `entry`                                                 | `id`, `account_id`, `tier` (`device`, `synced`, `server`), `holder_device_id`, `version`, `seq`, `key_epoch`, `shape`, `body`, `file_count`, `bytes`, `deleted_at`, `created_at`, `updated_at`                              | 1     |
 | `entry_file`                                            | `id`, `account_id`, `entry_id`, `bytes`, `sha256`, `state` (`pending`, `ready`), `created_at`                                                                                                                               | 1     |
-| `device`                                                | `id`, `account_id`, `session_id`, `label` (sealed by the browser under the vault key), `created_at`, `last_seen_at`, `removed_at`                                                                                           | 1     |
+| `device`                                                | `id`, `account_id`, `session_id`, `label` (sealed by the browser under a key derived from the root), `created_at`, `last_seen_at`, `removed_at`                                                                             | 1     |
 | `backup_connection`                                     | As Tusk's: `account_id` (key), `kind`, `repository`, `branch`, `credential_id`, `mode`, `frequency`, `next_backup_at`, `last_backup_at`, `last_backup_path`, `last_seq`, `failure_kind`, `failures`, `stopped_at`, `paused` | 1     |
 | `backup_file`                                           | `account_id`, `sha256` (the key): files already in the repository                                                                                                                                                           | 1     |
 | `notice`, `notice_pref`, `mail_outbox`                  | As Tally's, with Wallet's kinds; addresses in (k)                                                                                                                                                                           | 1     |
@@ -1292,7 +1310,7 @@ Beyond better-auth's, in the auth store.
 
 ### 29.4 The device's store
 
-IndexedDB `wallet-<account id>`, through `idb`, object stores: `meta` (device id, cursor, vault header, mode), `unlock` (wrappers, §9.3), `entries`
+IndexedDB `wallet-<account id>`, through `idb`, object stores: `meta` (device id, cursor, mode), `unlock` (wrappers, §9.3), `entries`
 (the server's row, the base for merging), `files` (ciphertext as `Blob`s), `outbox`, `pending_files`, `local` (this device's lock timers, last backup
 file). A schema version with upgrade steps, tested with fake-indexeddb.
 
@@ -1313,15 +1331,15 @@ third-party loads; what people write is rendered as text, never HTML; `Permissio
 only; `Referrer-Policy: strict-origin-when-cross-origin`, since core releases an app's key silently only when the browser names the app's origin (sdk §9.3), and `no-referrer`
 would ask the person every time. **Logs hold no entry content, ever, and no names or addresses:** an id and a kind of failure (and the server has no content to log). Every
 route, operation and mutation finds the session and carries the permission in its statement (§5.2); a write checks `Origin`. **Rate limits:** sign-in,
-sync, file uploads, vault operations, passes, share links and their opening. **Sign-in, and core's notices and export, are counted by the caller's address**, which is
+sync, file uploads, key operations, passes, share links and their opening. **Sign-in, and core's notices and export, are counted by the caller's address**, which is
 what the reverse proxy says in `X-Forwarded-For` and nothing a client wrote: one address alone is believed, or, behind the proxies `WALLET_AUTH_TRUSTED_PROXIES`
 names, the first hop from the right that is not one of them (`src/limits/address.ts`, the rule better-auth uses for the sign-in's own limit). An address
 nobody can state is counted with the others like it, never with a named client's. **A security review before each release,** and **an independent review of
-the vault format and the keyring before 1.0** (§33).
+the encryption design before 1.0** (§33).
 
 ### Licence
 
-AGPL-3.0-or-later, since it bundles `@sovereignfs/ui`. `age-encryption` (BSD-3-Clause), `idb` (ISC), `bwip-js` (MIT), `zxing-wasm` (MIT, with
+AGPL-3.0-or-later, since it bundles `@sovereignfs/ui`. `idb` (ISC), `bwip-js` (MIT), `zxing-wasm` (MIT, with
 zxing-cpp Apache-2.0), `hash-wasm` (MIT), `pdfjs-dist` (Apache-2.0), and in phase 3 `pdf-lib` (MIT), `fflate` (MIT) and the pass signer are checked in
 the tasks that add them, and their licences shipped in the image.
 
@@ -1348,8 +1366,9 @@ docker run -v wallet:/data -e WALLET_DB_DIALECT=sqlite -e WALLET_SQLITE_URL=file
 
 ### Testing
 
-- **The vault format:** known-answer tests for every envelope, file stream and header; tampering with a byte, the AAD, the version, or moving a value
-  to another entry, part or account fails to open; padding buckets hold; the format spec's test vectors pass in Node and in the browser (Playwright).
+- **The encryption:** known-answer tests for the derivation (a fixed root and ids give fixed entry keys), the document ids and the padding buckets; tampering with a byte,
+  the id, the version, or moving a value to another entry, part or account fails to open; **the suite's marker test** (a random marker in a title, a name and a file, in plain,
+  base64 and hex, found in no row, file or dump the server or the device keeps); the spec's vectors pass in Node and in the browser (Playwright).
 - **The keyring:** each unlock way; the idle and hidden locks on a mocked clock; locking clears the index, object URLs and keys; five wrong passcodes
   remove the wrapper; a raw dump of IndexedDB holds no plaintext (a test greps it for every seeded title and value).
 - **Tiers:** every move of §10.4; the server refuses a body for a Device only entry, a tier change from a non-holder, any body in fully offline mode;
@@ -1364,11 +1383,10 @@ docker run -v wallet:/data -e WALLET_DB_DIALECT=sqlite -e WALLET_SQLITE_URL=file
 - **The data layer** on sqld, a `file:` database and PostgreSQL; **jobs** twice and from two processes doing the work once.
 - **Sign-in** against the fake Sovereign, **notices** against `createFakeCore`, **mail** against a fake SMTP server, **GitHub** against the in-memory
   provider; no test reaches the internet.
-- **Playwright** in Chromium and WebKit, at desktop and phone widths, with a virtual WebAuthn authenticator (PRF on) and a mocked camera stream: setup
-  with a new key and a recovery key; unlock by passkey and by passcode; scan a card from a test image and show it; add a passport with two pages,
+- **Playwright** in Chromium and WebKit, at desktop and phone widths, with a virtual WebAuthn authenticator (PRF on) and a mocked camera stream: sign-up with the recovery kit shown once; unlock by passkey and by passcode, offline after a restart; scan a card from a test image and show it; add a passport with two pages,
   offline, and see it on a second browser context; move it to Device only and see the shape elsewhere; wipe a context's storage and see it lost, then
   restore from a backup file.
-- **A seed** (`pnpm seed`, Node, using the same core): an account with a vault whose key file is in `seed/` for development only, Me and two family
+- **A seed** (`pnpm seed`, Node, using the same core): an account whose password is in `seed/` for development only, Me and two family
   members, cards of every format, documents of every type with sample pages, one of each tier, an expiring passport, and (phase 2) years of
   measurements, lab reports and journal entries.
 
@@ -1378,12 +1396,13 @@ docker run -v wallet:/data -e WALLET_DB_DIALECT=sqlite -e WALLET_SQLITE_URL=file
 
 A family member with their own Wallet account (on the same instance, or later another) can be given entries:
 
-- **Each account publishes its wallet key's recipient** (public) for sharing. Finding people is Tally's way: the app's own directory and invitations
-  by email and link, and core's directory when hosted (`directory`, `offline_access`).
-- **Sharing an entry** wraps its entry key with age to the other account's recipient: a `share` row (entry, grantee, wrapped key, `read` or `edit`).
-  The grantee's devices pull shared entries in a second stream. Nothing is re-encrypted; age's multiple recipients do the work.
+- **Each account is found through the suite:** the app's own directory and invitations by email and link, as Tally does, and core's directory when hosted (`directory`,
+  `offline_access`); the SDK's `checkPerson` confirms whose key it is.
+- **Sharing an entry** gives the other account the entry's derived key through the SDK's `share` and `openShared` (the key sealed to that person's public key): a `share` row
+  (entry, grantee, sealed key, `read` or `edit`). The grantee's devices pull shared entries in a second stream. The root is never shared, and nothing is re-encrypted.
 - **A family space:** a set of entries every member reads and edits, with a space key wrapped to each member.
-- **Revoking** removes the wrapped key and offers re-keying the entry (a new entry key, re-encrypted), since the grantee may have kept a copy.
+- **Revoking** removes the grant and offers re-keying, since the grantee may have kept a copy: a derived key cannot change for the same entry, so a re-keyed entry is re-encrypted
+  under a fresh random key that the root keeps wrapped (designed with phase 4).
 - Device-only entries cannot be shared.
 
 ### 31.2 The portable core and a native shell
@@ -1405,7 +1424,7 @@ round trip, keys in the **Secure Enclave or Keystore**, and reminders that need 
 ### 31.4 Noted, not planned
 
 Reading the MRZ and lab values from a photo on the device (OCR in WebAssembly); growth percentiles for children; a published-script check in the
-service worker (§8.6); a post-quantum hybrid recipient for the header, when age's settles; importing from Apple Health or Google Health Connect
+service worker (§8.6); post-quantum protection of the keys, when the suite's settles; importing from Apple Health or Google Health Connect
 (native only); CSV export of measurements and results. Recorded so that they are not mistaken for decisions.
 
 ## 32. Not settled in the platform
@@ -1429,32 +1448,35 @@ None waits on a decision. These wait on an input:
 
 ## 34. Decision log
 
-| Date       | Decision                                                                                                                                 | Why                                                                                                                                                                                                 |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-11-09 | An app of its own, Tusk's shape: local and core sign-in, three database forms; **every feature works alone**                             | The owner's golden rule for every app                                                                                                                                                               |
-| 2026-11-09 | Name **Wallet**, prefix `wallet`, port 3006                                                                                              | The owner's decision; 3005 is Roam's                                                                                                                                                                |
-| 2026-11-09 | Built from scratch; **the finance track is dropped** (Ledger's); nothing of the plugin's code or data carried over                       | The owner's decision                                                                                                                                                                                |
-| 2026-11-09 | **Always end to end encrypted** under an age key created or imported at setup; no plain or operator-key mode                             | The owner's direction: readable only on the device                                                                                                                                                  |
-| 2026-11-09 | **age wraps one vault key; the vault key wraps a key per entry;** entries use AES-256-GCM, bound to account, entry and part, and padded  | Changing keys touches one header; per-entry keys allow sharing later and free tier moves; differs from Tusk, whose age key wraps list keys directly                                                 |
-| 2026-11-09 | **Three tiers per entry:** this device only, synced, online only                                                                         | The owner's direction                                                                                                                                                                               |
-| 2026-11-09 | **The server keeps an encrypted shape of every entry,** device-only ones included, so loss is visible                                    | The owner's direction                                                                                                                                                                               |
-| 2026-11-09 | **Fully offline mode** for the whole wallet overrides every default and tier, pauses git backup, and reminds about backup files          | The owner's direction                                                                                                                                                                               |
-| 2026-11-09 | **Defaults per kind,** changeable                                                                                                        | The owner's decision                                                                                                                                                                                |
-| 2026-11-09 | **Safari's eviction: a message,** and Wallet is meant to be installed as a PWA                                                           | The owner's decision; every Sovereign app is a full PWA                                                                                                                                             |
-| 2026-11-09 | **A recovery key offered at setup,** printed, skippable only with an explicit acknowledgement                                            | Left to the design by the owner: losing the only key loses everything                                                                                                                               |
-| 2026-11-09 | **Idle lock, and unlocking by passkey (PRF), device passcode, or a key;** unlocking is offline and is the daily way in                   | The owner asked for biometrics where possible; the wallet holds passports and health records                                                                                                        |
-| 2026-11-09 | **Reminders in the app by default; while closed only by opt-in,** telling the server times and nothing else                              | Left to the design by the owner: a server cannot remind of a date it cannot read                                                                                                                    |
-| 2026-11-09 | **The medical ID is fully protected,** with no view without unlocking                                                                    | The owner's decision, for now                                                                                                                                                                       |
-| 2026-11-09 | **"Family member"** for people kept in a wallet; real sharing between accounts in phase 4                                                | The owner's word; sharing under end to end encryption is a larger step                                                                                                                              |
-| 2026-11-09 | **Conflicts merged on the device,** field by field, this device's edit winning a clash, with Undo                                        | The server cannot read ciphertext; left to the design                                                                                                                                               |
-| 2026-11-09 | **Git backup of ciphertext,** snapshots wrapped again in age, files committed once by hash                                               | The owner asked for git backup, fully encrypted; whole copies would grow the repository daily                                                                                                       |
-| 2026-11-09 | **A readable export** with a warning, beside encrypted backup files                                                                      | A person can leave with data they can read                                                                                                                                                          |
-| 2026-11-09 | **Lab results flagged only against the report's own range;** no built-in ranges but adult BMI bands                                      | Labs differ; Wallet is not a doctor                                                                                                                                                                 |
-| 2026-11-09 | **Summaries and reports are print pages** made in the browser; Save as PDF is the browser's                                              | Nothing leaves the device; no PDF engine needed                                                                                                                                                     |
-| 2026-11-09 | **A medical summary** and **a business card** added to the scope                                                                         | The owner's request                                                                                                                                                                                 |
-| 2026-11-09 | **Phone wallets, NFC tags and the share sheet** are the reachable parts of the owner's NFC and Bluetooth ask; the rest waits for native  | Research 0001: a PWA cannot read chips, emulate cards or use Bluetooth between phones                                                                                                               |
-| 2026-11-09 | **One-off encrypted share links** with the key in the fragment, in phase 3                                                               | Showing a doctor a summary without an account or a printout, still unreadable to the server                                                                                                         |
-| 2026-11-09 | **Phases:** cards and documents (MVP), health, out into the world, sharing and native                                                    | The owner asked for everything planned, the MVP identified, and the rest split                                                                                                                      |
-| 2026-11-09 | **A portable core and format specifications** from phase 1                                                                               | The owner expects a native app once the web version validates the features                                                                                                                          |
-| 2026-11-09 | **Every limit is a setting;** files default to 500 MB an account                                                                         | As Roam; operators size their own server                                                                                                                                                            |
-| 2026-11-13 | **0.1.0 is a cut of phase 1:** foundation, sign-in (local and core), the full vault and unlocking, `synced`-tier sync, **QR cards** only | The owner: "a version 0.1.0, improve everything else later; the foundation should be solid"; nothing deferred changes the format, since `format`, `tier` and kinds are in the design from the start |
+| Date       | Decision                                                                                                                                                 | Why                                                                                                                                                                                                 |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-09 | An app of its own, Tusk's shape: local and core sign-in, three database forms; **every feature works alone**                                             | The owner's golden rule for every app                                                                                                                                                               |
+| 2026-11-09 | Name **Wallet**, prefix `wallet`, port 3006                                                                                                              | The owner's decision; 3005 is Roam's                                                                                                                                                                |
+| 2026-11-09 | Built from scratch; **the finance track is dropped** (Ledger's); nothing of the plugin's code or data carried over                                       | The owner's decision                                                                                                                                                                                |
+| 2026-11-09 | **Always end to end encrypted** under an age key created or imported at setup; no plain or operator-key mode                                             | The owner's direction: readable only on the device Superseded 2026-11-25 (RFC 0001).                                                                                                                |
+| 2026-11-09 | **age wraps one vault key; the vault key wraps a key per entry;** entries use AES-256-GCM, bound to account, entry and part, and padded                  | Changing keys touches one header; per-entry keys allow sharing later and free tier moves; differs from Tusk, whose age key wraps list keys directly Superseded 2026-11-25 (RFC 0001).               |
+| 2026-11-09 | **Three tiers per entry:** this device only, synced, online only                                                                                         | The owner's direction                                                                                                                                                                               |
+| 2026-11-09 | **The server keeps an encrypted shape of every entry,** device-only ones included, so loss is visible                                                    | The owner's direction                                                                                                                                                                               |
+| 2026-11-09 | **Fully offline mode** for the whole wallet overrides every default and tier, pauses git backup, and reminds about backup files                          | The owner's direction                                                                                                                                                                               |
+| 2026-11-09 | **Defaults per kind,** changeable                                                                                                                        | The owner's decision                                                                                                                                                                                |
+| 2026-11-09 | **Safari's eviction: a message,** and Wallet is meant to be installed as a PWA                                                                           | The owner's decision; every Sovereign app is a full PWA                                                                                                                                             |
+| 2026-11-09 | **A recovery key offered at setup,** printed, skippable only with an explicit acknowledgement                                                            | Left to the design by the owner: losing the only key loses everything Superseded 2026-11-25: the recovery kit (RFC 0001).                                                                           |
+| 2026-11-09 | **Idle lock, and unlocking by passkey (PRF), device passcode, or a key;** unlocking is offline and is the daily way in                                   | The owner asked for biometrics where possible; the wallet holds passports and health records Amended 2026-11-25: the key is the suite's.                                                            |
+| 2026-11-09 | **Reminders in the app by default; while closed only by opt-in,** telling the server times and nothing else                                              | Left to the design by the owner: a server cannot remind of a date it cannot read                                                                                                                    |
+| 2026-11-09 | **The medical ID is fully protected,** with no view without unlocking                                                                                    | The owner's decision, for now                                                                                                                                                                       |
+| 2026-11-09 | **"Family member"** for people kept in a wallet; real sharing between accounts in phase 4                                                                | The owner's word; sharing under end to end encryption is a larger step                                                                                                                              |
+| 2026-11-09 | **Conflicts merged on the device,** field by field, this device's edit winning a clash, with Undo                                                        | The server cannot read ciphertext; left to the design                                                                                                                                               |
+| 2026-11-09 | **Git backup of ciphertext,** snapshots wrapped again in age, files committed once by hash                                                               | The owner asked for git backup, fully encrypted; whole copies would grow the repository daily Amended 2026-11-25: no age layer.                                                                     |
+| 2026-11-09 | **A readable export** with a warning, beside encrypted backup files                                                                                      | A person can leave with data they can read                                                                                                                                                          |
+| 2026-11-09 | **Lab results flagged only against the report's own range;** no built-in ranges but adult BMI bands                                                      | Labs differ; Wallet is not a doctor                                                                                                                                                                 |
+| 2026-11-09 | **Summaries and reports are print pages** made in the browser; Save as PDF is the browser's                                                              | Nothing leaves the device; no PDF engine needed                                                                                                                                                     |
+| 2026-11-09 | **A medical summary** and **a business card** added to the scope                                                                                         | The owner's request                                                                                                                                                                                 |
+| 2026-11-09 | **Phone wallets, NFC tags and the share sheet** are the reachable parts of the owner's NFC and Bluetooth ask; the rest waits for native                  | Research 0001: a PWA cannot read chips, emulate cards or use Bluetooth between phones                                                                                                               |
+| 2026-11-09 | **One-off encrypted share links** with the key in the fragment, in phase 3                                                                               | Showing a doctor a summary without an account or a printout, still unreadable to the server                                                                                                         |
+| 2026-11-09 | **Phases:** cards and documents (MVP), health, out into the world, sharing and native                                                                    | The owner asked for everything planned, the MVP identified, and the rest split                                                                                                                      |
+| 2026-11-09 | **A portable core and format specifications** from phase 1                                                                                               | The owner expects a native app once the web version validates the features                                                                                                                          |
+| 2026-11-09 | **Every limit is a setting;** files default to 500 MB an account                                                                                         | As Roam; operators size their own server                                                                                                                                                            |
+| 2026-11-13 | **0.1.0 is a cut of phase 1:** foundation, sign-in (local and core), the full vault and unlocking, `synced`-tier sync, **QR cards** only                 | The owner: "a version 0.1.0, improve everything else later; the foundation should be solid"; nothing deferred changes the format, since `format`, `tier` and kinds are in the design from the start |
+| 2026-11-25 | **The suite's encryption instead of age:** the account key, the app key and the SDK's cipher; no key file and no recovery key; 0.1.x wallets start clean | Wallet joins the suite's keys, compatible with core and Shopper (RFC 0001); supersedes the 2026-11-09 rows on the age key, the vault key and the recovery key                                       |
+| 2026-11-25 | **A keyring root under the app key, entry keys derived from it, and a device layer (passkey with PRF, or passcode) wrapping the root**                   | The SDK's key cannot open without a connection, and the device holds ciphertext only yet must show cards with no signal (RFC 0001, Amendment 1)                                                     |
+| 2026-11-25 | **A snapshot is not encrypted again;** it opens with the account's key                                                                                   | An outer age layer would be a format of Wallet's own beside the suite's                                                                                                                             |

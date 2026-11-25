@@ -7,8 +7,9 @@
 ## Overview
 
 The heart of Wallet. **Since [RFC 0001](../rfcs/0001-wallet-on-the-suites-encryption.md) (2026-11-25) Wallet uses the suite's keys and the SDK's cipher**, as core and Shopper do: an app key from core
-(hosted) or from a vault of its own (standalone) wraps a key per entry, and the SDK's `encryptBytes` and `encryptContent` seal each entry's shape, body and files. Tasks 3.1 to 3.12 built the
-age design of 0.1.x and are superseded (➖) where RFC 0001 replaces them; 3.13 to 3.17 build the new one. **It comes before any table of the product**, so that no entry is ever written readable.
+(hosted) or from a vault of its own (standalone) wraps the **keyring root**, a random key the server keeps wrapped and each device keeps under its own passkey or passcode; each entry's key is derived from the root
+(HKDF), and the SDK's `encryptBytes` and `encryptContent` seal its shape, body and files. The device layer is what lets Wallet open with no signal. Tasks 3.1, 3.2, 3.4, 3.5, 3.9 and 3.12 built or planned
+the age design of 0.1.x and are superseded (➖); **3.6 to 3.8 are kept and re-rooted by 3.14**; 3.13 to 3.17 build the new design. **It comes before any table of the product**, so that no entry is ever written readable.
 
 ## Related
 
@@ -92,9 +93,9 @@ confirmed.
 
 **Done as:** The recovery key as a second recipient, a printable sheet (`RecoverySheet`: the key in groups of four and a QR code, on one page) or a downloaded file, confirmed by typing its last six characters, or skipped by ticking the acknowledgement. Unlocking with it by text works (`e2e/account.spec.ts`). **Scanning the sheet's QR code with the camera is not wired yet.**
 
-#### ➖ 3.6 — The keyring and locking
+#### ✅ 3.6 — The keyring and locking
 
-**Superseded by RFC 0001 (the key's lifetime and the lock are the suite's, tasks 3.14 and 3.17).** What follows is what 0.1.x built.
+**Kept, re-rooted by task 3.14 (RFC 0001):** it holds the keyring root and the entry keys derived from it (§9.1) where it held a vault key, and a lock drops them. What follows is what 0.1.x built.
 
 **Goal:** keys in memory only while unlocked, and every lock of §9.2. **Design:** §9.1, §9.2. **Depends on:** 3.4.
 
@@ -109,9 +110,9 @@ fail; two tabs lock and unlock together; the raw-dump test passes (and fails whe
 
 **Done as:** `src/keyring/keyring.ts`: locked or unlocked, the idle timer (1, 5, 15, 60 minutes), the hidden timer (at once, a minute, never), the lock button, sign-out, and every tab together through a `BroadcastChannel`, all tested on a mocked clock. The raw-dump test is in `wallet.test.ts` (the server and both stores) and `e2e/wallet.spec.ts` (IndexedDB, Cache Storage, local storage).
 
-#### ➖ 3.7 — Unlocking with a passkey
+#### ✅ 3.7 — Unlocking with a passkey
 
-**Superseded by RFC 0001 (a quick unlock, if it can be had, is task 3.17).** What follows is what 0.1.x built.
+**Kept, re-rooted by task 3.14 (RFC 0001):** the passkey's wrapper holds the keyring root, not a vault key. Whether it works on real phones is task 3.17. What follows is what 0.1.x built.
 
 **Goal:** Face ID, a fingerprint or Windows Hello unlocks, offline. **Design:** §9.3. **Depends on:** 3.6.
 
@@ -126,9 +127,9 @@ one credential does not open with another.
 
 **Done as:** `src/keyring/wrappers.ts`: a WebAuthn credential made for unlocking, the PRF output through HKDF as the key that wraps the vault key; tested against a virtual authenticator that computes PRF as WebAuthn does, and in Chromium with its own. **Real-device PRF support (DESIGN.md §33.3) is not checked yet:** where it is missing the passkey is not offered.
 
-#### ➖ 3.8 — Unlocking with a device passcode
+#### ✅ 3.8 — Unlocking with a device passcode
 
-**Superseded by RFC 0001 (the password is the way in; quick unlock is task 3.17).** What follows is what 0.1.x built.
+**Kept, re-rooted by task 3.14 (RFC 0001):** the passcode's wrapper holds the keyring root, not a vault key. What follows is what 0.1.x built.
 
 **Goal:** a passcode where passkeys with PRF are missing. **Design:** §9.3. **Depends on:** 3.6.
 
@@ -156,21 +157,20 @@ the new key after syncing; a stale `PUT` is refused.
 
 #### 📋 3.10 — Rotating everything
 
-**Goal:** new keys for everything, for a key that may have been seen. **Design:** §7.5. **Depends on:** 3.9, 4.7.
+**Goal:** new keys for everything, for a key that may have been seen. **Design:** §7.5. **Depends on:** 3.15, 4.7.
 
-**Technical:** a new vault key and header; for each entry a new entry key, its shape, body and files re-sealed and sent through the ordinary sync path
-as `put`s (files re-uploaded under new ids, old ones swept), in resumable batches with a cursor kept in the store; `vault.state = rotating` until
-done; Device only entries rotated by their holders at their next sync (the server tells them); `rotation_done` notice; progress in Settings.
+**Technical:** a new keyring root at the next epoch, wrapped under the app key and sent; for each entry its derived key changes with it, its shape, body and files re-sealed and sent through the ordinary sync path
+as `put`s (files re-uploaded under new ids, old ones swept), in resumable batches with a cursor kept in the store; the account is `rotating` while its entries are at more than one epoch; Device only entries rotated by their holders at their next sync (the server tells them); `rotation_done` notice; progress in Settings.
 
-**Accepts when:** after rotation no entry opens with the old vault key; interrupting the browser halfway and reopening resumes and finishes; a Device
+**Accepts when:** after rotation no entry opens with the old root; interrupting the browser halfway and reopening resumes and finishes; a Device
 only entry on a second context is rotated when it syncs.
 
 #### 📋 3.11 — Resetting a wallet
 
-**Goal:** a way back for a person who lost every key. **Design:** §7.6. **Depends on:** 3.4, 4.1.
+**Goal:** a way back for a person who lost every key. **Design:** §7.6. **Depends on:** 3.14, 4.1.
 
 **Technical:** Settings > Security and the unlock screen's "I've lost my keys"; the password or a fresh session and typing "reset"; the server deletes
-entries, files and the vault in one routine (shared with 2.5's pieces), and the account's devices erase their stores at their next sync; setup starts
+entries, files, the wrapped roots and the account's key records in one routine (shared with 2.5's pieces), and the account's devices erase their stores at their next sync; setup starts
 again.
 
 **Accepts when:** after a reset the account has no entries or files and setup runs; a second device's store is emptied at its next sync.
@@ -186,46 +186,53 @@ to the browser; if so, a sign-in passkey can also hold an unlock wrapper; if not
 
 **Accepts when:** either one prompt signs in and unlocks in Playwright, or the epic records the finding and the task is marked ➖ with the reason.
 
-#### 📋 3.13 — The standalone vault and the key's return
+#### 📋 3.13 — The standalone vault, the root's record and the key's return
 
-**Goal:** the keys' records and the ways to reach them, on the server and in the manifest. **Design:** §7.1, §7.4, §25.1. **Depends on:** 2.8.
+**Goal:** the keys' records and the ways to reach them, on the server and in the manifest. **Design:** §7.1, §7.4, §8.1, §25.1. **Depends on:** 2.8.
 
 **Technical:** `AppVault` over the auth store, `vaultRoute` at `/api/keys/vault` with the session's account id, `keySecrets` among the auth plugins and `vault.deleteAccount` in `People.deletePerson`;
-the manifest's `encryption.return` and a `/keys/return` page for core's release; `Referrer-Policy: strict-origin-when-cross-origin`; Wallet's own `vault` table and `/api/vault` go.
+the `keyring` table (one wrapped root per account and epoch) and its route `/api/keys/root`, written online and first writer wins, removed by `People.deletePerson` too;
+the manifest's `encryption.return` and a `/keys/return` page for core's release; `Referrer-Policy: strict-origin-when-cross-origin`.
 
-**Accepts when:** the route answers only the session's own records and only for `WALLET_URL`'s origin; a deleted account leaves no record of its keys; the manifest check passes.
+**Accepts when:** the routes answer only the session's own records and only for `WALLET_URL`'s origin, and a second person gets not found; a deleted account leaves no record of its keys; two devices that race
+to make the root end with one; the manifest check passes.
 
 #### 📋 3.14 — One interface over both modes
 
-**Goal:** the page has a key, however the instance gets it. **Design:** §7, §9. **Depends on:** 3.13.
+**Goal:** the page has a key and the root, however the instance gets them. **Design:** §7, §9. **Depends on:** 3.13.
 
-**Technical:** `src/keys/` (Shopper's pattern): `appKeys` hosted, `localVault` standalone; sign-up, sign-in and reset send `derive(...).signIn` and call `afterSignIn`; the kit once after sign-up;
-`LockedState`; Lock forgets the key; Wallet's setup flow is replaced.
+**Technical:** `src/keys/` (Shopper's pattern): `appKeys` hosted, `localVault` standalone; sign-up, sign-in and reset send `derive(...).signIn` and call `afterSignIn`; the kit once after sign-up; `LockedState`.
+**Re-rooting 3.6 to 3.8:** the first device makes the root and seals it under the app key (`keyring`); a new device fetches and opens it with the app key; the passkey and passcode wrappers hold the root; a lock drops it
+and a wrapper brings it back offline. Setup asks for a passkey or a passcode and says why. Wallet's setup flow of key files is replaced.
 
-**Accepts when:** a standalone sign-up shows the kit once and the wallet opens; a reload and offline still open it; Lock asks for the password; a reset gives back the account and the kit gives back the wallet.
+**Accepts when:** a standalone sign-up shows the kit once and the wallet opens; after a restart with no network a passcode opens it and the cards show; a second browser signs in and gets the same root; Lock asks for the
+passcode or passkey; a reset gives back the account and the kit gives back the wallet.
 
-#### 📋 3.15 — Entries under the app key
+#### 📋 3.15 — Entries under derived keys
 
-**Goal:** an entry is encrypted by the SDK under a key of its own, wrapped under the app key. **Design:** §8. **Depends on:** 3.14.
+**Goal:** an entry is encrypted by the SDK under a key of its own, derived from the root. **Design:** §8. **Depends on:** 3.14.
 
-**Technical:** a 32-byte entry key per entry, wrapped (AES-256-GCM, bound to account and entry) in `wrapped_key`; shape and body `encryptBytes` bound to account, entry, part and version; files
-`encryptContent`; plaintext padding kept; `src/core/sync/limits.ts` and the server's size check re-derived from the envelope's overhead; sync protocol version bumped; a forward migration clears old-format rows.
+**Technical:** entry key = HKDF-SHA-256(root, `wallet/v2/entry|<account id>|<entry id>`), imported with `importDocumentKey`; shape and body `encryptBytes` bound to `<account id>/<entry id>/<part>` and the entry's version;
+files `encryptContent`; plaintext padding kept; `src/core/sync/limits.ts` and the server's size check re-derived from the envelope's 79 bytes; `entry.wrapped_key` becomes `key_epoch` and the mutation carries it; sync
+protocol version bumped; a forward migration clears old-format rows and drops the `vault` table. Entries are made and opened offline.
 
-**Accepts when:** the marker test finds a random marker in no row and no file, in plain text, base64 or hex; an entry moved to another entry, part or version does not open; an old device is told to update.
+**Accepts when:** the marker test finds a random marker in no row and no file, in plain text, base64 or hex; an entry moved to another entry, part or version does not open; an old device is told to update; an entry
+made offline syncs and opens on a second device.
 
 #### 📋 3.16 — Retiring age
 
 **Goal:** nothing of 0.1.x's key design is left. **Design:** §7 to §9. **Depends on:** 3.15.
 
-**Technical:** `src/core/vault/` (but padding), `src/keyring/` wrappers, key files, the unlock screens, `src/server/vault/`, the `vault` table, `age-encryption` and `hash-wasm`, the vault spec and vectors (a short statement of what Wallet
-binds and pads replaces them), `AGENTS.md`'s rules that named them.
+**Technical:** `src/core/vault/` (but padding and the derivation), the age header, identity and key files, the unlock screens of key files, `src/server/vault/`, `age-encryption`, the vault spec and vectors (a short statement of what
+Wallet derives, binds and pads replaces them), `AGENTS.md`'s rules that named them. **`hash-wasm` stays** (the passcode wrapper).
 
-**Accepts when:** `pnpm test`, the e2e specs and the deploy check pass with neither package installed.
+**Accepts when:** `pnpm test`, the e2e specs and the deploy check pass with `age-encryption` not installed.
 
-#### 🚧 3.17 — Quick unlock
+#### 🚧 3.17 — Quick unlock on real phones
 
-**Goal:** Face ID or a fingerprint, where it can be had. **Design:** §9.3. **Depends on:** 3.14.
+**Goal:** Face ID or a fingerprint opens Wallet, proven on real devices. **Design:** §9.3. **Depends on:** 3.14.
 
-**Technical:** standalone, a passkey of Wallet's own with PRF wraps the unlocking value `derive()` gave; hosted, core's lock when it ships (RFC 0006, 14.14). **Waits on a spike on real phones**; where PRF is absent nothing is offered.
+**Technical:** the passkey wrapper of 3.7 holds the root (3.14); the **device check** on an iPhone, an iPad and an Android phone (the suite's research 0012 found passkeys with no PRF output), recorded here; where PRF is absent
+the passcode is the way in and no passkey is offered. Hosted, core's own lock (RFC 0006, 14.14) is separate and adopted when it ships.
 
-**Accepts when:** a device check on an iPhone, an iPad and an Android phone is recorded, and unlocking by it works in a Chromium virtual authenticator; or this task is ➖ with the finding.
+**Accepts when:** the device check is recorded and unlocking by passkey works in a Chromium virtual authenticator and on the phones checked; or this task records the finding and the passcode stays the only way.

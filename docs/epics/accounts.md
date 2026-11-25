@@ -76,7 +76,7 @@ the test.
 
 **Goal:** every browser a device the person sees, names and removes. **Design:** §6.3, §11.8. **Depends on:** 4.2, 3.6.
 
-**Technical:** `device` rows (device-made id, the session, a label sealed under the vault key, times); registered at the first sync after unlocking;
+**Technical:** `device` rows (device-made id, the session, a label sealed under a key derived from the root, times); registered at the first sync after unlocking;
 `last_seen_at` on each sync; Settings > Security lists them with this device marked; rename; **remove** (ends the session, marks its device-only
 entries lost, 4.8); a removed device's requests refused; the **new device** notice (10.1); "Is this the same device?" on a new device whose label
 matches one not seen for a while; **sign-out choices** (keep or erase the store, naming device-only entries and unsent changes).

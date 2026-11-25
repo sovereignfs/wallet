@@ -36,7 +36,7 @@ sealed columns but their length.
 
 **Technical:** `src/core/sync/` types and validators (shared); the route with session, `Origin`, device id, protocol version; push in order then pull
 past the cursor, paged (bodies for `synced`, shapes only otherwise, tombstones); the answer carries applied, refused (with a reason code), `mode`, the
-vault header's version; a device too old is told to update. **`docs/specs/sync-protocol.md`** written alongside with example exchanges.
+newest key epoch; a device too old is told to update. **`docs/specs/sync-protocol.md`** written alongside with example exchanges.
 
 **Accepts when:** two simulated devices converge; a refused mutation carries its reason; a removed device is refused; the spec's examples are tests.
 
