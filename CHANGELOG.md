@@ -6,6 +6,32 @@ All notable changes to Wallet are recorded here. The format follows [Keep a Chan
 Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
 titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
+## [0.5.1] - 2026-11-25
+
+**Before upgrading:** nothing changes unless you set the new `WALLET_AUTH_TRUSTED_PROXIES`, which is optional and needs no change to the compose files or the
+image. **Set it if your reverse proxy adds to the `X-Forwarded-For` header instead of replacing it**, or if you cannot tell which it does: without it, Wallet
+believes a header with one address only, and counts a client whose header has more with every other client like it. `deploy/README.md` says what to look for
+and how to test it.
+
+### Added
+
+- `WALLET_AUTH_TRUSTED_PROXIES`: the reverse proxies in front of Wallet, as IP addresses or ranges (`10.0.0.0/8`), separated by commas. The sign-in's limit, and
+  the limits on Sovereign's notices and export, tell one client from another by the address in `X-Forwarded-For`; with the proxies named, the client is the first
+  address from the right that is not one of them, and nothing a client writes to the left of that changes who it is. A wrong entry stops Wallet at start-up,
+  naming its place in the list and never what it says.
+
+### Fixed
+
+- **A closed sign-up no longer says which addresses have an account.** On an instance with sign-up closed (the default) and no mail, signing up with an address
+  that had an account was answered "User already exists", and with one that had none, "Sign-up is closed". Both get the second answer now. An instance open to
+  anyone with no mail still has to say an address is taken, to sign the person in at once.
+- **Sovereign's export request is guarded.** A body over 16 KB is refused unread, and a caller is limited to 20 requests a minute. It answers on one SDK client for
+  the whole process instead of making one for each request, so core's discovery document is fetched once and not for every request, and a request answered
+  once is refused the second time even after a restart or by another process, not only by the one that answered it.
+- **Sovereign's notices are counted for each caller, not all callers together.** Their limit of 300 a minute was one count for everyone, so anyone who could
+  reach the routes could use it up and have Sovereign's own notices (a person's sessions ended, an account deleted) refused.
+- The sign-in's limit tells clients apart behind a proxy that adds to `X-Forwarded-For` (see `WALLET_AUTH_TRUSTED_PROXIES` above).
+
 ## [0.5.0] - 2026-11-24
 
 **Before upgrading:** an instance now signs people in one way. If yours is set up both ways (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=1`), it now signs
