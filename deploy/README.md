@@ -22,6 +22,23 @@ docker compose -f compose.yaml -f compose.postgres.yaml up -d --build          #
 Only the machine itself can reach the port (`127.0.0.1:3006`): put a reverse proxy with TLS in front of it, and set `WALLET_URL` to the address people use.
 Passkeys, emailed links and the sign-in redirect are made from it, and the server refuses to start on an address that is not https (localhost aside).
 
+**The proxy must tell Wallet who is calling.** Sign-in is limited per address, and Wallet learns the address from the
+`X-Forwarded-For` header, which a client can write for itself. So Wallet believes a header with **one** address only, unless you name your proxies in
+`WALLET_AUTH_TRUSTED_PROXIES` (addresses or ranges, such as `10.0.0.0/8,172.16.0.0/12`), when it reads the chain from the right, past each of them, and
+the first address that is not one is the client. What goes wrong without telling it right depends on the proxy:
+
+| What your proxy does with `X-Forwarded-For`                                                                 | Do this                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Replaces** it with the client's address (in nginx, `proxy_set_header X-Forwarded-For $remote_addr;`)      | Nothing: leave the setting out                                                                                                                                  |
+| **Adds** to what the client sent (in nginx, `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`) | Set `WALLET_AUTH_TRUSTED_PROXIES` to the proxy's address. Left out, a client that sends its own header is counted with every other client in the same one place |
+| **Passes the client's header through** untouched, or sends none                                             | Make it replace the header. Otherwise a client can write a new address for each try and is never limited, or everyone is counted as one                         |
+
+Which of these your proxy does depends on how it is configured, and on its version: read its documentation, and test it, by sending a request with a header you
+made up (`curl -H 'X-Forwarded-For: 198.51.100.9' …`) and looking at what reaches Wallet.
+
+Wallet reached with no proxy at all (not the way to run it) has no one to believe: every request is counted together, and anyone can use up the sign-in's tries
+for everyone.
+
 The smallest setup of all is one `docker run`, with no Compose:
 
 ```bash

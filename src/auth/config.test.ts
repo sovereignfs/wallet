@@ -40,6 +40,7 @@ describe('sign-in settings', () => {
       signUp: 'closed',
       passwordMinLength: 10,
       local: true,
+      trustedProxies: [],
       sovereign: undefined,
     });
     expect(
@@ -93,6 +94,35 @@ describe('sign-in settings', () => {
     expect(authOf(loadConfig(ON))?.signUp).toBe('closed');
   });
 
+  it('read the proxies in front of Wallet as addresses and ranges, and name a wrong entry by its place and never by what it says', () => {
+    expect(authOf(loadConfig(ON))?.trustedProxies).toEqual([]);
+    expect(
+      authOf(
+        loadConfig({
+          ...ON,
+          WALLET_AUTH_TRUSTED_PROXIES: ' 10.0.0.0/8 , 192.168.1.5,fd00::/8,,::1 ',
+        }),
+      )?.trustedProxies,
+    ).toEqual(['10.0.0.0/8', '192.168.1.5', 'fd00::/8', '::1']);
+    // Suite mode has them too: its notices and its export are counted per address.
+    expect(
+      authOf(loadConfig({ ...ON, ...CORE, WALLET_AUTH_TRUSTED_PROXIES: '172.16.0.0/12' }))
+        ?.trustedProxies,
+    ).toEqual(['172.16.0.0/12']);
+    const wrong = problems(
+      loadConfig({ ...ON, WALLET_AUTH_TRUSTED_PROXIES: '10.0.0.1, secret-proxy.example.com' }),
+    );
+    expect(wrong).toEqual([
+      'WALLET_AUTH_TRUSTED_PROXIES entry 2 must be an IP address or a range such as 10.0.0.0/8.',
+    ]);
+    expect(wrong.join()).not.toContain('secret-proxy');
+    for (const bad of ['10.0.0.0/33', '10.0.0.0/', 'fd00::/129', '10.0.0/8', '*', 'unknown'])
+      expect(
+        problems(loadConfig({ ...ON, WALLET_AUTH_TRUSTED_PROXIES: bad })).join(),
+        bad,
+      ).toContain('WALLET_AUTH_TRUSTED_PROXIES entry 1');
+  });
+
   it('say about a wrong address only once: the address check already reported it', () => {
     const reported = problems(loadConfig({ ...ON, WALLET_URL: 'http://wallet.example.com' }));
     expect(reported.filter((problem) => problem.includes('WALLET_URL'))).toHaveLength(1);
@@ -107,6 +137,7 @@ describe('sign-in settings', () => {
       signUp: 'open',
       passwordMinLength: 10,
       local: false,
+      trustedProxies: [],
       sovereign: {
         issuer: 'https://sovereign.example.com',
         clientId: 'wallet-client',

@@ -1,4 +1,5 @@
 import type { Problem } from '../config';
+import { isAddressOrRange } from '../limits/address';
 
 /**
  * How people sign in (DESIGN.md §6), checked once at start-up with the other settings (`src/config/index.ts`), which is why this reads through
@@ -12,6 +13,10 @@ import type { Problem } from '../config';
  *                                    With a core it has nothing to decide: who may sign up is the core's.
  *   WALLET_AUTH_PASSWORD_MIN_LENGTH   the shortest password, 10 by default.
  *   WALLET_URL                        the address people use; required with either way (links, cookies, passkeys and the redirect are made from it).
+ *   WALLET_AUTH_TRUSTED_PROXIES       the reverse proxies in front of Wallet, as IP addresses or ranges (`10.0.0.0/8`), separated by commas. They are
+ *                                    the only hops of `X-Forwarded-For` that are believed, which is how every limit that is kept per address (sign-in, and
+ *                                    Sovereign's notices and export) tells one client from another. Unset, only a header with one address is believed,
+ *                                    which is right when the proxy replaces the header, and no proxy can be told from a client's own chain.
  *   WALLET_CORE_URL, WALLET_CORE_CLIENT_ID, WALLET_CORE_CLIENT_SECRET[_FILE]
  *                                   Sovereign sign-in, through a core (DESIGN.md §25.1): all three or none.
  *
@@ -34,6 +39,8 @@ export interface AuthSettings {
   readonly local: boolean;
   /** `WALLET_AUTH_LOCAL` was on beside a core, and is off: suite mode wins. The settings that do nothing now, to say once at start-up. */
   readonly localIgnored?: readonly string[];
+  /** The reverse proxies whose `X-Forwarded-For` is believed (`WALLET_AUTH_TRUSTED_PROXIES`), checked: addresses and ranges. */
+  readonly trustedProxies: readonly string[];
   /** Sign-in through a core (suite mode), or `undefined` when it is not set up. */
   readonly sovereign: SovereignSettings | undefined;
 }
@@ -116,6 +123,19 @@ export function resolveAuth(
     } else passwordMinLength = parsed;
   }
 
+  // The entries are named by their place in the list and never by what they say.
+  const trustedProxies = (read('WALLET_AUTH_TRUSTED_PROXIES') ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== '');
+  trustedProxies.forEach((entry, index) => {
+    if (!isAddressOrRange(entry)) {
+      problems.push(
+        `WALLET_AUTH_TRUSTED_PROXIES entry ${index + 1} must be an IP address or a range such as 10.0.0.0/8.`,
+      );
+    }
+  });
+
   if (url === undefined || secret === undefined) return undefined;
   if (secret.length < MIN_SECRET_LENGTH || (rawSignUp !== 'open' && rawSignUp !== 'closed')) {
     return undefined;
@@ -127,6 +147,7 @@ export function resolveAuth(
     passwordMinLength,
     local,
     ...(localIgnored ? { localIgnored } : {}),
+    trustedProxies,
     sovereign,
   };
 }

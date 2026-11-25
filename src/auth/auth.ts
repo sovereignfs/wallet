@@ -58,7 +58,8 @@ function packageSettings(settings: AuthSettings, mail: boolean) {
       url: settings.url,
       authSecret: { reveal: () => settings.secret },
       authTrustedOrigins: [],
-      authTrustedProxies: [],
+      // The proxies in front of Wallet, whose `X-Forwarded-For` the sign-in's limit believes (`src/limits/address.ts`).
+      authTrustedProxies: [...settings.trustedProxies],
       authCookieDomain: undefined,
       authPasswordMinLength: settings.passwordMinLength,
       authPasswordRequireUppercase: false,

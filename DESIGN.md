@@ -1330,7 +1330,10 @@ nothing else unsafe), `worker-src 'self'` for pdf.js's worker, `img-src 'self' b
 third-party loads; what people write is rendered as text, never HTML; `Permissions-Policy` allowing camera and wake lock for the app's own origin
 only. **Logs hold no entry content, ever, and no names or addresses:** an id and a kind of failure (and the server has no content to log). Every
 route, operation and mutation finds the session and carries the permission in its statement (§5.2); a write checks `Origin`. **Rate limits:** sign-in,
-sync, file uploads, vault operations, passes, share links and their opening. **A security review before each release,** and **an independent review of
+sync, file uploads, vault operations, passes, share links and their opening. **Sign-in is counted by the caller's address**, which is
+what the reverse proxy says in `X-Forwarded-For` and nothing a client wrote: one address alone is believed, or, behind the proxies `WALLET_AUTH_TRUSTED_PROXIES`
+names, the first hop from the right that is not one of them (`src/limits/address.ts`, the rule better-auth uses for the sign-in's own limit). An address
+nobody can state is counted with the others like it, never with a named client's. **A security review before each release,** and **an independent review of
 the vault format and the keyring before 1.0** (§33).
 
 ### Licence

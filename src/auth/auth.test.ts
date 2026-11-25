@@ -292,3 +292,48 @@ describe(`local sign-in, open to anyone (${leg})`, () => {
     expect(await userCount(t)).toBe(before);
   });
 });
+
+describe(`the sign-in's limit, behind a reverse proxy (${leg})`, () => {
+  const guess = (client: TestClient, chain: string) =>
+    client.post(
+      '/api/auth/sign-in/email',
+      { email: 'nobody@example.com', password: 'guessing guessing' },
+      { 'x-forwarded-for': chain },
+    );
+
+  // A proxy that adds to the header, as the common recipes do, gives Wallet a chain: the client's own words, then the client's address, then the proxy's.
+  describe('that is named in WALLET_AUTH_TRUSTED_PROXIES', () => {
+    let t: TestAuth;
+    beforeAll(async () => {
+      t = await makeAuth({ signUp: 'closed', trustedProxies: ['10.0.0.0/8'] });
+    });
+    afterAll(async () => t.close());
+
+    it('counts each client by its own address, and nothing it writes to the left of that is a way round the limit', async () => {
+      const client = t.client();
+      // Three tries, each claiming to be somebody else on the left: still one client, so the fourth is refused.
+      for (const spoof of ['1.1.1.1', '2.2.2.2', '3.3.3.3'])
+        expect((await guess(client, `${spoof}, 203.0.113.7, 10.0.0.9`)).status).toBe(401);
+      expect((await guess(client, '4.4.4.4, 203.0.113.7, 10.0.0.9')).status).toBe(429);
+      // Another client behind the same proxy has its own count, and is not locked out by the first.
+      expect((await guess(client, '5.5.5.5, 203.0.113.8, 10.0.0.9')).status).toBe(401);
+    });
+  });
+
+  // What the setting is for. Without it a chain is not believed, so every client behind such a proxy is counted together: one person's tries are
+  // everyone's, and anyone can lock everyone out. (Here better-auth, in a test, counts them as one address; at run time it is one shared count.)
+  describe('that is not named', () => {
+    let t: TestAuth;
+    beforeAll(async () => {
+      t = await makeAuth({ signUp: 'closed' });
+    });
+    afterAll(async () => t.close());
+
+    it('counts every client behind it together, which is why the setting exists', async () => {
+      const first = t.client();
+      for (const spoof of ['1.1.1.1', '2.2.2.2', '3.3.3.3'])
+        expect((await guess(first, `${spoof}, 203.0.113.7, 10.0.0.9`)).status).toBe(401);
+      expect((await guess(t.client(), '5.5.5.5, 203.0.113.8, 10.0.0.9')).status).toBe(429);
+    });
+  });
+});

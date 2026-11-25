@@ -29,6 +29,7 @@ const SETTINGS: AuthSettings = {
   signUp: 'closed',
   passwordMinLength: 10,
   local: true,
+  trustedProxies: [],
   sovereign: undefined,
 };
 
