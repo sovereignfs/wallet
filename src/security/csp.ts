@@ -65,8 +65,9 @@ export const SECURITY_HEADERS: { key: string; value: string }[] = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   // Old browsers do not know `frame-ancestors`.
   { key: 'X-Frame-Options', value: 'DENY' },
-  // A link followed from a page does not tell the other site where it came from.
-  { key: 'Referrer-Policy', value: 'no-referrer' },
+  // A link followed from a page tells the other site the address of this app and no more, never the page. The origin is what core needs to release the app's
+  // key to this app silently (RFC 0001); `no-referrer` made it ask every time. Not sent at all over a downgrade to http.
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   // What the app uses of the device, for its own address only: the camera (scanning a card), the screen wake lock (showing one), and passkeys (unlocking).
   // Everything else is off, so that a page cannot be made to ask for it.
   {

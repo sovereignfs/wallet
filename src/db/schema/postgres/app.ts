@@ -31,6 +31,21 @@ export const vault = app.table('vault', {
   updatedAt: epochMs('updated_at').notNull(),
 });
 
+/**
+ * The keyring root of an account, wrapped (DESIGN.md §7.4, §8.1): 32 random bytes made by the account's first device, kept here **only under the suite's app key**
+ * (AES-256-GCM, nonce first), which opens in the browser. One row per epoch of the root (a rotation makes the next, task 3.10). The server can open none of it.
+ */
+export const keyring = app.table(
+  'keyring',
+  {
+    accountId: ref('account_id').notNull(),
+    epoch: counter('epoch').notNull(),
+    wrappedRoot: binary('wrapped_root').notNull(),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.accountId, table.epoch] })],
+);
+
 /** The account's change counter and mode (DESIGN.md §11.3): every applied mutation increments `seq`, and rows are stamped with it. */
 export const accountStream = app.table('account_stream', {
   accountId: ref('account_id').primaryKey(),

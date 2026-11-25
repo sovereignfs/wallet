@@ -186,7 +186,7 @@ to the browser; if so, a sign-in passkey can also hold an unlock wrapper; if not
 
 **Accepts when:** either one prompt signs in and unlocks in Playwright, or the epic records the finding and the task is marked ➖ with the reason.
 
-#### 📋 3.13 — The standalone vault, the root's record and the key's return
+#### 🚧 3.13 — The standalone vault, the root's record and the key's return
 
 **Goal:** the keys' records and the ways to reach them, on the server and in the manifest. **Design:** §7.1, §7.4, §8.1, §25.1. **Depends on:** 2.8.
 
@@ -196,6 +196,8 @@ the manifest's `encryption.return` and a `/keys/return` page for core's release;
 
 **Accepts when:** the routes answer only the session's own records and only for `WALLET_URL`'s origin, and a second person gets not found; a deleted account leaves no record of its keys; two devices that race
 to make the root end with one; the manifest check passes.
+
+**Done as (the server's half):** `src/keys/server/vault.ts` is the one `AppVault` over the auth store (the salt route uses it too), served by the SDK's `vaultRoute` at `/api/keys/vault` for the session's account and answering 404 hosted; `keySecrets` is among the auth plugins; `People.deletePerson` calls the vault's `deleteAccount` and deletes the account's `keyring` rows. The `keyring` table (migration `0001_add_keyring`, both dialects) and `/api/keys/root` (`src/server/keyring/`): the first wrapped root of an epoch is kept, a device that raced is answered with the stored one, only epoch 1 is accepted until rotation exists, exactly 60 bytes, 20 a ten minutes. `Referrer-Policy` is `strict-origin-when-cross-origin`. Tests run as a second person on all three database legs, and `people.test.ts` was seen to fail without either deletion. **Not done yet:** the manifest's `encryption.return` and the `/keys/return` page land with 3.14, which has the page that reads core's answer; the old `/api/vault` and `vault` table stay until 3.16, since the screens still use them. Hosted key release is not exercised here (the SDK's fake core has no key release).
 
 #### 📋 3.14 — One interface over both modes
 

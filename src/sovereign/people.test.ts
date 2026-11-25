@@ -14,9 +14,11 @@ import {
   openStoreBesideAuth,
   testTarget,
 } from '../db/test-support';
+import { vaultOf } from '../keys/server/vault';
 import { RateLimiter } from '../limits/rate';
 import { applyMutation } from '../server/entries/apply';
 import { makeEntry, put } from '../server/entries/test-support';
+import { keepRoot } from '../server/keyring';
 import { createVault } from '../server/vault';
 import { deletePerson } from './people';
 
@@ -29,7 +31,15 @@ import { deletePerson } from './people';
 const { leg } = testTarget();
 
 /** Tables whose rows are the person's, and go with them. */
-const GOES = ['vault', 'account_stream', 'entry', 'applied_mutation', 'rate_bucket', 'credential'];
+const GOES = [
+  'vault',
+  'keyring',
+  'account_stream',
+  'entry',
+  'applied_mutation',
+  'rate_bucket',
+  'credential',
+];
 /** Tables that are about something else than a person. */
 const NOT_A_PERSON: string[] = [];
 
@@ -48,12 +58,10 @@ const DECIDED_AUTH: Record<string, string> = {
     'keyed by address or by a hash of it, not by person, and swept when its window is over: not an account’s',
   sv_core_notices: 'core’s notices by their jti, kept until they expire: no person’s',
   sv_sessions: 'sign-ins through core still pending, which run out: no account’s yet',
-  sv_key_apps: 'the instance’s vault id, the salt of the sign-in value: no person’s',
-  sv_key_settings: 'the vault’s settings: no person’s',
-  sv_key_accounts:
-    'the SDK vault’s records of a person’s keys, which Wallet never writes (its keys are its own, DESIGN.md §9): empty',
-  sv_key_wraps:
-    'the SDK vault’s wrapped keys of a person, which Wallet never writes (its keys are its own, DESIGN.md §9): empty',
+  sv_key_apps: 'a person’s keys for the app, wrapped: deleted by the vault’s `deleteAccount`',
+  sv_key_settings: 'the vault’s settings, the instance’s vault id among them: no person’s',
+  sv_key_accounts: 'a person’s keys, wrapped: deleted by the vault’s `deleteAccount`',
+  sv_key_wraps: 'a person’s ways in, wrapped: deleted by the vault’s `deleteAccount`',
   sv_auth_adoption: 'the record of the move: no person’s',
   sv_auth_migrations: 'a migration history: no person’s',
   sv_core_sign_in_migrations: 'a migration history: no person’s',
@@ -145,6 +153,20 @@ describe(`deleting a person (${leg})`, () => {
         },
         NOW,
       );
+      // The wrapped keyring root, and the suite's keys of the person: their keys, one way in and the app's key, in the vault of the auth store.
+      await keepRoot(database, who, { epoch: 1, wrapped: randomBytes(60) }, NOW);
+      const key = () => randomBytes(32).toString('base64url');
+      await vaultOf(t.auth.store).setUp(
+        who,
+        { suite: 1, unlockSalt: key(), signingPublic: key(), signingPrivate: '{}' },
+        [{ way: 'password', id: key(), record: '{}' }],
+      );
+      await vaultOf(t.auth.store).putApp(who, {
+        clientId: 'wallet',
+        appKey: '{}',
+        identity: '{}',
+        signature: randomBytes(64).toString('base64url'),
+      });
       for (let i = 0; i < 2; i++) {
         const made = await makeEntry(who);
         await applyMutation(database, who, await put(who, made), {
@@ -172,22 +194,34 @@ describe(`deleting a person (${leg})`, () => {
     );
     expect(second.entries).toBe(0);
 
-    for (const table of ['entry', 'applied_mutation', 'vault', 'account_stream', 'credential'])
+    for (const table of [
+      'entry',
+      'applied_mutation',
+      'vault',
+      'keyring',
+      'account_stream',
+      'credential',
+    ])
       expect(await count(table, `account_id = '${ada}'`), table).toBe(0);
     expect(await count('rate_bucket', `"key" LIKE '%:${ada}'`)).toBe(0);
     expect(await authCount('users', `id = '${ada}'`)).toBe(0);
     expect(await authCount('sessions', `user_id = '${ada}'`)).toBe(0);
     expect(await authCount('accounts', `user_id = '${ada}'`)).toBe(0);
     expect(await authCount('sv_legacy_passwords', `user_id = '${ada}'`)).toBe(0);
+    for (const table of ['sv_key_accounts', 'sv_key_wraps', 'sv_key_apps'])
+      expect(await authCount(table, `user_id = '${ada}'`), table).toBe(0);
 
     // Grace has everything she had.
     expect(await count('entry', `account_id = '${grace}'`)).toBe(2);
     expect(await count('applied_mutation', `account_id = '${grace}'`)).toBe(2);
     expect(await count('vault', `account_id = '${grace}'`)).toBe(1);
+    expect(await count('keyring', `account_id = '${grace}'`)).toBe(1);
     expect(await count('account_stream', `account_id = '${grace}'`)).toBe(1);
     expect(await count('credential', `account_id = '${grace}'`)).toBe(1);
     expect(await count('rate_bucket', `"key" LIKE '%:${grace}'`)).toBe(1);
     expect(await authCount('users', `id = '${grace}'`)).toBe(1);
     expect(await authCount('sv_legacy_passwords', `user_id = '${grace}'`)).toBe(1);
+    for (const table of ['sv_key_accounts', 'sv_key_wraps', 'sv_key_apps'])
+      expect(await authCount(table, `user_id = '${grace}'`), table).toBe(1);
   });
 });

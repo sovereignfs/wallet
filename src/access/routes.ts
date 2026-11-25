@@ -41,6 +41,11 @@ export const ROUTES: RouteRule[] = [
   { route: '/api/sync', methods: { POST: { kind: 'account' } } },
   // The vault header and its recipients (DESIGN.md §7.4, §8.1): read by the account's devices, made once. Only public keys and a sealed header; the account is the session's.
   { route: '/api/vault', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
+  // Wallet's own vault, for an instance that runs alone (DESIGN.md §7.4, sdk §9.5): the account's keys, wrapped, which the SDK's `vaultRoute` serves for the session's
+  // account and takes a change to only from this app's origin. 404 when hosted, where the keys are core's.
+  { route: '/api/keys/vault', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
+  // The account's wrapped keyring root (DESIGN.md §7.4, §8.1), in both modes: a key wrapped under the suite's app key, made once per epoch by the first device. The account is the session's.
+  { route: '/api/keys/root', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
   // Deleting the account (DESIGN.md §28): standalone, what it would do and doing it with the password; in suite mode it is core's, so the preview says where
   // core is and a POST is not there. The account is the session's.
   {

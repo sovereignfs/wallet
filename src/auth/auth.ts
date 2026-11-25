@@ -6,6 +6,7 @@ import type { Database } from '@sovereignfs/auth/database';
 import {
   accountTables,
   createAuthPreset,
+  keySecrets,
   movePasswords,
   resolveAuthSettings,
   signUpPolicy,
@@ -141,6 +142,8 @@ export function createAuth({
         ...(sovereign ? [sovereignSignIn({ sovereign, database })] : []),
         // A password Wallet stored before the package (a hash of the password itself) moves at its next sign-in, for 90 days (auth.md §8.1).
         ...(settings.local ? [movePasswords({ database })] : []),
+        // The session's key secret for the page's keys (RFC 0001, auth.md §8.1): core's `sub` for a session that came through core.
+        keySecrets({ database, core: sovereign !== undefined }),
         // Last: it turns the cookies a server action sets into the response's.
         nextCookies(),
       ],

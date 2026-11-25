@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { deleteCredentialsOf } from '../crypto/store';
 import type { Database as AuthStore } from '@sovereignfs/auth/database';
 import type { Database } from '../db/client';
+import { vaultOf } from '../keys/server/vault';
 import { dbAll, transaction } from '../db/exec';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
@@ -13,9 +14,10 @@ import * as sqliteSchema from '../db/schema/sqlite';
  * still find it.
  *
  *  1. The wallet: every entry, deleted ones included (they are ciphertext, and what is deleted is deleted), the record of applied mutations, the
- *     vault and the account's change counter. **Files under `/data/blobs/<account id>` go here too once files exist (4.6).**
+ *     vault, the wrapped keyring roots and the account's change counter. **Files under `/data/blobs/<account id>` go here too once files exist (4.6).**
  *  2. What was kept for them: sealed credentials, the rate counters.
- *  3. The sign-in store: sessions and what the package keeps with them, sign-ins (password, passkeys, second factors and a Sovereign
+ *  3. The sign-in store: sessions and what the package keeps with them, the suite's key records of the person (the vault's `deleteAccount`: with them
+ *     gone, nothing encrypted for them opens for anyone, backups included), sign-ins (password, passkeys, second factors and a Sovereign
  *     identity), a password still to move, pending verifications, and then the account.
  *
  * `people.test.ts` seeds a row in every table for the person and for a second person, finds nothing of the first after, and the second intact, and
@@ -60,6 +62,10 @@ export async function deletePerson(deps: PeopleDeps, accountId: string): Promise
     );
     await dbAll(
       tx,
+      sql`DELETE FROM ${app.keyring} WHERE account_id = ${accountId} RETURNING account_id`,
+    );
+    await dbAll(
+      tx,
       sql`DELETE FROM ${app.accountStream} WHERE account_id = ${accountId} RETURNING account_id`,
     );
     // Counters are keyed `kind:account`.
@@ -80,6 +86,8 @@ export async function deletePerson(deps: PeopleDeps, accountId: string): Promise
       [accountId],
     );
   await authDatabase.run('DELETE FROM sessions WHERE user_id = ?', [accountId]);
+  // The suite's key records (`sv_key_*`) of the person: their keys, wrapped, and the ways in. Safe to run again, and before the account, which names them.
+  await vaultOf(authDatabase).deleteAccount(accountId);
   // Sign-ins (a password, a Sovereign identity), second factors and passkeys, and a password still to move, before the account.
   for (const table of ['accounts', 'two_factors', 'passkeys', 'sv_legacy_passwords'])
     await authDatabase.run(`DELETE FROM ${table} WHERE user_id = ?`, [accountId]);

@@ -15,7 +15,7 @@ import type { Database } from '../../db/client';
 import { dbAll, dbGet, transaction } from '../../db/exec';
 import * as postgresSchema from '../../db/schema/postgres';
 import * as sqliteSchema from '../../db/schema/sqlite';
-import { bytesOf } from '../vault';
+import { bytesOf } from '../../db/binary';
 
 /**
  * Applying a mutation (DESIGN.md §11.4), the one door every write to an entry comes through. **The server stores ciphertext and reads nothing of it but

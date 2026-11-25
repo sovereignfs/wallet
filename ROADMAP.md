@@ -90,7 +90,7 @@ of the database and the browser's storage holds nothing readable.
 | 20  | [3.6](docs/epics/vault.md)     | The keyring and locking              | P0       | 3.14               | ✅     |
 | 21  | [3.7](docs/epics/vault.md)     | Unlocking with a passkey             | P1       | 3.6                | ✅     |
 | 22  | [3.8](docs/epics/vault.md)     | Unlocking with a device passcode     | P1       | 3.6                | ✅     |
-| 129 | [3.13](docs/epics/vault.md)    | The standalone vault and key return  | P0       | 2.8                | 📋     |
+| 129 | [3.13](docs/epics/vault.md)    | The standalone vault and key return  | P0       | 2.8                | 🚧     |
 | 130 | [3.14](docs/epics/vault.md)    | One interface over both modes        | P0       | 3.13               | 📋     |
 | 131 | [3.15](docs/epics/vault.md)    | Entries under derived keys           | P0       | 3.14               | 📋     |
 | 132 | [3.16](docs/epics/vault.md)    | Retiring age                         | P0       | 3.15               | 📋     |

@@ -2,7 +2,7 @@
   "manifest": 5,
   "prefix": "wallet",
   "name": "Wallet",
-  "description": "The private things you carry, readable only by you: cards with scannable codes, encrypted in your browser, working offline",
+  "description": "The private things you carry, encrypted in your browser: cards with scannable codes, working offline",
   "icon": "/icons/icon.svg",
   "port": 3006,
   "health": "/api/health",

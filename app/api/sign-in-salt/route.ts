@@ -1,5 +1,5 @@
 import { passwordsMoving } from '@sovereignfs/auth/server';
-import { AppVault } from '@sovereignfs/sdk/vault';
+import { vaultOf } from '@/src/keys/server/vault';
 import { authSettings } from '@/src/auth/server';
 import { type SaltDocument, cachedSalt } from '@/src/auth/salt';
 import { getAuthStore } from '@/src/db/boot';
@@ -19,7 +19,7 @@ export async function GET(): Promise<Response> {
   const store = await getAuthStore();
   const holder = globalThis as Holder;
   holder[KEY] ??= cachedSalt({
-    vaultId: () => new AppVault(store).vaultId(),
+    vaultId: () => vaultOf(store).vaultId(),
     moving: () => passwordsMoving(store),
     now: Date.now,
   });
