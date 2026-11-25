@@ -6,18 +6,19 @@
 
 ## Overview
 
-The heart of Wallet: an age key the person holds opens a vault key, which wraps a key per entry, which seals each entry's shape, body and files. This
-epic builds the format (with a standalone specification and test vectors, for a native app later), the server's own key for credentials, creating or
-importing keys, the recovery key, the keyring and its locks, and the ways to unlock. **It comes before any table of the product**, so that no entry is
-ever written readable.
+The heart of Wallet. **Since [RFC 0001](../rfcs/0001-wallet-on-the-suites-encryption.md) (2026-11-25) Wallet uses the suite's keys and the SDK's cipher**, as core and Shopper do: an app key from core
+(hosted) or from a vault of its own (standalone) wraps a key per entry, and the SDK's `encryptBytes` and `encryptContent` seal each entry's shape, body and files. Tasks 3.1 to 3.12 built the
+age design of 0.1.x and are superseded (➖) where RFC 0001 replaces them; 3.13 to 3.17 build the new one. **It comes before any table of the product**, so that no entry is ever written readable.
 
 ## Related
 
-[`DESIGN.md`](../../DESIGN.md) §7, §8, §9, §31.2 · Tusk's `DESIGN.md` §9 (its personal key) and `src/crypto/` · `age-encryption` (typage)
+[`DESIGN.md`](../../DESIGN.md) §7, §8, §9, §31.2 · [RFC 0001](../rfcs/0001-wallet-on-the-suites-encryption.md) · `sovereign`'s RFC 0005 and `docs/encrypting-an-app.md` · Shopper's `DESIGN.md` §13 · Tusk's `src/crypto/` (the server's own key, 3.3)
 
 ## Tasks
 
-#### ✅ 3.1 — The vault format
+#### ➖ 3.1 — The vault format
+
+**Superseded by RFC 0001 (the SDK's envelope replaces Wallet's, task 3.15).** What follows is what 0.1.x built.
 
 **Goal:** sealing and opening shapes and bodies, and wrapping entry keys, exactly as specified. **Design:** §8.1, §8.2, §8.4. **Depends on:** 1.2.
 
@@ -32,7 +33,9 @@ fall on the buckets; the spec's vectors pass in Node and Chromium and WebKit.
 
 **Done as:** `src/core/vault/` and `docs/specs/vault-format.md` with `vault-format.vectors.json`: the age header, a wrapped entry key bound to account, entry and vault key id, shapes and bodies in buckets bound to account, entry and part. The vectors are checked against Node's own AES-GCM and HKDF, and the header against the real `age`. Each safeguard's test was seen to fail with it off.
 
-#### ✅ 3.2 — File encryption
+#### ➖ 3.2 — File encryption
+
+**Superseded by RFC 0001 (`encryptContent` replaces Wallet's stream, task 3.15).** What follows is what 0.1.x built.
 
 **Goal:** large files encrypted and decrypted in pieces. **Design:** §8.3. **Depends on:** 3.1.
 
@@ -56,7 +59,9 @@ tests) and `credential`; a lint or test that `src/crypto/` is never imported by 
 
 **Done as:** `src/crypto/`, copied from Tusk (the instance key, an envelope bound to row and purpose, rotation with `_PREVIOUS`) without the operator key; an ESLint rule keeps server code from the vault format. `WALLET_ENCRYPTION_KEY` seals the server's own secrets and never an entry.
 
-#### ✅ 3.4 — Creating or importing the wallet key
+#### ➖ 3.4 — Creating or importing the wallet key
+
+**Superseded by RFC 0001 (no wallet key: the suite's keys, tasks 3.13 and 3.14).** What follows is what 0.1.x built.
 
 **Goal:** a vault for an account, from a new or existing age key. **Design:** §7.1, §7.2, §7.4. **Depends on:** 3.1, 2.1.
 
@@ -71,7 +76,9 @@ Tusk-format identity imports; a second `POST` is refused; the server never recei
 
 **Done as:** `createIdentity`, `parseIdentity`, `keyFile`, an optional passphrase (an age scrypt file, armoured), import of a key file, pasted text or a protected file, in `src/core/vault/identity.ts`; `/api/vault` (`GET`, and `POST` once, 409 after); `src/screens/Setup.tsx`. A Tusk-format key imports; the server's request contains recipients and a sealed header and never a secret key (a test reads the request).
 
-#### ✅ 3.5 — The recovery key
+#### ➖ 3.5 — The recovery key
+
+**Superseded by RFC 0001 (the recovery kit replaces the recovery key, task 3.14).** What follows is what 0.1.x built.
 
 **Goal:** a second key that opens everything. **Design:** §7.3. **Depends on:** 3.4.
 
@@ -85,7 +92,9 @@ confirmed.
 
 **Done as:** The recovery key as a second recipient, a printable sheet (`RecoverySheet`: the key in groups of four and a QR code, on one page) or a downloaded file, confirmed by typing its last six characters, or skipped by ticking the acknowledgement. Unlocking with it by text works (`e2e/account.spec.ts`). **Scanning the sheet's QR code with the camera is not wired yet.**
 
-#### ✅ 3.6 — The keyring and locking
+#### ➖ 3.6 — The keyring and locking
+
+**Superseded by RFC 0001 (the key's lifetime and the lock are the suite's, tasks 3.14 and 3.17).** What follows is what 0.1.x built.
 
 **Goal:** keys in memory only while unlocked, and every lock of §9.2. **Design:** §9.1, §9.2. **Depends on:** 3.4.
 
@@ -100,7 +109,9 @@ fail; two tabs lock and unlock together; the raw-dump test passes (and fails whe
 
 **Done as:** `src/keyring/keyring.ts`: locked or unlocked, the idle timer (1, 5, 15, 60 minutes), the hidden timer (at once, a minute, never), the lock button, sign-out, and every tab together through a `BroadcastChannel`, all tested on a mocked clock. The raw-dump test is in `wallet.test.ts` (the server and both stores) and `e2e/wallet.spec.ts` (IndexedDB, Cache Storage, local storage).
 
-#### ✅ 3.7 — Unlocking with a passkey
+#### ➖ 3.7 — Unlocking with a passkey
+
+**Superseded by RFC 0001 (a quick unlock, if it can be had, is task 3.17).** What follows is what 0.1.x built.
 
 **Goal:** Face ID, a fingerprint or Windows Hello unlocks, offline. **Design:** §9.3. **Depends on:** 3.6.
 
@@ -115,7 +126,9 @@ one credential does not open with another.
 
 **Done as:** `src/keyring/wrappers.ts`: a WebAuthn credential made for unlocking, the PRF output through HKDF as the key that wraps the vault key; tested against a virtual authenticator that computes PRF as WebAuthn does, and in Chromium with its own. **Real-device PRF support (DESIGN.md §33.3) is not checked yet:** where it is missing the passkey is not offered.
 
-#### ✅ 3.8 — Unlocking with a device passcode
+#### ➖ 3.8 — Unlocking with a device passcode
+
+**Superseded by RFC 0001 (the password is the way in; quick unlock is task 3.17).** What follows is what 0.1.x built.
 
 **Goal:** a passcode where passkeys with PRF are missing. **Design:** §9.3. **Depends on:** 3.6.
 
@@ -128,7 +141,9 @@ two seconds on a mid-range phone profile (Playwright's CPU throttling) or the pa
 
 **Done as:** Argon2id (64 MiB, three passes, `hash-wasm`) in a worker that falls back to the page, under a second layer from a non-extractable key; five wrong passcodes delete the wrapper, counted before each try. It takes well under two seconds here.
 
-#### 📋 3.9 — Changing keys
+#### ➖ 3.9 — Changing keys
+
+**Superseded by RFC 0001 (a password change is the vault's `prepareChange`; replacing the app key is 3.10).** What follows is what 0.1.x built.
 
 **Goal:** replace the wallet key, add, replace or remove the recovery key. **Design:** §7.5. **Depends on:** 3.5.
 
@@ -160,7 +175,9 @@ again.
 
 **Accepts when:** after a reset the account has no entries or files and setup runs; a second device's store is emptied at its next sync.
 
-#### 📋 3.12 — One prompt to sign in and unlock
+#### ➖ 3.12 — One prompt to sign in and unlock
+
+**Superseded by RFC 0001 (signing in unlocks).** What follows is what 0.1.x built.
 
 **Goal:** a single passkey prompt when both are needed. **Design:** §9.4. **Depends on:** 3.7, 2.1.
 
@@ -168,3 +185,47 @@ again.
 to the browser; if so, a sign-in passkey can also hold an unlock wrapper; if not, record why and close as not now.
 
 **Accepts when:** either one prompt signs in and unlocks in Playwright, or the epic records the finding and the task is marked ➖ with the reason.
+
+#### 📋 3.13 — The standalone vault and the key's return
+
+**Goal:** the keys' records and the ways to reach them, on the server and in the manifest. **Design:** §7.1, §7.4, §25.1. **Depends on:** 2.8.
+
+**Technical:** `AppVault` over the auth store, `vaultRoute` at `/api/keys/vault` with the session's account id, `keySecrets` among the auth plugins and `vault.deleteAccount` in `People.deletePerson`;
+the manifest's `encryption.return` and a `/keys/return` page for core's release; `Referrer-Policy: strict-origin-when-cross-origin`; Wallet's own `vault` table and `/api/vault` go.
+
+**Accepts when:** the route answers only the session's own records and only for `WALLET_URL`'s origin; a deleted account leaves no record of its keys; the manifest check passes.
+
+#### 📋 3.14 — One interface over both modes
+
+**Goal:** the page has a key, however the instance gets it. **Design:** §7, §9. **Depends on:** 3.13.
+
+**Technical:** `src/keys/` (Shopper's pattern): `appKeys` hosted, `localVault` standalone; sign-up, sign-in and reset send `derive(...).signIn` and call `afterSignIn`; the kit once after sign-up;
+`LockedState`; Lock forgets the key; Wallet's setup flow is replaced.
+
+**Accepts when:** a standalone sign-up shows the kit once and the wallet opens; a reload and offline still open it; Lock asks for the password; a reset gives back the account and the kit gives back the wallet.
+
+#### 📋 3.15 — Entries under the app key
+
+**Goal:** an entry is encrypted by the SDK under a key of its own, wrapped under the app key. **Design:** §8. **Depends on:** 3.14.
+
+**Technical:** a 32-byte entry key per entry, wrapped (AES-256-GCM, bound to account and entry) in `wrapped_key`; shape and body `encryptBytes` bound to account, entry, part and version; files
+`encryptContent`; plaintext padding kept; `src/core/sync/limits.ts` and the server's size check re-derived from the envelope's overhead; sync protocol version bumped; a forward migration clears old-format rows.
+
+**Accepts when:** the marker test finds a random marker in no row and no file, in plain text, base64 or hex; an entry moved to another entry, part or version does not open; an old device is told to update.
+
+#### 📋 3.16 — Retiring age
+
+**Goal:** nothing of 0.1.x's key design is left. **Design:** §7 to §9. **Depends on:** 3.15.
+
+**Technical:** `src/core/vault/` (but padding), `src/keyring/` wrappers, key files, the unlock screens, `src/server/vault/`, the `vault` table, `age-encryption` and `hash-wasm`, the vault spec and vectors (a short statement of what Wallet
+binds and pads replaces them), `AGENTS.md`'s rules that named them.
+
+**Accepts when:** `pnpm test`, the e2e specs and the deploy check pass with neither package installed.
+
+#### 🚧 3.17 — Quick unlock
+
+**Goal:** Face ID or a fingerprint, where it can be had. **Design:** §9.3. **Depends on:** 3.14.
+
+**Technical:** standalone, a passkey of Wallet's own with PRF wraps the unlocking value `derive()` gave; hosted, core's lock when it ships (RFC 0006, 14.14). **Waits on a spike on real phones**; where PRF is absent nothing is offered.
+
+**Accepts when:** a device check on an iPhone, an iPad and an Android phone is recorded, and unlocking by it works in a Chromium virtual authenticator; or this task is ➖ with the finding.

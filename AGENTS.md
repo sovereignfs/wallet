@@ -13,8 +13,8 @@ notices from `sovereignfs/tally`. Where this file is silent, do what Tusk does; 
 
 **Wallet**, an app of the Sovereign suite exactly as Tusk, Fjord, Ledger, Tally and Roam are: the private things a person carries — cards with
 scannable codes, identity documents, and (phase 2) health data, a journal and printable medical summaries; (phase 3) a business card, phone wallet
-passes, NFC tags and one-off share links. **Everything is end to end encrypted** under an age key the person creates or imports: the server stores
-ciphertext and never holds a key that opens an entry. **Offline first**, with each entry living on this device only, synced, or online only, and a
+passes, NFC tags and one-off share links. **Everything is encrypted in the browser** under the suite's keys (the account's app key, from core when hosted and from the app's own vault when alone,
+`docs/rfcs/0001-wallet-on-the-suites-encryption.md`; not yet audited): the server stores ciphertext and never holds a key that opens an entry. **Offline first**, with each entry living on this device only, synced, or online only, and a
 fully offline mode. A Sovereign instance can host it, and **it runs fully on its own, with every feature, needing no instance**. It replaces the
 legacy plugin `sovereignfs/sovereign-plugin-wallet`, none of whose code, data or interface is carried over (its finance track is Ledger's). It is a
 full PWA on Next.js, with its own database (sqld, a SQLite file or PostgreSQL) and files under `/data`, signing people in with its own accounts when it runs

@@ -104,16 +104,15 @@ design, and say "after 0.1.0" where the cut matters.
 | **Card**              | An entry with a scannable code: loyalty, transport, membership, library, gift, access, other (§13)                                 |
 | **Document**          | An identity document with its pages: passport, ID card, residence permit, licence, visa… (§14)                                     |
 | **Family member**     | A person whose entries are kept in this wallet (§12). **"Me"** is the account holder. Never "dependant"                            |
-| **Wallet key**        | The person's age identity, which opens everything (§7). Its file is the **key file**                                               |
-| **Recovery key**      | A second age identity, printed, which opens everything too (§7.3)                                                                  |
-| **Locked / unlocked** | Whether this device holds the keys in memory right now (§9)                                                                        |
+| **Recovery kit**      | The 14 groups of four shown once after sign-up, which open the wallet again after a password reset (§7.2)                          |
+| **Locked / unlocked** | Whether this device holds the key in memory right now (§9)                                                                         |
 | **Where it lives**    | An entry's tier: **This device only**, **Synced**, **Online only** (§10)                                                           |
 | **Fully offline**     | The whole wallet kept on devices, with manual backups (§10.7)                                                                      |
 | **Shape**             | What the server keeps of every entry: an encrypted outline (kind, title, family member, where it lives), never its content (§10.3) |
 | **Due**               | Things that need attention: expiries, overdue backups, lost entries, later measurements and boosters (§15)                         |
 | **Backup**            | An encrypted copy: a **backup file** downloaded by the person, or a **git backup** made by the server (§23)                        |
 
-Never in the interface: "plugin", "tenant", "vault" (an internal word), "DEK", "blob", "tier", "stub", "client", "E2EE" (say "only you can read it").
+Never in the interface: "plugin", "tenant", "vault" (an internal word), "DEK", "blob", "tier", "stub", "client", "E2EE" (say "encrypted in your browser").
 
 ## 5. Architecture
 
@@ -238,112 +237,89 @@ editable), the session it belongs to, when it was first and last seen. Settings 
 
 ## 7. Keys
 
-### 7.1 The wallet key
+**Wallet holds no key scheme and no cipher of its own.** Its keys are the suite's (`sovereign`'s RFC 0005, through `@sovereignfs/sdk`; Shopper's `DESIGN.md` §13 is the model, and
+[RFC 0001](docs/rfcs/0001-wallet-on-the-suites-encryption.md) is why), and which of the two ways an instance gets them follows from its mode (§25.1), never from the viewport.
+**Not yet audited:** the suite's design and code have not been reviewed by a cryptographer or audited, and wherever Wallet describes the feature it says so.
 
-An **age X25519 identity** (`AGE-SECRET-KEY-1…`) with its recipient (`age1…`). `age-encryption` (typage, BSD-3-Clause) does this in the browser. Setup
-(§26.3) makes the person choose:
+### 7.1 The account key and the app key
 
-- **Create:** the browser makes the identity, and the person **saves it before going on**: they download the key file (`wallet-key-<date>.txt`, the
-  age identity format, with a comment naming the app and date), optionally protected by a passphrase (an age file encrypted with scrypt, which the
-  `age` CLI opens too), and confirm by typing the last six characters shown. **Nobody can recover it.**
-- **Import:** an existing identity, as a file or pasted text, or a passphrase-protected file. **The same key can be used across the suite:** a Tusk
-  personal key or a Fjord identity is the same format.
+A person has an **account key**: 32 random bytes made in their browser and wrapped once for each way to unlock (the password, a passkey, the recovery kit, escrow where an instance
+turns it on). Changing a way re-wraps one key and re-encrypts nothing. Wallet is given an **app key**, random and its own, wrapped by the account key, as an AES-GCM `CryptoKey`
+that cannot be exported. **Wallet never sees the account key,** so a compromised Wallet exposes Wallet's data and no other app's.
 
-The identity never leaves the browser. The server stores its **recipient** (public) in `vault.recipients`.
+- **Hosted (suite mode):** core keeps the keys. The page gets Wallet's app key from core once a session (`appKeys` from `@sovereignfs/sdk/keys`, answered at `/keys/return`), and core's
+  passkeys, recovery kit, escrow and lock work for Wallet as for every encrypted app. The manifest's `encryption` says Wallet uses them, and the operator allows it.
+- **Standalone:** Wallet keeps the records in a vault of its own (`AppVault`, `vaultRoute` and `localVault`, sdk §9.5), the **same records as core's**, so a person's keys could later
+  move to core. It opens at sign-in: the browser derives two values from the password with Argon2id, the **sign-in value**, sent where the password used to go, and an **unlocking
+  value** that never leaves the browser and unwraps the account key.
 
-### 7.2 The vault key
+### 7.2 The recovery kit
 
-The wallet key does not encrypt entries directly. It opens the **vault key** (§8.1), which wraps every entry's key. So adding a recovery key or
-replacing the wallet key re-encrypts one small header, not the wallet.
+Shown once after sign-up, standalone: 14 groups of four, to print or keep, which wraps the account key (`kitPending`, `keepKit`). **A password reset gives back the account, not
+the wallet:** after one (by mail, or by an operator's link), the wallet opens again with the kit (`unlockWithKit`), and the new password takes the old one's place. **A forgotten
+password and a lost kit lose the wallet for good.** Hosted: core's kit and passkeys, and its owner recovery where the instance has turned it on.
 
-### 7.3 The recovery key
+### 7.3 Ways to unlock
 
-**Offered at setup, strongly recommended, skippable only by ticking "I understand that if I lose my wallet key, nobody can recover my wallet".**
-
-- A second age identity made in the browser, shown once as a **printable recovery sheet**: the identity as text in groups, a QR code of it, the date,
-  the account's name, and how to use it. Wallet never stores it, and the browser forgets it after the sheet is shown and confirmed (typing six
-  characters).
-- Its recipient is added to the vault header, so **either key opens everything**.
-- Settings > Security can add one later, replace it, or remove it; each re-encrypts the header (§7.5).
-- **Using it:** at unlock, "Use recovery key" takes the text or scans the QR code with the camera. Afterwards Wallet suggests making a new wallet key.
+- **Standalone:** the password (every sign-in), the kit (after a reset), and a quick unlock where the device offers one (§9.3).
+- **Hosted:** core's: its password, its passkeys (PRF), its kit and its lock.
 
 ### 7.4 What the server keeps
 
-`vault`: the recipients (wallet key and recovery key, each labelled), the **vault header** (the vault key encrypted to the recipients, §8.1), the
-vault key's id, and a version. A device fetches the header from `/api/vault` and keeps a copy in its store, so it can unlock offline.
+Standalone: the vault's records in the auth store (`sv_key_*`): wrapped keys and public keys, never a key that opens anything, and the **vault id**, which is the salt of the sign-in
+value. Hosted: no key of anyone's (core's vault has them). In both, Wallet's own tables keep, for each entry, a **wrapped entry key** (§8.1) that only the app key opens.
 
 ### 7.5 Changing keys
 
-Online operations from Settings > Security, each needing the wallet unlocked:
-
-- **Replace the wallet key** (create or import a new one): the header is re-encrypted to the new recipient and the recovery key. Old key files stop
-  working for the current header — but **an old header in an old backup still opens with the old key**, and Settings says so.
-- **Add, replace or remove the recovery key:** the same.
-- **Rotate everything** (for a key that may have been seen by someone else): a new vault key, a new key for every entry, and every entry and file
-  re-encrypted by the browser in resumable batches through the ordinary sync path, the account marked `rotating`. Device-only entries are rotated on
-  their holder devices when those next sync. Settings shows progress and says that backups made before stay readable with the old keys.
+A password change re-wraps the account key and replaces the sign-in value in one request (`prepareChange`, `finishChange`); a new kit is made the same way. **Replacing the app key**
+re-wraps every entry's key under the new one and re-encrypts no entry (task 3.10), because the entries' own keys sit under it (§8.1). Hosted: core's.
 
 ### 7.6 Resetting a wallet
 
-For a person who has lost every key and every unlocked device: **Reset wallet**, after the password or a fresh session and typing "reset", deletes
-every entry and file on the server, empties the vault, and starts setup again. The account, its sign-in and its devices stay. Device stores are
-emptied at their next sync.
+For a person who has lost the password, the kit and every unlocked device: **Reset wallet**, after a fresh sign-in and typing "reset", deletes every entry and file on the server
+and Wallet's records in the vault, and starts again. The account, its sign-in and its devices stay. Device stores are emptied at their next sync (task 3.11).
 
-## 8. The vault
+## 8. Encrypting an entry
 
 ### 8.1 Keys
 
 ```
- wallet key (age X25519)  ─┐
- recovery key (age X25519) ─┴─ age ─▶ vault header  =  age( { v, vault_key, vault_key_id, created } )
-                                                          │
-                                       vault key (AES-256, 32 random bytes)
-                                                          │ AES-256-GCM wrap, bound to account and entry
-                                       entry key (AES-256, one per entry, random)
-                                                          │
-                     ┌────────────────────────────────────┼─────────────────────────────┐
-              shape (AES-256-GCM)                  body (AES-256-GCM)          files (AES-256-GCM STREAM,
-                                                                                 a key per file by HKDF)
+ account key  ── wraps ─▶  app key  (AES-GCM, random, Wallet's own; cannot be exported)
+                              │ AES-256-GCM wrap, bound to account and entry
+                  entry key  (32 random bytes, one per entry; the SDK's "document key")
+                              │ importDocumentKey: an HKDF key that cannot be exported
+        ┌─────────────────────┼────────────────────────────┐
+  shape (encryptBytes)   body (encryptBytes)     files (encryptContent, 64 KiB chunks)
 ```
 
-- **age is used only for the header and for phase 3 and 4's sharing,** since its per-message overhead is too much per field; entries use AES-256-GCM
-  in WebCrypto, so keys can be **non-extractable `CryptoKey`s** once loaded.
+- **Wallet holds no cipher:** the SDK's `encryptBytes`, `decryptBytes`, `encryptContent` and `decryptContent` do the encrypting, each bound to a document id and a version, so what they
+  check is what the suite checks. What Wallet adds is the **padding** (§8.2) and which key and which id each value is bound to.
 - **An entry key per entry** keeps a future share (phase 4) to one entry, and makes moving an entry between tiers or devices free of re-encryption.
-- **Wrapped entry key:** `AES-256-GCM(vault key, nonce, entry key, AAD = "wallet/v1/key|<account id>|<entry id>|<vault key id>")`, stored as the
-  entry's `wrapped_key`. Unwrapped with WebCrypto `unwrapKey` straight into a non-extractable key.
+- **Wrapped entry key:** `AES-256-GCM(app key, nonce, entry key, AAD = "wallet/v2/key|<account id>|<entry id>")`, stored as the entry's `wrapped_key`, as Shopper wraps its keyrings. It is
+  opened with WebCrypto into the 32 bytes `importDocumentKey` takes, which the caller overwrites at once.
 
 ### 8.2 Envelopes
 
-**A sealed value** (an entry's shape or body) is:
+**A sealed value** (an entry's shape or body) is the SDK's envelope around a padded plaintext:
 
 ```
-byte 0       version (0x01)
-bytes 1–12   nonce (random, 96 bits)
-bytes 13–    AES-256-GCM ciphertext and 16-byte tag
-AAD          "wallet/v1/<part>|<account id>|<entry id>"     (part: "shape" or "body")
 plaintext    UTF-8 JSON, then 0x80, then 0x00 bytes to the next multiple of the bucket
-             (shape: 256 bytes; body: 1,024 bytes)  — ISO/IEC 7816-4 padding
+             (shape: 256 bytes; body: 1,024 bytes)  (ISO/IEC 7816-4 padding)
+envelope     encryptBytes(contentKey, { documentId: "<account id>/<entry id>/<part>", version: <the entry's version> }, plaintext)
+             (part: "shape" or "body")
 ```
 
-- **The AAD binds** each value to its account, entry and part, so the server cannot move a value to another entry, account or part unnoticed.
-- **Padding** hides small differences in length: a server sees a shape as 256 or 512 bytes, not as the length of a title.
-- **Versioned** from the first byte, so the format can move (to a post-quantum hybrid recipient for the header, for example) without guessing.
+- **The binding** ties each value to its account, entry, part and version, so the server cannot move a value to another entry, account, part or version unnoticed.
+- **Padding** hides small differences in length: a server sees a shape as 256 or 512 bytes (plus the envelope's fixed overhead), not as the length of a title.
+- **Versioned by the suite:** the envelope names its suite (RFC 0005 §1), so the algorithm can change without guessing.
 
 ### 8.3 Files
 
-A file (a photo, a scan, a PDF, a logo) is encrypted with the **STREAM construction**, as age does, so a large PDF is encrypted and decrypted in
-pieces:
+A file (a photo, a scan, a PDF, a logo) is encrypted with `encryptContent`, in the suite's 64 KiB chunks as a stream, so a large PDF is encrypted and decrypted in pieces, under the
+entry's key and a document id for that file. The plaintext is an 8-byte length, the file's bytes, and zero padding to the next bucket (16 KiB below 1 MiB, 256 KiB above).
 
-```
-header       version (0x01) | 16-byte salt | chunk size (u32, 65,536)
-file key     HKDF-SHA-256(entry key, salt, info = "wallet/v1/file|<file id>")
-chunk i      AES-256-GCM(file key, nonce = 11-byte big-endian counter ‖ last-chunk flag (0x00 or 0x01), plaintext chunk, AAD = <file id>)
-plaintext    an 8-byte length, the file's bytes, zero padding to the next bucket
-             (16 KiB below 1 MiB, 256 KiB above)
-```
-
-Images are re-encoded in the browser before they are encrypted, removing every piece of metadata (location included) (§11.6). The server stores the
-ciphertext under `/data/blobs` and never sees a file name, type or dimension.
+Images are re-encoded in the browser before they are encrypted, removing every piece of metadata (location included) (§11.6). The server stores the ciphertext under `/data/blobs` and
+never sees a file name, type or dimension.
 
 ### 8.4 Where things are encrypted
 
@@ -356,24 +332,24 @@ holder's label and state. The **body** holds the rest.
 
 The account itself (its sign-in, `profile`'s name and email, §6.1), and for each entry: its **id**, **tier**, **holder device** (for device-only), the
 **sizes** of its padded shape, body and files, the **number of files**, its **version** and **sync counter**, and **when** it was created, changed and
-deleted. Devices: their ids, sessions and times. The backup connection. **Not** the kind of an entry, its title, its family member, its dates, or
+deleted. Devices: their ids, sessions and times. The backup connection. **The keys' records** (§7.4): wrapped keys and public keys, which open nothing. **Not** the kind of an entry, its title, its family member, its dates, or
 anything in it.
 
 So an operator can see how many entries someone has, roughly how large, which live where, and when they change; not what they are or say.
 
 ### 8.6 What this protects against, and what it does not
 
-| Protects against                                                                                     | Does not protect against                                                                                                                 |
-| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Reading the database, its dumps, the files under `/data`, and git backups, including by the operator | **An operator who serves altered JavaScript** that takes the key once unlocked, since the browser runs what the server sends (Tusk §9.6) |
-| A stolen password: nothing opens without a key (§9)                                                  | **A device taken while unlocked**, or malware on it. The idle lock (§9.2) shortens the window                                            |
-| The server moving or replaying a value between entries (AAD, §8.2)                                   | **Metadata:** §8.5's counts, sizes, tiers and times, and the network addresses the server sees                                           |
-| A copied browser store, as far as the unlock method's strength allows (§9.4)                         | **Losing every key and every unlocked device.** Nobody can recover the wallet                                                            |
-| Swapping one person's entries into another's account (the account id in every AAD)                   | **What the person chooses to publish:** passes, public cards and Google Wallet (§19.5, §20) leave the encryption by design, and say so   |
+- **It protects** against someone who reads the server: a copy of its disk, its database, the files under `/data` or a backup holds ciphertext, wrapped keys and public keys. A guessed
+  password can be tried against a wrap, at Argon2id's cost, and no other.
+- **It does not protect** against **whoever runs the server**: a web app's code comes from the server, so one that sends changed code gets the key at the next unlock. Wallet never says
+  the operator "cannot" read what it keeps. Mitigations are the suite's: a strict CSP with nonces, no third-party code, the image's provenance, and running one's own instance. A
+  published-script check (the service worker comparing the shell's scripts against a pinned list) is noted in §31.4, not planned.
+- **Nor a device taken while unlocked,** or malware on it. The locks (§9.2) shorten the window.
+- **The server still sees** §8.5's counts, sizes, tiers and times, and the network addresses it is spoken to from.
+- **Losing the password, the kit and every unlocked device loses the wallet.** Nobody can recover it, unless the instance turned escrow on, in which case its owner can open everyone's.
+- **What the person chooses to publish** (passes, public cards, Google Wallet: §19.5, §20) leaves the encryption by design, and says so first.
 
-Mitigations of the first row are the suite's: a strict CSP with nonces, no third-party code, the image's provenance; a person can run their own
-instance. **A published-script check** (the service worker comparing the shell's scripts against a pinned list and warning on a change) is noted in
-§31.4, not planned.
+**Not yet audited.** Wallet says so wherever it describes this.
 
 ### 8.7 The server's own key
 
@@ -383,50 +359,43 @@ name and email, and in phase 3 push subscriptions and published cards. **It neve
 
 ## 9. Locking and unlocking
 
-### 9.1 The keyring
+### 9.1 The key in memory
 
-When unlocked, the browser holds in memory the **vault key** and, as they are used, **entry keys**, all as non-extractable `CryptoKey`s, and the
-**opened entries** in an in-memory index (§11.1). Locking drops all of it: the keys, the index, every rendered page's data (the app navigates to the
-lock screen and clears its state), and every object URL of a decrypted file. **The wallet key itself is never kept:** it opens the header and is
-forgotten.
+When unlocked, the browser holds the **app key**, as the suite keeps it: a key that cannot be exported, in IndexedDB, wrapped by a device key and by a secret only the live session has, so
+what the browser kept opens nothing once the session has ended. It holds, as they are used, **entry keys** as non-extractable `CryptoKey`s, and the **opened entries** in an in-memory
+index (§11.1). **Locking forgets the key** (`forget()`) and drops all of it: the keys, the index, every rendered page's data (the app navigates to the lock screen and clears its state) and
+every object URL of a decrypted file.
 
 **Sync runs while locked:** the outbox drains and pulls arrive, since the store holds ciphertext only.
 
 ### 9.2 When it locks
 
-- **After a time without use:** 1, 5 (the default), 15 or 60 minutes, set per device.
-- **When Wallet is hidden** (another app, the screen off): at once, after 1 minute (the default), or never.
-- **By hand:** the lock button in the header.
-- **At sign-out** and when the session ends.
+- **By hand:** the lock button in the header. **At sign-out** and **when the session ends,** when the SDK forgets the key with the session.
+- **After a time without use:** 1, 5, 15 or 60 minutes, set per device. **When Wallet is hidden** (another app, the screen off): at once, after 1 minute, or never. **These two are
+  on only where a quick unlock exists to come back with** (§9.3), since without one a lock means typing the password.
+- **Hosted:** also core's lock (`sovereign`'s RFC 0006): a locked session gets the lock page, and its keys stay closed.
 
 Tabs share one lock (BroadcastChannel): unlocking or locking one does the same in every tab of the account.
 
 ### 9.3 Ways to unlock
 
-Each device keeps one or more **unlock wrappers** in its store: the vault key, wrapped by something only this device and person can produce.
+| Way                                                      | How                                                                                                                                                                                        |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Password** (standalone)                                | Argon2id of it gives the unlocking value, which unwraps the account key (about a second); `afterSignIn(secret)`                                                                            |
+| **Recovery kit** (standalone, after a reset)             | The typed kit opens the account key, and the new password takes its place (`unlockWithKit`)                                                                                                |
+| **Core's** (hosted)                                      | Its password, passkeys (PRF), kit and lock; Wallet asks for its app key at `/keys/return`                                                                                                  |
+| **Quick unlock** (Face ID, a fingerprint, Windows Hello) | **Optional, standalone, and waits on a device check (RFC 0001):** a passkey of Wallet's own, with PRF, wraps the unlocking value the password gave (not the app key); unlocking unwraps it |
 
-| Way                                                 | How                                                                                                                                                                                                                        | Offline |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| **Passkey (Face ID, a fingerprint, Windows Hello)** | A WebAuthn credential made for unlocking, with the **PRF extension**. Its output for the salt `"wallet/v1/unlock"`, through HKDF, is an AES-256-GCM key that wraps the vault key                                           | Yes     |
-| **Device passcode**                                 | At least 6 characters (digits allowed). Argon2id (64 MiB, 3 passes, `hash-wasm`, MIT) of it and a random salt is a key that wraps the vault key, which is then wrapped again under a non-extractable key the browser keeps | Yes     |
-| **Wallet key**                                      | The key file or pasted identity opens the header (a copy is in the store)                                                                                                                                                  | Yes     |
-| **Recovery key**                                    | The same, from the sheet's text or QR code                                                                                                                                                                                 | Yes     |
-
-- **Setup offers the passkey first** where `PublicKeyCredential.getClientCapabilities()` reports PRF (Chrome and Edge on Android and desktop with a
-  platform authenticator, Safari 18 and later with iCloud Keychain, recent Firefox; checked again when 3.7 is built), and the passcode otherwise. A
-  device can have both.
-- **Five wrong passcodes** delete that device's passcode wrapper; the person then unlocks with a passkey or a key, and may set a new passcode.
-- **A passcode is weaker than a passkey** against someone who copies the browser's store and guesses offline. Settings says so, and suggests a passkey
-  where the device supports one.
+- **A quick unlock is offered only where `PublicKeyCredential.getClientCapabilities()` reports PRF, and only once it has been seen to give an output on the device.** Where it does not,
+  the password stays the way in, and nothing is offered.
 - **The unlock passkey is not the sign-in passkey.** A person may have both; Settings lists them apart.
+- **It is weaker than the password's wrap in one way:** whoever can use the device's passkey (its biometric or PIN) can open the wallet on that device. Settings says so.
 
 ### 9.4 Signing in and unlocking
 
-Signing in proves the account to the server and needs a network; it happens rarely, since sessions are long (Tusk's defaults). **Unlocking proves the
-key to the device and happens every time,** offline. So day to day, **Face ID is the way in**, as the owner asked.
-
-**One prompt for both (phase 1, P3):** when a session has ended and the person signs in with a passkey that also supports PRF, the same ceremony can
-both sign in and unlock, if better-auth's passkey plugin passes the extension through. Investigated in 3.12; until then, two prompts.
+**One act.** Signing in with a password derives the sign-in value and the unlocking value together, so signing in unlocks, and the wallet needs a network only at sign-in: afterwards the
+session's kept key opens it offline. Hosted, signing in through Sovereign and the key's release are core's two redirects, silent while core's session is unlocked; **for the release to
+be silent the page must send its origin as the referrer** (§30). Nothing of the wallet depends on a file the person must keep: the kit is the way back after a reset.
 
 ## 10. Entries and where they live
 
@@ -1096,7 +1065,7 @@ reset-link` for those). **A reset gives back the account, not the wallet:** the 
   sign-in is off and which settings to remove; nothing else changes. Its password accounts cannot sign in while it is in suite mode.
 - **There is no linking** of a core account and a local one: an instance has one kind. A person is their better-auth user id; a `sub` is identity; an
   email is never matched to an account at sign-in. A session through core is checked against core every hour, and signing out of one goes through core.
-  Wallet keeps none of core's tokens (`src/auth/sdk-stores.ts`). **Signing in never opens the wallet: unlocking does** (§9.4).
+  Wallet keeps none of core's tokens (`src/auth/sdk-stores.ts`). **Signing in unlocks the wallet** (§9.4): a password derives the unlocking value, and core releases the app key (§7.1).
 
 ### 25.2 Core's notices
 
@@ -1341,7 +1310,8 @@ sentence.
 As Tusk's §24: a strict CSP with a per-request nonce, `connect-src 'self'`, `script-src` with `'wasm-unsafe-eval'` for zxing-wasm and hash-wasm (and
 nothing else unsafe), `worker-src 'self'` for pdf.js's worker, `img-src 'self' blob: data:` for decrypted images, no `'unsafe-inline'`; nothing
 third-party loads; what people write is rendered as text, never HTML; `Permissions-Policy` allowing camera and wake lock for the app's own origin
-only. **Logs hold no entry content, ever, and no names or addresses:** an id and a kind of failure (and the server has no content to log). Every
+only; `Referrer-Policy: strict-origin-when-cross-origin`, since core releases an app's key silently only when the browser names the app's origin (sdk §9.3), and `no-referrer`
+would ask the person every time. **Logs hold no entry content, ever, and no names or addresses:** an id and a kind of failure (and the server has no content to log). Every
 route, operation and mutation finds the session and carries the permission in its statement (§5.2); a write checks `Origin`. **Rate limits:** sign-in,
 sync, file uploads, vault operations, passes, share links and their opening. **Sign-in, and core's notices and export, are counted by the caller's address**, which is
 what the reverse proxy says in `X-Forwarded-For` and nothing a client wrote: one address alone is believed, or, behind the proxies `WALLET_AUTH_TRUSTED_PROXIES`
