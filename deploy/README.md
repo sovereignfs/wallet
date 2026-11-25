@@ -22,7 +22,7 @@ docker compose -f compose.yaml -f compose.postgres.yaml up -d --build          #
 Only the machine itself can reach the port (`127.0.0.1:3006`): put a reverse proxy with TLS in front of it, and set `WALLET_URL` to the address people use.
 Passkeys, emailed links and the sign-in redirect are made from it, and the server refuses to start on an address that is not https (localhost aside).
 
-**The proxy must tell Wallet who is calling.** Sign-in is limited per address, and Wallet learns the address from the
+**The proxy must tell Wallet who is calling.** Sign-in, and Sovereign's notices and export, are limited per address, and Wallet learns the address from the
 `X-Forwarded-For` header, which a client can write for itself. So Wallet believes a header with **one** address only, unless you name your proxies in
 `WALLET_AUTH_TRUSTED_PROXIES` (addresses or ranges, such as `10.0.0.0/8,172.16.0.0/12`), when it reads the chain from the right, past each of them, and
 the first address that is not one is the client. What goes wrong without telling it right depends on the proxy:

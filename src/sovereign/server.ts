@@ -21,6 +21,8 @@ export type NoticeWiring = {
   coreUrl: string;
   clientId: string;
   limiter?: Limiter | undefined;
+  /** `WALLET_AUTH_TRUSTED_PROXIES`, for the count of each caller by its address (`guarded`). */
+  trustedProxies?: readonly string[] | undefined;
   fetch?: typeof fetch;
 };
 
@@ -31,6 +33,7 @@ export type NoticeWiring = {
  */
 export function buildNotices(wiring: NoticeWiring): Notices {
   const { authStore, database } = wiring;
+  const guard = { trustedProxies: wiring.trustedProxies ?? [] };
   const handlers = coreNotices({
     database: authStore,
     auth: wiring.auth,
@@ -46,8 +49,8 @@ export function buildNotices(wiring: NoticeWiring): Notices {
     },
   });
   return {
-    backChannelLogout: guarded(handlers.backChannelLogout, wiring.limiter),
-    accountDeleted: guarded(handlers.accountDeleted, wiring.limiter),
+    backChannelLogout: guarded(handlers.backChannelLogout, wiring.limiter, guard),
+    accountDeleted: guarded(handlers.accountDeleted, wiring.limiter, guard),
   };
 }
 
@@ -79,5 +82,6 @@ async function make(): Promise<Notices | undefined> {
     coreUrl: sovereign.issuer,
     clientId: sovereign.clientId,
     limiter: new RateLimiter(database),
+    trustedProxies: authSettings()?.trustedProxies ?? [],
   });
 }

@@ -70,7 +70,8 @@ export const ROUTES: RouteRule[] = [
       POST: { kind: 'public', because: 'a token signed by Sovereign, checked against its keys' },
     },
   },
-  // Core asks for a person's part of their export (`signIn.export`): a signed token, checked by the SDK, a replay refused.
+  // Core asks for a person's part of their export (`signIn.export`): a signed token, checked by the SDK, a replay refused from the auth store; a body over 16 KB
+  // refused unread and a caller's requests counted by its address, as core's notices are.
   {
     route: '/api/sovereign/export',
     methods: {

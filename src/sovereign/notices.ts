@@ -1,4 +1,5 @@
 import { coreNotices } from '@sovereignfs/auth/core';
+import { clientAddress } from '../limits/address';
 import type { Limiter, Rule } from '../limits/rate';
 
 /**
@@ -6,10 +7,23 @@ import type { Limiter, Rule } from '../limits/rate';
  * package's `coreNotices` verifies each (signature, issuer, audience, event, expiry), remembers its `jti` so a replay ends nothing, ends the
  * sessions through better-auth's adapter (of the core session a logout names, or every session of the person) and drops the person's
  * refresh token; an account-deleted notice is answered only once Wallet's own deletion has run. **Wallet adds two guards in front of
- * it**: a notice is a small form, so a body over 16 KB is refused unread, and the routes take no more than 300 notices a minute.
+ * it**: a notice is a small form, so a body over 16 KB is refused unread, and a caller may send only so many a minute. `guarded` is the same two guards
+ * for the one other route core calls with a token, the export (`src/portability/core-export.ts`).
+ *
+ * **The count is the caller's, by its address** (`src/limits/address.ts`), and a kind of request has its own: these routes have no session to count, and one
+ * count for everybody would let anyone who can reach them spend it and have core's own notices (a person's sessions ended, an account deleted) refused.
  */
 export const MAX_BODY_BYTES = 16 * 1024;
 export const NOTICE_RATE: Rule = { limit: 300, windowMs: 60 * 1000 };
+
+/** What counts a caller of a guarded route. */
+export interface Guard {
+  /** What is counted under, with the caller's address: one for each kind of request. */
+  readonly bucket: string;
+  readonly rule: Rule;
+  /** `WALLET_AUTH_TRUSTED_PROXIES`: whose `X-Forwarded-For` is believed. */
+  readonly trustedProxies: readonly string[];
+}
 
 export type NoticeHandlers = ReturnType<typeof coreNotices>;
 
@@ -37,14 +51,18 @@ async function capped(request: Request): Promise<Uint8Array | undefined> {
   return Buffer.concat(chunks);
 }
 
-/** One of the package's handlers behind Wallet's guards. */
+/** One of the package's handlers, or the SDK's, behind Wallet's guards. */
 export function guarded(
   handle: (request: Request) => Promise<Response>,
   limiter: Limiter | undefined,
+  guard: Partial<Guard> = {},
 ): (request: Request) => Promise<Response> {
+  const { bucket = 'sovereign-notice', rule = NOTICE_RATE, trustedProxies = [] } = guard;
   return async (request) => {
     if (limiter) {
-      const taken = await limiter.take('sovereign-notice', NOTICE_RATE);
+      // Nobody who can say who they are is counted with those who cannot, and nobody with a named address.
+      const address = clientAddress(request.headers.get('x-forwarded-for'), trustedProxies);
+      const taken = await limiter.take(`${bucket}:${address ?? 'unknown'}`, rule);
       if (!taken.ok)
         return answer(429, { 'retry-after': String(Math.ceil(taken.retryAfterMs / 1000)) });
     }

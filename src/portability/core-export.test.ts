@@ -1,12 +1,14 @@
 import { sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Database } from '../db/client';
 import { dbRun } from '../db/exec';
 import { runMigrations } from '../db/migrate';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
 import { freshDatabase, testTarget } from '../db/test-support';
-import { personRecords, toRecords } from './core-export';
+import type { Limiter } from '../limits/rate';
+import { MAX_BODY_BYTES } from '../sovereign/notices';
+import { EXPORT_RATE, answerCoreExport, personRecords, toRecords } from './core-export';
 
 /**
  * A person's part of core's export (`signIn.export`): their vault and their entries, as the server stores them, sealed, and nothing of anyone else's or of
@@ -75,5 +77,75 @@ describe(`a person’s part (${leg})`, () => {
       Buffer.from('grace’s card').toString('base64url'),
     );
     expect(await personRecords(database, crypto.randomUUID())).toEqual([]);
+  });
+});
+
+describe('core’s request for an export', () => {
+  const asked: { key: string; limit: number }[] = [];
+  const limiter: Limiter = {
+    take: async (key, rule) => {
+      asked.push({ key, limit: rule.limit });
+      return key.endsWith(':203.0.113.9')
+        ? { ok: false, retryAfterMs: 12_000 }
+        : ({ ok: true } as const);
+    },
+  };
+  const handleExportRequest = vi.fn(
+    async (request: Request) => new Response(await request.text(), { status: 200 }),
+  );
+  const wiring = (over: { trustedProxies?: string[] } = {}) => ({
+    client: { auth: { handleExportRequest } } as never,
+    limiter,
+    trustedProxies: over.trustedProxies ?? [],
+  });
+  const ask = (body: string, headers: Record<string, string> = {}) =>
+    new Request('https://wallet.example.com/api/sovereign/export', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', ...headers },
+      body,
+    });
+
+  it('is answered by the SDK, with the body as it was sent, for a caller within its limit', async () => {
+    asked.length = 0;
+    handleExportRequest.mockClear();
+    const reply = await answerCoreExport(
+      ask('export_request_token=a.b.c', { 'x-forwarded-for': '203.0.113.7' }),
+      wiring(),
+    );
+    expect(reply?.status).toBe(200);
+    expect(await reply?.text()).toBe('export_request_token=a.b.c');
+    expect(handleExportRequest).toHaveBeenCalledTimes(1);
+    // Counted by the caller's address, under a bucket of its own, at the export's rate.
+    expect(asked).toEqual([{ key: 'sovereign-export:203.0.113.7', limit: EXPORT_RATE.limit }]);
+  });
+
+  it('is refused unread for a body that is too large, and for a caller over its limit, and neither reaches the SDK', async () => {
+    handleExportRequest.mockClear();
+    const big = await answerCoreExport(
+      ask('x'.repeat(MAX_BODY_BYTES + 1), { 'x-forwarded-for': '203.0.113.7' }),
+      wiring(),
+    );
+    expect(big?.status).toBe(413);
+    const over = await answerCoreExport(
+      ask('export_request_token=a.b.c', { 'x-forwarded-for': '203.0.113.9' }),
+      wiring(),
+    );
+    expect(over?.status).toBe(429);
+    expect(over?.headers.get('retry-after')).toBe('12');
+    expect(handleExportRequest).not.toHaveBeenCalled();
+  });
+
+  it('counts a caller behind a proxy by its own address, whatever it wrote to the left', async () => {
+    asked.length = 0;
+    await answerCoreExport(
+      ask('export_request_token=a.b.c', { 'x-forwarded-for': '6.6.6.6, 203.0.113.7, 10.0.0.9' }),
+      wiring({ trustedProxies: ['10.0.0.0/8'] }),
+    );
+    expect(asked.map((each) => each.key)).toEqual(['sovereign-export:203.0.113.7']);
+  });
+
+  it('is not there where core is not set', async () => {
+    // With no wiring given, the server's own is looked for, and with no sign-in through core there is none.
+    expect(await answerCoreExport(ask('export_request_token=a.b.c'))).toBeUndefined();
   });
 });

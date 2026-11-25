@@ -1,12 +1,15 @@
-import { createSovereign } from '@sovereignfs/sdk';
+import type { Sovereign } from '@sovereignfs/sdk';
 import { sql } from 'drizzle-orm';
+import { sovereignClient } from '../auth/server';
 import { getConfig } from '../config/current';
 import { getAuthStore, getDatabase } from '../db/boot';
 import type { Database } from '../db/client';
 import { dbAll } from '../db/exec';
+import { type Limiter, type Rule, RateLimiter } from '../limits/rate';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
 import { accountOfSub } from '../sovereign/identity';
+import { guarded } from '../sovereign/notices';
 import packageJson from '../../package.json';
 
 type Value = string | number | boolean | null;
@@ -77,48 +80,68 @@ export async function personRecords(database: Database, accountId: string): Prom
   ].filter((each) => each.records.length > 0);
 }
 
-/**
- * What the SDK remembers of a token it has seen, so that a replay is refused. Wallet keeps its own sessions with better-auth, so this holds nothing else;
- * it is in memory, since an export asked for twice is the same export (sdk §9.1) and no harm comes of a second.
- */
-const seen = new Map<string, { record: unknown; expiresAt: number }>();
-const replays = {
-  get: (id: string) => {
-    const kept = seen.get(id);
-    if (!kept || kept.expiresAt < Date.now()) return undefined;
-    return kept.record as never;
-  },
-  set: (id: string, record: unknown, expiresAt: number) => void seen.set(id, { record, expiresAt }),
-  delete: (id: string) => void seen.delete(id),
-  deleteMatching: () => undefined,
-};
+/** What a caller of the export may ask for in a minute: core asks once for a person's export, so this is generous. */
+export const EXPORT_RATE: Rule = { limit: 20, windowMs: 60 * 1000 };
+
+/** What answers core's request, and what stands in front of it. A test gives its own. */
+export interface ExportWiring {
+  /** The SDK's own answer to a request for an export, which checks the signed token, refuses a replay and streams the person's part. */
+  readonly client: Pick<Sovereign, 'auth'>;
+  readonly limiter: Limiter | undefined;
+  /** `WALLET_AUTH_TRUSTED_PROXIES`, for the count of each caller by its address. */
+  readonly trustedProxies: readonly string[];
+  /** A person's part, by their `sub`; the server's own reads it from the stores, and a test gives another. */
+  readonly records?: (sub: string) => Promise<RecordsPart[]>;
+}
+
+/** What the server has of a person Sovereign names: nothing for one that never signed in here. */
+async function ownRecords(sub: string): Promise<RecordsPart[]> {
+  const accountId = await accountOfSub(await getAuthStore(), sub);
+  return accountId ? personRecords(await getDatabase(), accountId) : [];
+}
+
+/** The server's own: the process's one SDK client, the database's limits and the settings' proxies; or `undefined` where core is not set. */
+async function serverWiring(): Promise<ExportWiring | undefined> {
+  const settings = getConfig().auth;
+  const client = sovereignClient();
+  if (!settings?.sovereign || !client) return undefined;
+  return {
+    client,
+    limiter: new RateLimiter(await getDatabase()),
+    trustedProxies: settings.trustedProxies,
+  };
+}
 
 /**
- * **Core's export of a person** (`signIn.export`, sdk §9.1): core asks for Wallet's part with a signed token, and the SDK checks it (a replay refused),
- * answers at once with an export in the contract's format, and finishes it as the records are written. A person Wallet does not know gets an empty part.
- * `undefined` where core is not set: the route is then not there.
+ * **Core's export of a person** (`signIn.export`, sdk §9.1): core asks for Wallet's part with a signed token, and the SDK checks it, answers at once with an
+ * export in the contract's format, and finishes it as the records are written. A person Wallet does not know gets an empty part. `undefined` where core is not
+ * set: the route is then not there.
+ *
+ * **No session or `Origin` stands in front of it, so the guards of core's notices do** (`guarded`): a body over 16 KB is refused unread, and a caller may ask
+ * only so many times a minute, counted by its address. It is also **the process's one SDK client**, not one for each request: core's discovery document is
+ * fetched once and kept (it was fetched for every request), and core's keys only when a token is well formed enough to be checked, which the limit bounds. A
+ * token's `jti` is remembered in the auth store, so a replay is refused after a restart and by every process.
  */
-export async function answerCoreExport(request: Request): Promise<Response | undefined> {
-  const config = getConfig();
-  const core = config.auth?.sovereign;
-  if (!core || !config.url) return undefined;
-  const client = createSovereign({
-    appUrl: config.url,
-    coreUrl: new URL(core.issuer).origin,
-    clientId: core.clientId,
-    clientSecret: core.clientSecret,
-    sessionStore: replays,
-  });
-  return client.auth.handleExportRequest(
-    request,
-    { prefix: 'wallet', version: packageJson.version },
-    async ({ sub, writer }) => {
-      const accountId = await accountOfSub(await getAuthStore(), sub);
-      if (!accountId) return;
-      for (const each of await personRecords(await getDatabase(), accountId))
-        await writer.addRecords(each.path, each.kind, [...each.records], {
-          endToEnd: each.endToEnd,
-        });
-    },
+export async function answerCoreExport(
+  request: Request,
+  wiring?: ExportWiring,
+): Promise<Response | undefined> {
+  const wired = wiring ?? (await serverWiring());
+  if (!wired) return undefined;
+  const answer = guarded(
+    (guardedRequest) =>
+      wired.client.auth.handleExportRequest(
+        guardedRequest,
+        { prefix: 'wallet', version: packageJson.version },
+        async ({ sub, writer }) => {
+          for (const each of await (wired.records ?? ownRecords)(sub))
+            await writer.addRecords(each.path, each.kind, [...each.records], {
+              endToEnd: each.endToEnd,
+            });
+        },
+      ),
+    wired.limiter,
+    { bucket: 'sovereign-export', rule: EXPORT_RATE, trustedProxies: wired.trustedProxies },
   );
+  return answer(request);
 }

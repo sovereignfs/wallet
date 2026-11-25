@@ -1094,8 +1094,13 @@ Shopper's (its §15.1), from one image:
 
 Back-channel logout at `/api/sovereign/backchannel-logout` (ends the session; the device locks and keeps its store) and account deleted at
 `/api/sovereign/account-deleted` (running `People.deletePerson`, answering `200` only once rows and files are gone), verified by the package's `coreNotices`,
-replays refused by their `jti` in the auth store, behind Wallet's own body cap and rate limit (`src/sovereign/notices.ts`). A logout that names a
+replays refused by their `jti` in the auth store, behind Wallet's own body cap and rate limit (`src/sovereign/notices.ts`), counted by each caller's address (§30). A logout that names a
 core session ends only the sessions that came from it.
+
+Core's request for a person's export (`/api/sovereign/export`, §18) has no session either, so it has the same two guards, in a count of its own, and answers on
+the process's one SDK client: core's discovery document is fetched once and kept (it was fetched for every request, by a client made for each), core's keys
+only when a token is well formed enough to be checked, which the limit bounds, and a token's `jti` is kept in the auth store, so a replay is refused after a
+restart and by every process.
 
 ### 25.3 The manifest
 
@@ -1330,7 +1335,7 @@ nothing else unsafe), `worker-src 'self'` for pdf.js's worker, `img-src 'self' b
 third-party loads; what people write is rendered as text, never HTML; `Permissions-Policy` allowing camera and wake lock for the app's own origin
 only. **Logs hold no entry content, ever, and no names or addresses:** an id and a kind of failure (and the server has no content to log). Every
 route, operation and mutation finds the session and carries the permission in its statement (§5.2); a write checks `Origin`. **Rate limits:** sign-in,
-sync, file uploads, vault operations, passes, share links and their opening. **Sign-in is counted by the caller's address**, which is
+sync, file uploads, vault operations, passes, share links and their opening. **Sign-in, and core's notices and export, are counted by the caller's address**, which is
 what the reverse proxy says in `X-Forwarded-For` and nothing a client wrote: one address alone is believed, or, behind the proxies `WALLET_AUTH_TRUSTED_PROXIES`
 names, the first hop from the right that is not one of them (`src/limits/address.ts`, the rule better-auth uses for the sign-in's own limit). An address
 nobody can state is counted with the others like it, never with a named client's. **A security review before each release,** and **an independent review of
