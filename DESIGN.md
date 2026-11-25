@@ -1069,10 +1069,10 @@ Few, and about the account, since the server cannot read entries:
 store of its own (`wallet_auth`, opened again in the package's shape, `src/auth/store.ts`). **An instance signs people in one way, never both**, as
 Shopper's (its §15.1), from one image:
 
-| Mode                                     | Who signs in, and how                                                                                                                                                 |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Suite mode** (`WALLET_CORE_*` are set) | Everyone, through core: the package's `./core` on the SDK's steps (PKCE, matched by `sub`), `WALLET_CORE_URL` being the instance's own address                        |
-| **Standalone mode** (no core)            | Everyone, with Wallet's own accounts (`WALLET_AUTH_LOCAL=1`): a password, passkeys and an authenticator app with backup codes; verified and reset by mail when set up |
+| Mode                                     | Who signs in, and how                                                                                                                                                                                                            |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Suite mode** (`WALLET_CORE_*` are set) | Everyone, through core: the package's `./core` on the SDK's steps (PKCE, matched by `sub`), `WALLET_CORE_URL` being the instance's own address                                                                                   |
+| **Standalone mode** (no core)            | Everyone, with Wallet's own accounts (`WALLET_AUTH_LOCAL=1`): a password, passkeys and an authenticator app with backup codes; verified, and a reset asked for, by mail when set up; a reset link, once there is one, needs none |
 
 - **In suite mode `/sign-in` and `/sign-up` show nothing:** someone with a session goes to the front address, anyone else straight to
   `/api/auth/sign-in/sovereign`, and `/sign-up` asks core to open its sign-up page (`prompt=create`: Sovereign 0.140.0 or later; before it, core shows
@@ -1086,8 +1086,9 @@ Shopper's (its §15.1), from one image:
   first start after the upgrade (`movePasswords`, the package's protocol: auth.md §8.1). While one can still move, which the salt document says, a sign-in
   that the derived value does not open sends the password itself, once, with the derived value, over https, to the package's route, limited to five tries an
   hour for an email address and five a minute for a caller, which checks it against the old hash, puts a hash of the derived value in its place and signs nobody in. Wallet logs nothing of a
-  request's body. An instance made at 0.4.0 or later has no such window, and neither has one in suite mode. Email is verified and passwords reset only with
-  mail set up; **a password that did not move in time can be given back only by mail**, since Wallet has no command yet for an operator to make that link.
+  request's body. An instance made at 0.4.0 or later has no such window, and neither has one in suite mode. Email is verified, and a reset asked for, only with
+  mail set up. **Using a reset link needs no mail:** the pages it leads to are there on every standalone instance, and only asking for one is mail-only (the
+  package's own split). **A password that did not move in time can be given back only by a link, and Wallet has no command yet for an operator to make one.**
 - **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=1`) **starts in suite mode** and says once at start-up that its local
   sign-in is off and which settings to remove; nothing else changes. Its password accounts cannot sign in while it is in suite mode.
 - **There is no linking** of a core account and a local one: an instance has one kind. A person is their better-auth user id; a `sub` is identity; an

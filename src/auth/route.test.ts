@@ -30,25 +30,23 @@ describe('/api/auth', () => {
     expect(handler).toHaveBeenCalledOnce();
   });
 
-  it('answers 404, as a route that is not there, to the reset and verification routes when there is no mail, and hands them on when there is', async () => {
+  it('answers 404, as a route that is not there, to the routes that send a reset or a verification when there is no mail, and hands them on when there is', async () => {
     const handler = vi.fn(async () => new Response('{"ok":true}', { status: 200 }));
     const without = await route({ handler }, false);
-    for (const path of [
-      'request-password-reset',
-      'reset-password',
-      'reset-password/abc',
-      'send-verification-email',
-      'verify-email',
-    ]) {
+    for (const path of ['request-password-reset', 'send-verification-email', 'verify-email']) {
       const request = new Request(`http://localhost:3000/api/auth/${path}`);
       expect((await without.GET(request)).status, path).toBe(404);
       expect((await without.POST(request)).status, path).toBe(404);
     }
     expect(handler).not.toHaveBeenCalled();
-    // The rest of sign-in is there either way.
-    expect(
-      (await without.GET(new Request('http://localhost:3000/api/auth/get-session'))).status,
-    ).toBe(200);
+    // Using a reset link needs no mail: an operator can make one. The rest of sign-in is there either way.
+    for (const path of ['reset-password', 'reset-password/abc', 'get-session']) {
+      expect(
+        (await without.POST(new Request(`http://localhost:3000/api/auth/${path}`))).status,
+        path,
+      ).toBe(200);
+    }
+    expect(handler).toHaveBeenCalledTimes(3);
     vi.resetModules();
     const withMail = await route({ handler }, true);
     expect(

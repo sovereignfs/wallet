@@ -248,17 +248,18 @@ describe(`without mail (${leg})`, () => {
     expect(client.has('session_token')).toBe(true);
   });
 
-  it('has no reset to ask for, and the routes that would are named so that the server answers 404 for them', () => {
+  it('has no reset to ask for, and the routes that would send are named so that the server answers 404 for them', () => {
     for (const path of [
       '/api/auth/request-password-reset',
-      '/api/auth/reset-password',
-      '/api/auth/reset-password/abc123',
       '/api/auth/send-verification-email',
       '/api/auth/verify-email',
       '/api/auth/verify-email/',
     ])
       expect(needsMail(path), path).toBe(true);
+    // Using a reset link needs a link, not mail: an operator can make one.
     for (const path of [
+      '/api/auth/reset-password',
+      '/api/auth/reset-password/abc123',
       '/api/auth/sign-in/email',
       '/api/auth/sign-up/email',
       '/api/auth/get-session',

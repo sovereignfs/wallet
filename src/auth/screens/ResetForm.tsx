@@ -15,11 +15,14 @@ export function ResetForm({
   minLength,
   token,
   email,
+  canAskAgain,
 }: {
   minLength: number;
   token: string;
   /** The address the link was sent to, or nothing for a link that is not, or no longer, good. */
   email: string | null;
+  /** Whether a new link can be asked for (the instance sends mail). Without, whoever runs the instance makes one. */
+  canAskAgain: boolean;
 }) {
   const [error, setError] = useState<string | undefined>();
   const [pending, setPending] = useState(false);
@@ -48,6 +51,17 @@ export function ResetForm({
         Your password is changed, and you are signed out everywhere else.{' '}
         <AuthLink href="/sign-in">Sign in</AuthLink>
       </AuthNotice>
+    );
+  // The form's own words for a link that is gone offer to ask for another, which an instance with no mail cannot send.
+  if (expired && !canAskAgain)
+    return (
+      <>
+        <AuthNotice tone="warning">
+          This link has expired or was already used. A link works once, for an hour. Ask whoever
+          runs this instance for a new one.
+        </AuthNotice>
+        <AuthLink href="/sign-in">Back to sign in</AuthLink>
+      </>
     );
   return (
     <ResetPasswordForm
