@@ -199,6 +199,7 @@ pnpm refuses a release less than a day old and an install script nobody decided 
 | `pnpm install --frozen-lockfile`                                | Install, from the lockfile                                                                                                           |
 | `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` | Format, lint (including the two import rules), types, unit and data-layer tests (a file; `WALLET_TEST_*` select sqld and PostgreSQL) |
 | `pnpm build`                                                    | The standalone build (it copies the scanner's `.wasm` into `public/zxing/` first)                                                    |
+| `pnpm build:tools`                                              | The operator tool, `tools/wallet-admin.mjs`, as one file (the Dockerfile runs it after `pnpm build`)                                 |
 | `pnpm e2e`                                                      | Playwright, against a build: Chromium, a phone, WebKit, and Chromium with a fake camera and authenticator                            |
 | `pnpm boot-check`                                               | A built server against the database the environment names                                                                            |
 | `pnpm db:generate <name>`, `pnpm db:dev`                        | Generate a migration for both dialects and both stores; start sqld or PostgreSQL in Docker                                           |
@@ -212,5 +213,5 @@ pnpm refuses a release less than a day old and an install script nobody decided 
 (portable: `vault/`, `entries/`, `sync/`; no React, Next.js, Node or DOM), `src/keyring/` (keys in memory, locking, unlock wrappers), `src/local/` (the device's
 store, the wallet, the sync loop), `src/server/` (entries and the vault header: stores ciphertext, never imports `src/core/vault`), `src/barcode/` (drawing and
 scanning codes), `src/screens/` and `src/ui/` (the screens), `src/db/`, `src/auth/`, `src/crypto/` (the server's own key), `src/sovereign/` (core's notices and
-`People.deletePerson`), `src/config/`, `src/security/`, `src/sw/`, `src/jobs/`, `src/limits/`, `src/access/` (the table of routes), `docs/specs/` (the
+`People.deletePerson`), `src/admin/` (the operator's tool, bundled into `tools/`), `src/config/`, `src/security/`, `src/sw/`, `src/jobs/`, `src/limits/`, `src/access/` (the table of routes), `docs/specs/` (the
 formats), `docs/research/`, `docs/epics/`, `migrations/`, `deploy/`, `e2e/`, `scripts/`.

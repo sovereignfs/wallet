@@ -71,6 +71,23 @@ WALLET_POSTGRES_URL=postgres://user:password@host:5432/wallet
 
 (or `WALLET_POSTGRES_URL_FILE`, a file holding it). The app makes its own schemas, `wallet` and `wallet_auth`, in that database.
 
+## Giving someone their account back
+
+A person who forgot their password asks for a link on the sign-in page, **if the instance sends mail** (`WALLET_SMTP_*`). One who cannot, because there is no mail, or
+because their password was stored before 0.4.0 and did not move in time, gets one from you:
+
+```bash
+docker compose exec web node tools/wallet-admin.mjs accounts reset-link person@example.com
+```
+
+(Or `docker exec <container> node tools/wallet-admin.mjs …` for the one `docker run`.) It prints a link and nothing else to the standard output: **hand it to the person
+privately, since whoever holds it can choose that account's password.** It works once, for an hour, and ends every session of the account when it is used. The person
+chooses the new password themselves, in their browser, and Wallet never sees it. It says there is no account if there is none, and that it has nothing to do on an instance that
+signs people in through Sovereign, whose passwords they are (there, Sovereign's own `sovereign-admin accounts reset-link` does it).
+
+**It gives back the account, not the wallet.** The wallet key is the person's own and is not touched: with it they open everything as before, and without it nobody can, you
+included. A lost authenticator app is not reset by this either; backup codes are the way.
+
 ## On a Sovereign instance
 
 `sv app add` hosts Wallet from `sovereign.manifest.json`, which is also the image's label: the instance builds nothing of its own, gives the app a database, and

@@ -178,6 +178,7 @@ server no body, and sign-in through core works.
 | 70  | [10.3](docs/epics/notices.md) | Core's services                  | P2       | 10.2, 2.2     | ⏭      |
 | 71  | [3.12](docs/epics/vault.md)   | One prompt to sign in and unlock | P3       | 3.7, 2.1      | ⏭      |
 | 127 | [2.8](docs/epics/accounts.md) | One way in per instance          | P1       | 2.1, 2.2, 2.5 | ✅     |
+| 128 | [2.9](docs/epics/accounts.md) | An operator's reset link         | P1       | 2.1, 2.8      | ✅     |
 
 ### Milestone H — Release 0.1.0
 

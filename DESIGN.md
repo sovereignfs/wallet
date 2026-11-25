@@ -1069,10 +1069,10 @@ Few, and about the account, since the server cannot read entries:
 store of its own (`wallet_auth`, opened again in the package's shape, `src/auth/store.ts`). **An instance signs people in one way, never both**, as
 Shopper's (its §15.1), from one image:
 
-| Mode                                     | Who signs in, and how                                                                                                                                                                                                            |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Suite mode** (`WALLET_CORE_*` are set) | Everyone, through core: the package's `./core` on the SDK's steps (PKCE, matched by `sub`), `WALLET_CORE_URL` being the instance's own address                                                                                   |
-| **Standalone mode** (no core)            | Everyone, with Wallet's own accounts (`WALLET_AUTH_LOCAL=1`): a password, passkeys and an authenticator app with backup codes; verified, and a reset asked for, by mail when set up; a reset link, once there is one, needs none |
+| Mode                                     | Who signs in, and how                                                                                                                                                                                                                           |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Suite mode** (`WALLET_CORE_*` are set) | Everyone, through core: the package's `./core` on the SDK's steps (PKCE, matched by `sub`), `WALLET_CORE_URL` being the instance's own address                                                                                                  |
+| **Standalone mode** (no core)            | Everyone, with Wallet's own accounts (`WALLET_AUTH_LOCAL=1`): a password, passkeys and an authenticator app with backup codes; verified, and a reset asked for, by mail when set up; a reset link an operator makes (`wallet-admin`) needs none |
 
 - **In suite mode `/sign-in` and `/sign-up` show nothing:** someone with a session goes to the front address, anyone else straight to
   `/api/auth/sign-in/sovereign`, and `/sign-up` asks core to open its sign-up page (`prompt=create`: Sovereign 0.140.0 or later; before it, core shows
@@ -1088,7 +1088,10 @@ Shopper's (its §15.1), from one image:
   hour for an email address and five a minute for a caller, which checks it against the old hash, puts a hash of the derived value in its place and signs nobody in. Wallet logs nothing of a
   request's body. An instance made at 0.4.0 or later has no such window, and neither has one in suite mode. Email is verified, and a reset asked for, only with
   mail set up. **Using a reset link needs no mail:** the pages it leads to are there on every standalone instance, and only asking for one is mail-only (the
-  package's own split). **A password that did not move in time can be given back only by a link, and Wallet has no command yet for an operator to make one.**
+  package's own split). **An operator gives an account back with a link** (`docker compose exec web node tools/wallet-admin.mjs accounts reset-link EMAIL`, task 2.9): it works once, for an hour, and ends
+  every session of the account when it is used. It is the package's `resetLink` and nothing else: it runs no migration, opens no app store, prints only the link on the standard
+  output and says nothing of it that holds the link or the address, and refuses in suite mode, where the passwords are Sovereign's (core has `sovereign-admin accounts
+reset-link` for those). **A reset gives back the account, not the wallet:** the wallet key is the person's own (§9), and a lost authenticator app is not reset by it.
 - **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=1`) **starts in suite mode** and says once at start-up that its local
   sign-in is off and which settings to remove; nothing else changes. Its password accounts cannot sign in while it is in suite mode.
 - **There is no linking** of a core account and a local one: an instance has one kind. A person is their better-auth user id; a `sub` is identity; an
@@ -1368,6 +1371,8 @@ docker run -v wallet:/data -e WALLET_DB_DIALECT=sqlite -e WALLET_SQLITE_URL=file
   core's.
 - **Releases** as every app's: a promotion titled `Release vX.Y.Z` tags and publishes amd64 and arm64 to `ghcr.io` on merge (`RELEASING.md`); a patch has no migration.
 - `/api/health` answers `200` once the database is ready and `/data` is writable.
+- **The operator's tool,** `tools/wallet-admin.mjs` (§25.1), is one file bundled by `scripts/build-tools.mjs` in the build stage and copied to `/app/tools`, since the image holds
+  a traced server and no TypeScript; the database drivers it leaves outside are in the server's own `node_modules`. The deploy check runs it in every setup that comes up.
 - **The operator's backups** are the database's and `/data`'s; a person's backups (§23) are theirs. An operator restoring an old database brings back
   old ciphertext, which devices treat as an older server state (the cursor is ahead: a fresh snapshot after sending the outbox).
 

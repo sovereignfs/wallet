@@ -40,7 +40,7 @@ docker compose -f compose.yaml -f compose.postgres.yaml up -d --build          #
 
 Put a reverse proxy with TLS in front of it and set `WALLET_URL` to the address people use. The first account is the first person to sign up
 (`WALLET_AUTH_SIGNUP=closed` is the default with local sign-in). [`deploy/README.md`](deploy/README.md) has the rest, including your own PostgreSQL,
-updating, and what an operator can and cannot see.
+updating, giving someone their account back when mail cannot (`wallet-admin`), and what an operator can and cannot see.
 
 ### On a Sovereign instance
 

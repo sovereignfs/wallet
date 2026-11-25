@@ -6,11 +6,29 @@ All notable changes to Wallet are recorded here. The format follows [Keep a Chan
 Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
 titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
+## [0.6.0] - 2026-11-25
+
+**Before upgrading:** nothing to do. The image carries one more file, `tools/wallet-admin.mjs` (about 3.5 MB). **If your instance has no mail**, this is how a person whose
+password did not move in time, or who forgot it, gets their account back: see `deploy/README.md`.
+
+### Added
+
+- **`wallet-admin accounts reset-link EMAIL`**, for an operator to give an account back when mail cannot: `docker compose exec web node tools/wallet-admin.mjs accounts
+reset-link person@example.com` prints a link that works once, for an hour, and ends every session of the account when it is used. It makes the link with the sign-in
+  package's own `resetLink` and writes nothing else, so it is safe to run while Wallet is up. It refuses on an instance that signs people in through Sovereign, whose
+  passwords they are. A reset gives back the account, **not the wallet**: the wallet key is the person's own, and a lost authenticator app is not reset by it.
+
+### Changed
+
+- **Using a reset link no longer needs mail.** The page a link leads to, and the route it uses, are there on every instance with local sign-in. Asking for a link
+  still needs mail, as does verifying an address, and those still answer 404 without it. This changes what the earlier notes said: that without mail the reset routes are not
+  mounted.
+
 ## [0.5.2] - 2026-11-25
 
 **Before upgrading:** nothing to do. One thing to know, which the 0.4.0 notes below now say too: **a password stored before 0.4.0 that has not moved within 90 days of
-the upgrade can be given back only by mail**, so an instance with no mail should have everyone sign in by then. Wallet has no command yet for an operator to
-make that link.
+the upgrade can be given back by mail, or by a link an operator makes (`wallet-admin`, from 0.6.0)**, so an instance with no mail should have everyone sign in by then, or
+have `wallet-admin` to hand.
 
 ### Fixed
 
@@ -84,7 +102,7 @@ account. The manifest still asks only for Sovereign 0.126.0.
 ## [0.4.0] - 2026-11-23
 
 **Before upgrading:** take a backup. Every session open at the upgrade ends, and each person signs in once more, and that sign-in moves their password across
-(see below); **one who does not sign in within 90 days can be given a new password only by mail**, so an instance with no mail should have everyone sign in by
+(see below); **one who does not sign in within 90 days can be given a new password by mail, or (from 0.6.0) by a link an operator makes**, so an instance with no mail should have everyone sign in by
 then. The move of the sign-in's tables
 happens by itself at the first start and cannot be undone: an older Wallet cannot read them after it. `WALLET_CORE_URL` is the instance's own address
 with no path (`https://sovereign.example.com`); one ending in `/api/auth` now stops Wallet at start, naming the variable. The core it is registered
@@ -95,7 +113,7 @@ with must let it come back to `/sign-in` after signing out (the manifest's `post
 - **Sign-in is the suite's `@sovereignfs/auth`**, not better-auth configured by hand: the same rules as Sovereign itself and every app, and its
   tables. **The password does not reach the server any more**: the page sends a value it derives from it. The one exception is a password stored by an
   earlier Wallet, which moves across at its next sign-in, for 90 days after the upgrade: the page then sends it itself, once, over https, to move it. After
-  that, it is reset by mail. (Wallet has no command yet for an operator to make that link, which an instance with no mail would need.)
+  that, it is reset by mail, or by a link an operator makes (`wallet-admin`, from 0.6.0; 0.4.0 to 0.5.2 had no way to make one, which an instance with no mail would need).
 - The sign-in, sign-up and new-password pages are the design system's forms. A password's length is checked on the page.
 - **Signing in through Sovereign** follows the person's Sovereign session: an hour after it was last checked, it is checked again on the next page,
   and ends if they have signed out there. Signing out of it goes through Sovereign, which decides whether it signs them out there too. A notice from

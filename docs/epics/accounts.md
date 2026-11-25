@@ -115,3 +115,23 @@ Shopper:** the delete route itself refuses in suite mode (Shopper's still accept
 test for it is new. Left out: `coreSignedInAt` (nothing in Wallet asks for a recent sign-in now), core's picture of the person, and an end-to-end instance set
 up both ways (the config, proxy and route tests cover it, and the built server was started both ways by hand). `scripts/deploy-check.sh sovereign` was
 changed and not run. It also closes the gap `src/auth/sovereign.test.ts` kept as an expected failure: the SDK did not check the signature of core's ID token before 2.11.1.
+
+#### ✅ 2.9 — An operator's reset link
+
+**Goal:** an operator gives an account back when mail cannot: a password that did not move in time (the 90-day move of 0.4.0), or an instance with no mail.
+**Design:** §25.1, §6. **Depends on:** 2.1, 2.8.
+
+**Technical:** `wallet-admin accounts reset-link EMAIL` (`src/admin/`), the package's `resetLink` through `createAuth` and `openAuthStore`, run as
+`docker compose exec web node tools/wallet-admin.mjs …`; one file bundled by `scripts/build-tools.mjs` and copied to `/app/tools`; and **using a reset link needs no mail** (the page and
+`/api/auth/reset-password`; only the routes that send stay mail-only, which is the package's own split).
+
+**Accepts when:** the link is the only thing on the standard output and neither it nor the address is anywhere else the tool says; it works once, for an hour, and ends every
+session; an address with no account exits 1 and makes nothing; suite mode and sign-in off refuse; with no mail the reset page is there and `/forgot-password` is not.
+
+**Done as:** taken from the suite: core's `sovereign-admin accounts reset-link` (its shape, its output rules, its `docker exec`) and Tusk's `scripts/build-tools.mjs` into `tools/`, which
+Wallet's ignore files already reserved; esbuild was already a dev dependency. `src/admin/{args,run,main}.ts` (the first two are pure and tested without a process; `bundle.test.ts` builds
+the bundle and runs it), the build stage and `COPY` of the Dockerfile, checks in `scripts/deploy-check.sh` for every setup, and the gate's change in `src/auth/mail-routes.ts`
+and `app/reset-password/page.tsx`. **Different from core's:** a smaller command (one subcommand), run with `node tools/wallet-admin.mjs` as Tusk's tool is and not by a wrapper in
+`PATH`, and it never says the address. Left out: an end-to-end test in the browser (the integration test uses the package's call, and the bundle was tried by hand on a built server);
+the Docker build and `scripts/deploy-check.sh` were changed and not run, since no base image is local. An upstream gap is recorded as finding 11 of
+`docs/research/0003-security-review-0.5.0.md`: a reset does not clear the package's legacy-password mark.
