@@ -24,6 +24,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
 RUN pnpm build
+# The operator tool (`tools/wallet-admin.mjs`, DESIGN.md §25.1) as a single file: the standalone server carries no TypeScript.
+RUN node scripts/build-tools.mjs
 
 # --- What runs -----------------------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -50,6 +52,8 @@ COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
 # The migrations are read from disk when the server starts, and Next does not trace them.
 COPY --from=build --chown=node:node /app/migrations ./migrations
+# What an operator runs in the container (`docker compose exec web node tools/wallet-admin.mjs accounts reset-link EMAIL`): the file finds the database drivers in `/app/node_modules`.
+COPY --from=build --chown=node:node /app/tools ./tools
 
 # Licences travel with the image: ours, and the design system's NOTICE, which carries Lucide's ISC licence and asks that it accompany copies (a
 # standalone build prunes it), and the scanner's and the hash's licences, whose WebAssembly the image serves.

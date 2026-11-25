@@ -16,6 +16,7 @@
   "scripts": {
     "dev": "next dev --port 3006",
     "build": "next build",
+    "build:tools": "node scripts/build-tools.mjs",
     "start": "PORT=${PORT:-3006} node .next/standalone/server.js",
     "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write .",
