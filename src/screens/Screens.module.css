@@ -20,6 +20,13 @@
   max-width: 480px;
 }
 
+/* Wallet's mark above the lock screen's heading, in the text's colour, at the size the sign-in card gives it. An SVG with no size of its own fills its column. */
+.mark {
+  width: 46px;
+  height: 40px;
+  color: var(--sv-color-text-primary);
+}
+
 .heading {
   margin: 0;
   font-size: var(--sv-font-size-2xl);

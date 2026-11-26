@@ -193,7 +193,7 @@ function Security() {
                 ) : (
                   <FormField
                     label="Your password"
-                    hint="To change how this device unlocks, prove it is you. It is checked on this device and never sent."
+                    hint="To change how this device unlocks, prove it is you. Your password is never sent."
                   >
                     {(field) => (
                       <Input

@@ -30,6 +30,10 @@ then shown a **recovery kit, once**, and everyone starts a new wallet. A device 
   (`encryption.return`), so a Sovereign that hosts Wallet must release keys to apps, and its operator allow it for this one.
 - `pnpm seed` makes the development account's keys with the SDK and writes `seed/recovery-kit.txt` (no key files).
 
+### Fixed
+
+- The wallet's mark filled the whole lock screen; it is the size of the sign-in screen's now.
+
 ### Removed
 
 - The age vault, the key files, the recovery sheet, `/api/vault` and the `vault` table; the entry's wrapped key (`entry.wrapped_key` is `entry.key_epoch`).

@@ -14,7 +14,8 @@ import {
 
 /**
  * The ways round a lock that is not opened the usual way (DESIGN.md §9): the recovery kit that comes before the wallet, a password asked for with no network, a
- * mistyped password for an account that has no keys yet, and a device that has lost its passcode, which the account opens again and sets up anew.
+ * mistyped password for an account that has no keys yet, a device that has lost its passcode, which the account opens again and sets up anew, and one that never
+ * had a way to unlock.
  */
 test.setTimeout(120_000);
 
@@ -111,4 +112,24 @@ test('a mistyped password does not become the keys’ password, for an account t
   await keepKit(page);
   expect(await keys()).toBeDefined();
   await finishSetup(page, { passcode: PASSCODE, passkey: false });
+});
+
+test('a device with no passkey or passcode says so, with the mark at its size, and the password goes on to setup', async ({
+  page,
+}) => {
+  await signUp(page, emailFor('no-way'));
+  await keepKit(page);
+  // Locked during setup, before a way to unlock this device was added: the password is the only way back.
+  await expect(page.getByRole('heading', { name: /^Welcome/ })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Lock the wallet' }).click();
+  await expect(page.getByRole('heading', { name: 'Your wallet is locked' })).toBeVisible();
+  const mark = await page.getByRole('img', { name: 'Wallet' }).boundingBox();
+  expect(mark?.height).toBeLessThanOrEqual(48);
+  expect(mark?.width).toBeLessThanOrEqual(64);
+  await expect(page.getByText(/This device has no passkey or passcode\./)).toBeVisible();
+  // The password is checked by the server, by a value made from it: the hint says only what is true.
+  await expect(page.getByText(/Your password is never sent\./)).toBeVisible();
+  await page.getByLabel('Your password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Unlock with my password' }).click();
+  await expect(page.getByRole('heading', { name: /^Welcome/ })).toBeVisible({ timeout: 30_000 });
 });

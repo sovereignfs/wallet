@@ -90,14 +90,18 @@ export function LockScreen() {
     <main className={styles.page} aria-labelledby="lock-heading">
       <div className={`${styles.column} ${styles.narrow}`}>
         <div className={styles.stack}>
-          <WalletMark label="Wallet" className="" />
+          <WalletMark label="Wallet" className={styles.mark} />
           <h1 id="lock-heading" className={styles.heading}>
             Your wallet is locked
           </h1>
           <p className={styles.lead}>
-            {methods && methods.length > 0
-              ? 'Unlock it here, with no connection.'
-              : 'Unlock it with your account to open it on this device.'}
+            {methods === null
+              ? ' '
+              : methods.length > 0
+                ? 'Unlock it here, with no connection.'
+                : core
+                  ? 'This device has no passkey or passcode. Unlock through Sovereign, and then add one.'
+                  : 'This device has no passkey or passcode. Your password opens the wallet, and then you add one.'}
           </p>
         </div>
         {error ? (
@@ -166,7 +170,7 @@ export function LockScreen() {
                 >
                   <FormField
                     label="Your password"
-                    hint="It is checked on this device and never sent. Unlocking this way needs a connection."
+                    hint="Your password is never sent. Unlocking this way needs a connection."
                   >
                     {(field) => (
                       <Input
