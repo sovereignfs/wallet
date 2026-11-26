@@ -36,6 +36,8 @@ then shown a **recovery kit, once**, and everyone starts a new wallet. A device 
 ### Fixed
 
 - The wallet's mark filled the whole lock screen; it is the size of the sign-in screen's now.
+- **A page taller than the window can be scrolled.** It was cut off at the bottom and nothing moved, on the signed-in screens and the front page alike; the navigation now also
+  runs to the bottom of the window on a page with little on it.
 
 ### Removed
 
