@@ -80,7 +80,7 @@ browser, which restores as from a file (8.2's path); Device only entries arrive 
 
 **Goal:** fully offline wallets get backed up. **Design:** §10.7, §23.2. **Depends on:** 8.2, 7.4.
 
-**Technical:** the interval in the `settings` entry (14 days default); Due's item when this device's last backup file is older; Home's line "Last
+**Technical:** the interval in the `settings` entry (14 days default); Due's item when this device's last backup file is older; the first screen's line "Last
 backup file: 9 days ago" in fully offline mode.
 
 **Accepts when:** on a mocked clock the Due item appears at the interval and clears after making a backup file.

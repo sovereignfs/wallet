@@ -27,7 +27,7 @@ the `settings` entry); `src/core/journal/aggregate.ts` pure: by day and week, mo
 
 **Goal:** write in seconds, read by day. **Design:** §17. **Depends on:** 12.1, 21.4.
 
-**Technical:** quick entry (`/journal/new`, from Home, Health and Add): mood in one tap (the rating scale, 21.4), then symptoms with severity, then
+**Technical:** quick entry (`/journal/new`, from the first screen, Health and Add): mood in one tap (the rating scale, 21.4), then symptoms with severity, then
 notes, saved at any point; `/journal` by day with filters by symptom, tag and member; `/journal/<id>`; links to measurements and medications; PWA
 shortcut.
 

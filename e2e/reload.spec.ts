@@ -14,7 +14,7 @@ const lockButton = (page: Page) => page.getByRole('button', { name: 'Lock the wa
 async function aWallet(page: Page, label: string) {
   await signUp(page, emailFor(label));
   await setUp(page);
-  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await page.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(page, 'Corner shop', 'CORNER-1');
 }
 

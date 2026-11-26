@@ -65,7 +65,7 @@ export function Setup({ name }: { name: string }) {
             <div className={styles.row}>
               <Button onClick={() => done('/cards/new')}>Add a card</Button>
               <Button variant="secondary" onClick={() => done('/')}>
-                Go to Home
+                See my cards
               </Button>
             </div>
           </>

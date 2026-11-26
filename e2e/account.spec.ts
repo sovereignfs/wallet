@@ -27,7 +27,7 @@ test('the recovery kit is shown once, after sign-up, and a second device needs o
   // Before anything else, and the file it saves holds a kit.
   const { kit } = await setUp(a);
   expect(kit).toMatch(/^[0-9A-Z]{4}(-[0-9A-Z]{4})+$/);
-  await a.getByRole('button', { name: 'Go to Home' }).click();
+  await a.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(a, 'Kept for later', 'KIT-1');
 
   // A second device signs in with the password and is not shown the kit again: the keys exist, and it brings the wallet's root.
@@ -36,7 +36,7 @@ test('the recovery kit is shown once, after sign-up, and a second device needs o
   await signIn(b, email);
   await expect(b.getByRole('heading', { name: 'Save your recovery kit' })).toHaveCount(0);
   await setUpNewDevice(b);
-  await b.getByRole('button', { name: 'Go to Home' }).click();
+  await b.getByRole('button', { name: 'See my cards' }).click();
   await goTo(b, 'Cards');
   await waitForCard(b, /Kept for later/);
   await first.close();
@@ -50,7 +50,7 @@ test('deleting the account removes the wallet from the server and from this devi
   const email = emailFor('delete');
   await signUp(page, email);
   await setUp(page);
-  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await page.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(page, 'Soon gone', 'GONE-1');
   await page.waitForTimeout(2500);
   const databases = await page.evaluate(async () =>

@@ -1,5 +1,6 @@
 'use client';
 
+import { Attention } from './Attention';
 import { Link } from './nav';
 import { useMemo, useState } from 'react';
 import { Button, EmptyState, Icon, SegmentedControl } from '@sovereignfs/ui';
@@ -58,6 +59,7 @@ export function CardsScreen() {
             <Button>Add a card</Button>
           </Link>
         </div>
+        <Attention />
         {hasArchived ? (
           <SegmentedControl
             aria-label="Which cards"

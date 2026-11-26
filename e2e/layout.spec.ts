@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '@playwright/test';
-import { addCardByTyping, emailFor, goTo, setUp, signUp } from './helpers';
+import { PASSWORD, addCardByTyping, emailFor, goTo, setUp, signUp } from './helpers';
 
 /**
  * The frame fits the window (DESIGN.md §26.2): what is taller than the window scrolls under the person's own wheel or finger, and the navigation runs to the
@@ -50,6 +50,34 @@ test('the navigation reaches the bottom of the window on a page with little on i
   const box = await page.getByRole('navigation', { name: 'Wallet' }).boundingBox();
   // A rail beside the page, or a bar under it: either way its far edge is the window's.
   expect(Math.round((box?.y ?? 0) + (box?.height ?? 0))).toBe(page.viewportSize()?.height);
+});
+
+test('Wallet opens on the cards, and there is no home screen', async ({ page }) => {
+  await signUp(page, emailFor('opens'));
+  await setUp(page);
+  await page.getByRole('button', { name: 'See my cards' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Cards', level: 1 })).toBeVisible();
+  const links = page.getByRole('navigation', { name: 'Wallet' }).getByRole('link');
+  await expect(links).toHaveText(['Cards', 'Settings']);
+  await expect(links.first()).toHaveAttribute('aria-current', 'page');
+});
+
+test('a device with no quick way to unlock is told so where Wallet opens', async ({ page }) => {
+  await signUp(page, emailFor('notice'));
+  await setUp(page);
+  await page.getByRole('button', { name: 'See my cards' }).click();
+  const notice = page.getByText('Unlock faster on this device');
+  await expect(page.getByRole('heading', { name: 'Cards', level: 1 })).toBeVisible();
+  await expect(notice).toBeHidden();
+  await goTo(page, 'Settings');
+  await page.getByRole('button', { name: 'Change how this device unlocks' }).click();
+  await page.getByLabel('Your password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await page.getByRole('button', { name: 'Not now' }).click();
+  await goTo(page, 'Cards');
+  await expect(notice).toBeVisible();
 });
 
 test('the front page, taller than the window, scrolls to its end', async ({ page }) => {

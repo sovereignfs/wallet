@@ -120,12 +120,12 @@ each tier behaves as `DESIGN.md` §10.2 says, and a wiped browser's entries show
 
 ### Milestone D — The shell and family
 
-Home, search, Settings and the phone's navigation, with family members. **Done when** every phase 1 screen is reachable at both widths and filtered by
+Search, Settings and the phone's navigation, with family members. **Done when** every phase 1 screen is reachable at both widths and filtered by
 family member.
 
 | #   | ID                            | Task                      | Priority | Depends on | Status |
 | --- | ----------------------------- | ------------------------- | -------- | ---------- | ------ |
-| 37  | [9.3](docs/epics/screens.md)  | Home and search           | P1       | 4.3        | ✅     |
+| 37  | [9.3](docs/epics/screens.md)  | First screen and search   | P1       | 4.3        | ✅     |
 | 38  | [9.4](docs/epics/screens.md)  | Settings                  | P1       | 9.1        | ✅     |
 | 39  | [9.6](docs/epics/screens.md)  | Where it lives, on screen | P1       | 4.7        | ⏭      |
 | 40  | [5.1](docs/epics/family.md)   | Family members and Me     | P1       | 4.4        | ⏭      |

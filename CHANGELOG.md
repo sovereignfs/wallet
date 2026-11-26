@@ -41,6 +41,7 @@ then shown a **recovery kit, once**, and everyone starts a new wallet. A device 
 
 ### Removed
 
+- **The Home screen.** Wallet opens on Cards, which now says at its top what needs your attention.
 - The age vault, the key files, the recovery sheet, `/api/vault` and the `vault` table; the entry's wrapped key (`entry.wrapped_key` is `entry.key_epoch`).
 
 ### Notes

@@ -67,7 +67,7 @@ then name, type, colour), `/cards/<id>` (the code, fields, photos, where it live
 **Goal:** the code full screen at the till. **Design:** §13.3. **Depends on:** 6.4.
 
 **Technical:** `/cards/<id>/show`: full screen (Fullscreen API where allowed), white, the largest code that fits, the number, the title; Screen Wake
-Lock held and released; the brightness hint once; swipe between favourites (`SwipeStack`); opening a card from Home's row lands here.
+Lock held and released; the brightness hint once; swipe between favourites (`SwipeStack`); opening a card from the list lands here.
 
 **Accepts when:** the wake lock is held while shown and released on leaving (a test spies on the API); the code fills the width at a phone's size.
 

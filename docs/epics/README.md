@@ -41,7 +41,7 @@ _Status key: ✅ Done · ⏳ In progress · 📋 Planned · 🚧 Waits on a deci
 | 6   | [Cards](cards.md)                                | The model, drawing and scanning codes, the screens, showing a card, photos                                | 1     | 6     |
 | 7   | [Documents](documents.md)                        | The model, pages and the viewer, the screens, Due                                                         | 1     | 4     |
 | 8   | [Backup and portability](backup.md)              | The backup format, backup files, readable export, git connection, git backup, restore, reminders          | 1     | 7     |
-| 9   | [Shell and screens](screens.md)                  | Setup, the lock screen, Home and search, Settings, the phone, where-it-lives controls                     | 1     | 6     |
+| 9   | [Shell and screens](screens.md)                  | Setup, the lock screen, search, Settings, the phone, where-it-lives controls                              | 1     | 6     |
 | 10  | [Notices](notices.md)                            | The bell, the mail outbox, core's services, Web Push and reminders while closed                           | 1, 3  | 4     |
 | 11  | [Health](health.md)                              | Units, measurements, BMI, charts, the test catalogue, lab reports, trends, the medical ID and the rest    | 2     | 10    |
 | 12  | [Journal](journal.md)                            | The model, the screens, the charts                                                                        | 2     | 3     |

@@ -84,7 +84,7 @@ design, and say "after 0.1.0" where the cut matters.
    file.
 5. **Fully offline.** Chen turns on fully offline for the whole wallet. Everything moves to his phone, the server keeps only shapes, git backup stops,
    and every two weeks Wallet reminds him to download an encrypted backup file.
-6. **The Due panel.** Home says Ana's passport expires in five months and her daughter's residence permit in three weeks.
+6. **The Due panel.** Wallet's first screen says Ana's passport expires in five months and her daughter's residence permit in three weeks.
 7. **The family.** Ana adds her daughter Mia and her partner Leo as family members. Mia's passport, vaccinations and growth measurements are in Ana's
    wallet, filed under Mia.
 8. **A lab report (phase 2).** Ana gets her lipid profile as a PDF. She adds a lab report, attaches the PDF, picks "Lipid profile", and types four
@@ -510,7 +510,7 @@ changed in Settings > Storage. A new entry starts at its kind's default, and the
 - **While it is on:** new entries are Device only; the tier choice is hidden; the server refuses any body (§5.2). Each device in use holds its own
   entries; the others see their shapes. Shapes still sync.
 - **Manual backups** are the safety net: Due reminds the person when the last backup file from this device is older than the interval they chose (14
-  days by default), and Home says how long ago it was (§23.2).
+  days by default), and the first screen says how long ago it was (§23.2).
 - **Turning it off** changes nothing at once: entries stay Device only, defaults apply to new ones, git backup may resume, and the person moves what
   they want.
 
@@ -521,7 +521,7 @@ Every Sovereign app is a full PWA, and Wallet is meant to be used installed. Sti
 - **Persistent storage is requested** (`navigator.storage.persist()`) at setup and after each install; Settings > Storage shows whether it was
   granted, the space used and the quota (`navigator.storage.estimate()`).
 - **Safari deletes a site's storage after seven days without use unless it is installed to the home screen.** In Safari, not installed, Wallet shows a
-  message on Home while any device-only entry is held: "Install Wallet to your home screen, or Safari may delete what is kept only on this device."
+  message on the first screen while any device-only entry is held: "Install Wallet to your home screen, or Safari may delete what is kept only on this device."
   (the owner's decision). The same in any browser that refuses persistence.
 
 ## 11. Offline and sync
@@ -680,7 +680,7 @@ Watermarked copies (§21.1, phase 3); reading the MRZ from a photo (on-device OC
 
 ### 15.1 Due
 
-**Due** is computed in the browser (`src/core/due/`, pure, from the open entries and today's date in the device's time zone), shown on Home and as a
+**Due** is computed in the browser (`src/core/due/`, pure, from the open entries and today's date in the device's time zone), shown on the first screen and as a
 count on the app icon (`navigator.setAppBadge`) while Wallet runs:
 
 | Phase | What                                                                                                                                                          |
@@ -819,7 +819,7 @@ A `journal` entry is one moment written down: **shape:** `person_id`, the moment
   free text), and how long it lasted (optional).
 - **Notes**, free text; **tags**; **links** to entries (a measurement taken, a medication).
 
-Quick entry from Home, Health or the Add button: mood in one tap, then symptoms, then notes, saved at any point. The journal lists entries by day,
+Quick entry from the first screen, Health or the Add button: mood in one tap, then symptoms, then notes, saved at any point. The journal lists entries by day,
 filters by symptom, tag and family member, and shows a **calendar** of mood and a **frequency chart** of symptoms by week. Aggregates are
 `src/core/journal/`, pure, shared with the doctor's report.
 
@@ -1169,9 +1169,9 @@ Designed anew, with `@sovereignfs/ui`.
 ### 26.2 The shell
 
 - **Header:** the app's name, search, the family switcher, the lock button, the bell, the avatar menu (and the launcher when hosted).
-- **Desktop:** a side navigation: Home, Cards, Documents, Health (phase 2), Journal (phase 2), More (phase 3: business cards, contacts, insurance,
+- **Desktop:** a side navigation: Cards (which Wallet opens on), Documents, Health (phase 2), Journal (phase 2), More (phase 3: business cards, contacts, insurance,
   tickets, notes), Settings.
-- **Phone:** `MobileFooter` with **Home** and **Cards** left of the launcher, **Documents** and **Health** right (Health holds the journal as a tab in
+- **Phone:** `MobileFooter` with **Cards** left of the launcher, **Documents** and **Health** right (Health holds the journal as a tab in
   phase 2; before phase 2, the right side is Documents and Family). An **Add** floating button opens a sheet of what can be added on the current
   screen.
 - **The lock screen** replaces everything when locked: the app's mark, **Unlock** (passkey) and the other ways (§9.3).
@@ -1191,10 +1191,11 @@ Designed anew, with `@sovereignfs/ui`.
 **A new device** on an account with a wallet: sign in (the password, or core's release) opens the suite's key and fetches the root, then "Is this the same device
 as…?" (§6.3), the unlock method, install.
 
-### 26.4 Home and search
+### 26.4 The first screen and search
 
-Home: **Due** (§15) at the top; **favourite cards** as a swipeable row; **recent** entries; the storage message when it applies (§10.8); and, in fully
-offline mode, when the last backup file was made. **Search** (header, or `/` on a keyboard) covers every open entry's shape and body, across kinds, in
+**Wallet opens on Cards; there is no home screen** (the owner's decision, 2026-11-26). At the top of that screen, when there is something to say: **Due** (§15); what needs attention (no quick way to
+unlock on this device, changes that could not be sent); the storage message (§10.8); and, in fully offline mode, when the last backup file was made. Favourite cards come first in the grid.
+**Search** (header, or `/` on a keyboard) covers every open entry's shape and body, across kinds, in
 memory (`src/core/search/`: normalised, accent-insensitive prefix matching, ranked by field); Online only entries are searched by their shape only,
 and results say so.
 
@@ -1202,7 +1203,7 @@ and results say so.
 
 | Address                                                                                                                                                                    | Screen                                              | Phase |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----- |
-| `/`                                                                                                                                                                        | Home (signed out: the landing page)                 | 1     |
+| `/`                                                                                                                                                                        | Cards (signed out: the landing page)                | 1     |
 | `/setup`, `/unlock`                                                                                                                                                        | Setup (§26.3); the lock screen                      | 1     |
 | `/cards`, `/cards/new`, `/cards/<id>`, `/cards/<id>/show`                                                                                                                  | Cards, adding (scan or type), a card, full screen   | 1     |
 | `/documents`, `/documents/new`, `/documents/<id>`                                                                                                                          | Documents, adding, a document with its pages        | 1     |
@@ -1495,3 +1496,5 @@ None waits on a decision. These wait on an input:
 | 2026-11-25 | **The suite's encryption instead of age:** the account key, the app key and the SDK's cipher; no key file and no recovery key; 0.1.x wallets start clean | Wallet joins the suite's keys, compatible with core and Shopper (RFC 0001); supersedes the 2026-11-09 rows on the age key, the vault key and the recovery key                                       |
 | 2026-11-25 | **A keyring root under the app key, entry keys derived from it, and a device layer (passkey with PRF, or passcode) wrapping the root**                   | The SDK's key cannot open without a connection, and the device holds ciphertext only yet must show cards with no signal (RFC 0001, Amendment 1)                                                     |
 | 2026-11-25 | **A snapshot is not encrypted again;** it opens with the account's key                                                                                   | An outer age layer would be a format of Wallet's own beside the suite's                                                                                                                             |
+| 2026-11-26 | **A reload keeps the wallet open** within the lock times, and the suite's key stays until sign-out, so that it works after a code or passkey unlock too  | The owner's decision (RFC 0001, amendment 3): accepted that a lock is then held by the app, over an encrypted copy of the root per tab                                                              |
+| 2026-11-26 | **No home screen:** Wallet opens on Cards, with what needs attention at its top                                                                          | The owner's decision                                                                                                                                                                                |

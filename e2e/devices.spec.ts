@@ -25,7 +25,7 @@ test('a card written on one device appears on another, and offline work is sent 
   const a = await first.newPage();
   await signUp(a, email);
   await setUp(a);
-  await a.getByRole('button', { name: 'Go to Home' }).click();
+  await a.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(a, 'Library card', 'LIB-0001');
 
   // A second browser, with a store of its own: signed in with the password, which brings the wallet's root, and set up as a device of its own.
@@ -33,7 +33,7 @@ test('a card written on one device appears on another, and offline work is sent 
   const b = await second.newPage();
   await signIn(b, email);
   await setUpNewDevice(b);
-  await b.getByRole('button', { name: 'Go to Home' }).click();
+  await b.getByRole('button', { name: 'See my cards' }).click();
   await goTo(b, 'Cards');
   await waitForCard(b, /Library card/);
   await b.getByRole('link', { name: /Library card/ }).click();
@@ -73,7 +73,7 @@ test('an edit on each device of one card is merged, field by field', async ({ br
   const a = await first.newPage();
   await signUp(a, email);
   await setUp(a);
-  await a.getByRole('button', { name: 'Go to Home' }).click();
+  await a.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(a, 'Transit', 'TRN-77');
   await goTo(a, 'Cards');
   await a.getByRole('link', { name: /Transit/ }).click();
@@ -82,7 +82,7 @@ test('an edit on each device of one card is merged, field by field', async ({ br
   const b = await second.newPage();
   await signIn(b, email);
   await setUpNewDevice(b);
-  await b.getByRole('button', { name: 'Go to Home' }).click();
+  await b.getByRole('button', { name: 'See my cards' }).click();
   await goTo(b, 'Cards');
   await waitForCard(b, /Transit/);
   await b.getByRole('link', { name: /Transit/ }).click();

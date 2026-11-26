@@ -20,7 +20,7 @@ test('a reload with no network opens the shell, unlocks, and shows the card', as
 }) => {
   await signUp(page, emailFor('offline'));
   await setUp(page);
-  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await page.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(page, 'Basement shop', 'BASEMENT-0001');
   // Reload online once, so that the page is controlled by the worker that was installed.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));

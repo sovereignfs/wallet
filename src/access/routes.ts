@@ -34,8 +34,8 @@ export const ROUTES: RouteRule[] = [
   // an instance that runs alone makes a person's keys. Both are for someone signed in, and each redirects where the instance has no such step.
   { route: '/keys/return', page: { kind: 'account' } },
   { route: '/keys/kit', page: { kind: 'account' } },
-  // The app, for someone signed in: Home (the front address `/` shows it to someone signed in, the proxy rewriting it to `/home`, and `/home` itself is sent
-  // back to `/`), setup, the cards, a card, showing it and Settings. The layout around it (`app/(app)/layout.tsx`) finds who, and the page asks for itself as
+  // The app, for someone signed in: the cards, which it opens on (the front address `/` shows them to someone signed in, the proxy rewriting it to `/home`, and
+  // `/home` itself is sent back to `/`), setup, a card, showing it and Settings. The layout around it (`app/(app)/layout.tsx`) finds who, and the page asks for itself as
   // well. The server renders this one page; **the browser chooses the screen from the address** (`src/screens/AppRoutes.tsx`), so that moving about works with
   // no connection and never reloads the page, which would drop the wallet's keys. The server could not say whether a card is there, since it cannot read one.
   { route: '/[...path]', page: { kind: 'account' } },

@@ -133,12 +133,12 @@ sees shapes only; a body sent by an old client is refused.
 **Goal:** persistence requested and the risk said. **Design:** §10.8. **Depends on:** 4.3.
 
 **Technical:** `navigator.storage.persist()` at setup and after install; Settings > Storage shows granted or not, `estimate()` usage and quota,
-entries held here and their size; the Safari-not-installed message on Home while device-only entries are held (detecting standalone display mode and
+entries held here and their size; the Safari-not-installed message on the first screen while device-only entries are held (detecting standalone display mode and
 the browser).
 
-**Accepts when:** in WebKit not installed, with a device-only entry, Home shows the message; usage in Settings grows after adding a large file.
+**Accepts when:** in WebKit not installed, with a device-only entry, the first screen shows the message; usage in Settings grows after adding a large file.
 
-**Done as:** Settings, Storage asks the browser to persist and says what it holds and whether it promised to keep it, with the Safari warning; setup asks too. The message on Home for device-only entries is for 4.7.
+**Done as:** Settings, Storage asks the browser to persist and says what it holds and whether it promised to keep it, with the Safari warning; setup asks too. The message on the first screen for device-only entries is for 4.7.
 
 #### 📋 4.11 — Pruning
 

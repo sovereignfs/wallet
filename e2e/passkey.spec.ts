@@ -22,7 +22,7 @@ test('a passkey unlocks the wallet, with no network', async ({ page, context }) 
   });
   await signUp(page, emailFor('passkey'));
   await setUp(page, { passkey: true });
-  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await page.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(page, 'Passkey card', 'PK-1');
 
   await context.setOffline(true);

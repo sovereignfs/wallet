@@ -34,7 +34,7 @@ test('with no network, the password cannot open the wallet and the screen says w
 }) => {
   await signUp(page, emailFor('offline-password'));
   await setUp(page);
-  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await page.getByRole('button', { name: 'See my cards' }).click();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await page.getByRole('button', { name: 'Lock the wallet' }).click();
   await context.setOffline(true);
@@ -55,7 +55,7 @@ test('five wrong passcodes delete the passcode, and the password opens the walle
 }) => {
   await signUp(page, emailFor('five'));
   await setUp(page);
-  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await page.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(page, 'Still here', 'STILL-1');
   await page.waitForTimeout(2500);
   await page.getByRole('button', { name: 'Lock the wallet' }).click();
@@ -76,7 +76,7 @@ test('five wrong passcodes delete the passcode, and the password opens the walle
   // No way to unlock is left on this device, so it is set up again, with the root the account's keys brought back.
   await expect(page.getByRole('heading', { name: /^Welcome/ })).toBeVisible({ timeout: 30_000 });
   await finishSetup(page, { passcode: PASSCODE, passkey: false });
-  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await page.getByRole('button', { name: 'See my cards' }).click();
   await goTo(page, 'Cards');
   await expect(page.getByRole('link', { name: /Still here/ })).toBeVisible({ timeout: 20_000 });
 });

@@ -122,7 +122,7 @@ async function text(download: Download): Promise<string> {
 }
 
 /** Goes where the navigation goes, as a person does: with no page load, which would drop the keys from memory (whether the wallet then comes back is `reload.spec.ts`'s). */
-export async function goTo(page: Page, name: 'Home' | 'Cards' | 'Settings') {
+export async function goTo(page: Page, name: 'Cards' | 'Settings') {
   await page.getByRole('navigation', { name: 'Wallet' }).getByRole('link', { name }).click();
 }
 

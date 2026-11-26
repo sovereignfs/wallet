@@ -20,7 +20,7 @@ import type { Merged } from '../local/wallet';
 import { restoreOther } from './merged';
 import styles from './Screens.module.css';
 
-/** Who is signed in, for the screens that say so: the name on Home, the address in Settings. */
+/** Who is signed in, for the screens that say so: the name at setup, the address in Settings. */
 export interface Identity {
   readonly id: string;
   readonly name: string;

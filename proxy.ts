@@ -46,7 +46,7 @@ export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const absent =
     !authLocal && SIGN_IN_PAGES.has(path) && !(authSovereign && SOVEREIGN_PAGES.has(path));
-  // The front address is Home for someone with a session cookie, and the address stays `/` (DESIGN.md §26.5). Only the cookie is looked at: it cannot be
+  // The front address is the app for someone with a session cookie, and the address stays `/` (DESIGN.md §26.5). Only the cookie is looked at: it cannot be
   // checked here, and the page checks it and sends a forged one to sign in. The page's own address (`/home`) goes to `/`, so that there is one address for it.
   const cookie = hasSessionCookie(request.cookies);
   // Suite mode (DESIGN.md §25.1): sign-in and sign-up are core's, so a visitor with no session cookie is sent there at once, by a redirect the server

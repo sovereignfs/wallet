@@ -6,7 +6,7 @@
 
 ## Overview
 
-The screens that are not one kind's: setup, the lock screen, Home and search, Settings, the phone's footer and shortcuts, and the controls that say
+The screens that are not one kind's: setup, the lock screen, the first screen and search, Settings, the phone's footer and shortcuts, and the controls that say
 where an entry lives.
 
 ## Related
@@ -45,11 +45,11 @@ while locked.
 
 **Since 0.7.0 ([task 3.14](vault.md)):** the key and key file are gone. The lock screen offers the passkey, the passcode, and the account (the password, confirmed by the server, or Sovereign's release), which needs a connection (DESIGN.md §9.3, §9.4).
 
-#### ✅ 9.3 — Home and search
+#### ✅ 9.3 — The first screen and search
 
 **Goal:** the first screen, and finding anything. **Design:** §26.4. **Depends on:** 4.3.
 
-**Technical:** Home: Due (7.4), favourite cards row, recent entries, the storage message (4.10), the offline-mode backup line (8.7);
+**Technical:** on the first screen: Due (7.4), favourite cards first, the storage message (4.10), the offline-mode backup line (8.7);
 `src/core/search/` (normalised, accent-insensitive, prefix, ranked by field) over the index; search in the header and on `/`; results grouped by kind;
 Online only results by shape, said.
 
@@ -57,6 +57,8 @@ Online only results by shape, said.
 marked.
 
 **Done as:** Home shows favourites and cards from the device's own copy, and says in words what needs attention (no quick unlock, changes that could not be sent). **Search and Due are not built** (Due is epic 7).
+
+**Since 2026-11-26 there is no home screen** (the owner's decision): Wallet opens on Cards, at `/` as at `/cards`, and what needed attention is at the top of it (`src/screens/Attention.tsx`). Due and the other messages above belong there when built.
 
 #### ✅ 9.4 — Settings
 
@@ -73,7 +75,7 @@ task adds its part); the `settings` entry for what follows the person, the devic
 
 **Goal:** the footer, the Add button and shortcuts. **Design:** §26.2, §26.6. **Depends on:** 9.3.
 
-**Technical:** `MobileFooter` (Home, Cards | launcher | Documents, Family — Health replaces Family in phase 2), the Add floating button with a sheet
+**Technical:** `MobileFooter` (Cards | launcher | Documents, Family — Health replaces Family in phase 2), the Add floating button with a sheet
 of what can be added here, PWA shortcuts, safe-area insets; one tree, rendering forked only.
 
 **Accepts when:** at phone width every screen of phase 1 is reached from the footer or Add; a shortcut opens Add a card.
