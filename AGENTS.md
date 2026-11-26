@@ -133,7 +133,8 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
   change.
 - **Keys stay in memory, non-extractable, and go at lock.** The suite's app key is the SDK's and Wallet never stores it; the keyring root and entry keys
   are `CryptoKey`s with `extractable: false` once loaded, the root's bytes exist only while a wrapper is made for it and are overwritten; locking clears them,
-  the in-memory index, decrypted object URLs and screen state (§9.1).
+  the in-memory index, decrypted object URLs and screen state (§9.1). **A reload may open the wallet again only as §9.2 says** (the suite's key, the same tab,
+  inside the lock times, `src/keyring/resume.ts`): never from a key Wallet stored, and never after a lock.
 - **The device's store holds ciphertext only:** IndexedDB, Cache Storage and the service worker cache never hold a plaintext entry, and **never
   anything of an Online only entry** (§10.2). The raw-dump test (3.6) guards this and is extended with every new kind.
 - **Tier and mode rules are in the statement:** a body only for `synced` and `server` entries, a `device` tier change only from its holder, no body in

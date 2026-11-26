@@ -74,10 +74,8 @@ export function LockScreen() {
         return;
       }
       setPassword('');
-      // With a way to unlock on this device, the root is what it opens with, and it goes straight in. With none, the key being open is what the wallet acts on: it
-      // brings the root itself and asks, in setup, for a way to unlock this device while it has it (`WalletProvider`).
-      if ((methods ?? []).length === 0) result.material.raw.fill(0);
-      else await unlockWith(result.material);
+      // The root goes straight in; a device with no way to unlock it is asked for one, in setup, while the root is in hand (`WalletProvider`).
+      await unlockWith(result.material);
     } catch {
       setError(accountProblem('unreadable'));
     } finally {

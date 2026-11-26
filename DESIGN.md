@@ -393,6 +393,13 @@ in the clear: a device keeps it only under an unlock wrapper (§9.3).
 Tabs share one lock (BroadcastChannel): unlocking or locking one does the same in every tab of the account. **A device with no wrapper set has nothing to come back with**: its lock needs the
 suite's key, which needs a connection, so setup asks for a passkey or a passcode and says why.
 
+**A reload is not a lock** (the owner's decision, 2026-11-26). The keys still live only in the page's memory, so a reloaded page has none; but it opens again **by the suite's key, without
+asking, when all of this holds**: it is the same tab; the server can be asked; the SDK still keeps the key for the session (no lock has taken it); and neither lock time has run out, counting
+the idle time from the last use and the hidden time from when the page was left. For that the tab keeps two times in `sessionStorage`, written only while the wallet is unlocked, and **no
+key** (`src/keyring/resume.ts`). It errs toward locking. So: **closing the tab locks** (a new tab asks), **"at once" when hidden makes a reload lock**, a lock time that ran out while the page
+was away is that lock (the suite's key goes with it), and **with no network a reload asks** for the passkey or passcode. What a browser restores with a tab (reopening a closed one) is within
+the same times. This asks no more of a device than leaving the page open would: within those times the wallet would still have been unlocked.
+
 ### 9.3 Ways to unlock
 
 Each device keeps one or more **unlock wrappers** in its store: the root, wrapped by something only this device and person can produce. They are 0.1.x's wrappers with a new root.
@@ -413,7 +420,7 @@ Each device keeps one or more **unlock wrappers** in its store: the root, wrappe
 ### 9.4 Signing in and unlocking
 
 Signing in proves the account to the server and needs a network, and **signing in also opens the suite's key** (a password derives the unlocking value; hosted, core releases the app key), which is what
-fetches the root onto a device. **Unlocking proves the key to the device and happens every time,** offline, with the wrapper. So day to day, **Face ID is the way in**, as the owner asked, and
+fetches the root onto a device. **Unlocking proves the key to the device and happens after every lock** (a reload within the lock times is none, §9.2), offline, with the wrapper. So day to day, **Face ID is the way in**, as the owner asked, and
 the password is the way back in after a new device or a reset. Hosted, signing in through Sovereign is one redirect and the key's release another, **one press on the lock screen** (Unlock
 through Sovereign), which core answers without asking while its session is unlocked; **for that the page must send its origin as the referrer** (§30). Nothing of the wallet depends on a file the
 person must keep: the kit is the way back after a reset.

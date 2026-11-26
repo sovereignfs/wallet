@@ -23,6 +23,9 @@ then shown a **recovery kit, once**, and everyone starts a new wallet. A device 
 - **Opening the wallet with no signal still works,** and so do Face ID and a fingerprint: setup asks for a passkey or a passcode, which holds the root on that device. A new device,
   or one that lost them, signs in with the password and fetches the root once. **A lock now takes the suite's key with it:** opening the wallet again is a passkey, a passcode, or the
   password.
+- **Reloading the page no longer locks the wallet,** while you are online and until one of your lock times runs out (by default 5 minutes unused, 1 minute hidden). Closing the tab,
+  the Lock button, signing out and a lock time that has passed still lock it, and a reload with no connection still asks for your passkey or passcode. If you chose to lock as soon as
+  Wallet is hidden, a reload locks.
 - **A password alone now opens a wallet on a new device** (it did not before: the wallet key was a file kept apart). A weak password is therefore attackable offline by whoever
   copies the database, at the cost of Argon2id, as in every app of the suite. **Wallet does not yet tell you when a new device signs in** (devices and notices are not built).
 - **The recovery kit replaces the wallet key and the recovery key.** There is no key file to keep, and no sheet to print; the kit is the way back after a reset of the password.

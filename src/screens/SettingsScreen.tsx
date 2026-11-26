@@ -13,6 +13,7 @@ import {
   Tabs,
 } from '@sovereignfs/ui';
 import { IDLE_CHOICES, type HiddenLock, type IdleMinutes } from '../keyring/keyring';
+import { forgetResume } from '../keyring/resume';
 import { authClient, signInValue } from '../auth/client';
 import { useKeys } from '../keys/keys';
 import { coreLink } from '../auth/core-links';
@@ -113,8 +114,9 @@ function Security() {
           Locking
         </h2>
         <p className={screens.muted}>
-          These are for this device only. Locking drops the keys from memory; unlocking needs no
-          connection.
+          These are for this device only. Locking drops the keys; a passkey or passcode unlocks with
+          no connection. Until one of these times runs out, reloading the page does not lock Wallet
+          while you are online. Closing the tab does.
         </p>
         <FormField label="Lock after no use">
           {(field) => (
@@ -419,6 +421,7 @@ function Account({ email }: { email: string }) {
         return setError('That was tried too many times. Wait a few minutes.');
       if (!response.ok) return setError('The account could not be deleted. Try again.');
       keyring.lock('sign-out');
+      forgetResume(accountId);
       // The store cannot be deleted while this page holds it open, and nothing is to be sent for an account that is gone.
       loop.stop();
       db.close();

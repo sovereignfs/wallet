@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { formatKit } from '@sovereignfs/sdk/keys';
 import { Alert, RecoveryKit } from '@sovereignfs/ui';
+import { arrive } from '../keyring/resume';
 import { walletVault } from './vault-client';
 
 /**
@@ -28,7 +29,11 @@ export function KitScreen({ vaultId }: { vaultId: string }) {
     if (!kit) return;
     setContinuing(true);
     setProblem(null);
-    if (await walletVault(vaultId).keepKit(kit.bytes)) return done();
+    if (await walletVault(vaultId).keepKit(kit.bytes)) {
+      // Keeping a kit can take a while: the time to open the wallet without asking starts again here.
+      arrive();
+      return done();
+    }
     setContinuing(false);
     setProblem('That could not be saved. Check your connection, and press Continue again.');
   }

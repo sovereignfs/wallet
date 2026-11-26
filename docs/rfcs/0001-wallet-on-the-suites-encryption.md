@@ -104,3 +104,12 @@ retires it.
   open. `entry.key_epoch` replaces `entry.wrapped_key`, and the sync protocol is version 2.
 - **A lock takes the suite's key with it,** and unlocking proves the key each time (the password, or Sovereign's release): holding an unlocked device must not be enough to open
   the wallet again. The device's passkey or passcode is the offline way in.
+
+## Amendment 3 (2026-11-26, the owner's decision)
+
+**A reload keeps the wallet open.** Asked after a hard reload locked it, the owner chose to keep it open within the lock times. It does so by the suite's key, which the SDK already keeps for
+the session and opens only with the server, so **no key is stored by Wallet**; what the tab keeps is when the wallet was last used and left, in `sessionStorage`. The conditions are DESIGN
+§9.2. Two things are narrower than what was put to the owner, which allowed that closing the tab and reopening it within the hidden time might open without asking: the times are kept per
+tab, so **a new tab asks**; and a device with no passkey or passcode, which until now opened by the account's key on any later load, now obeys the same times.
+
+Rejected: opening offline after a reload, which needs a usable key kept in the browser, against the rule that a device holds ciphertext only.

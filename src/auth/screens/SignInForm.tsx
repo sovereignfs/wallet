@@ -19,6 +19,7 @@ import {
   TwoFactorForm,
 } from '@sovereignfs/ui';
 import { kitPath } from '../../keys/vault-client';
+import { arrive } from '../../keyring/resume';
 import { authClient, currentVault, deriveForSignIn, passwordMoves } from '../client';
 
 /**
@@ -57,6 +58,8 @@ export function SignInForm({ canSignUp, canReset }: { canSignUp: boolean; canRes
       return setLocked(true);
     }
     secret.current = null;
+    // The account was just proved here: the wallet opens without asking again (DESIGN.md §9.4).
+    arrive();
     go(opened === 'set-up' || (await vault.kitPending().catch(() => false)) ? kitPath() : '/');
   }
 
@@ -121,7 +124,10 @@ export function SignInForm({ canSignUp, canReset }: { canSignUp: boolean; canRes
     setError(undefined);
     const vault = await currentVault();
     const result = await vault.unlockWithKit(kit, held);
-    if (result === 'unlocked') return go('/');
+    if (result === 'unlocked') {
+      arrive();
+      return go('/');
+    }
     setPending(false);
     setError(
       result === 'mistyped'

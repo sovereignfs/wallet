@@ -6,6 +6,7 @@ import { Button } from '@sovereignfs/ui';
 import { AccountMenu } from '../auth/screens/AccountMenu';
 import { rememberIdentity } from '../identity';
 import { KeysProvider, useKeys } from '../keys/keys';
+import { forgetResume } from '../keyring/resume';
 import type { KeySource } from '../keys/source';
 import { site } from '../site';
 import { AppShell } from '../ui/AppShell';
@@ -150,6 +151,8 @@ function Gate({
           email={email}
           onLeave={() => {
             keyring.lock('sign-out');
+            // Signing out from the lock screen locks nothing, so what a reload would go by is let go here too.
+            forgetResume(wallet.accountId);
             // The suite's key goes with the session: what this browser kept of it opens nothing once it ends.
             void keys.forget();
           }}

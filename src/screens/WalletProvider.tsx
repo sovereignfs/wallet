@@ -17,6 +17,16 @@ import { useKeys } from '../keys/keys';
 import { type RootResult, openRoot } from '../keys/root';
 import { kitPath } from '../keys/vault-client';
 import { DEFAULT_TIMERS, Keyring, type LockTimers } from '../keyring/keyring';
+import {
+  arrive,
+  arrived,
+  clearArrival,
+  clearMark,
+  forgetResume,
+  readMark,
+  stillOpen,
+  writeMark,
+} from '../keyring/resume';
 import { type Material, unlockMethods } from '../keyring/wrappers';
 import { type LocalDatabase, openLocal } from '../local/db';
 import { type LoopEnv, SyncLoop, browserEnv } from '../local/loop';
@@ -82,23 +92,8 @@ export function useOptionalWallet(): WalletContext | null {
 
 const EMPTY: readonly OpenEntry[] = [];
 
-/** Said before the page leaves for core's release, so that the wallet opens when the person comes back. Kept for this tab's session, and holds nothing else. */
-const ASKED = 'wallet.openWithAccount';
-function remember(asked: boolean): void {
-  try {
-    if (asked) window.sessionStorage.setItem(ASKED, '1');
-    else window.sessionStorage.removeItem(ASKED);
-  } catch {
-    // Without it the wallet comes back locked, and the person asks again.
-  }
-}
-function remembered(): boolean {
-  try {
-    return window.sessionStorage.getItem(ASKED) === '1';
-  } catch {
-    return false;
-  }
-}
+/** How long a reloaded page is held blank while the account's key is asked for, before it shows the lock screen instead. */
+const RESUME_WAIT_MS = 6_000;
 
 /** The entries that are open, re-read when anything changes. */
 export function useEntries(): readonly OpenEntry[] {
@@ -180,14 +175,39 @@ export function WalletProvider({
       }
       setTimersState(lock);
       setParts({ db, keyring, wallet, loop });
-      setStand(keyring.state);
+      // A reload within the lock times, or a page just signed in to, is about to open: it is held blank, so that no lock screen flashes, for as long as the
+      // account's key takes to answer and no longer.
+      const mark = readMark(accountId);
+      const opening =
+        keyring.state !== 'unlocked' &&
+        (arrived() || (mark !== undefined && stillOpen(mark, lock, Date.now())));
+      setStand(opening ? 'starting' : keyring.state);
+      const giveUp = opening
+        ? setTimeout(() => {
+            if (keyring.state === 'unlocked') return;
+            clearMark(accountId);
+            setStand((now) => (now === 'starting' ? 'locked' : now));
+          }, RESUME_WAIT_MS)
+        : undefined;
       loop.start();
 
+      // When the wallet was last used, kept for the tab while it is unlocked (`resume.ts`), so that a reload knows whether a lock time has run out.
+      let used = Date.now();
+      const note = (left?: number) => {
+        if (keyring.state === 'unlocked')
+          writeMark(accountId, left === undefined ? { used } : { used, left });
+      };
       const unsubscribe = keyring.subscribe((state) => {
         setStand(state);
+        if (state === 'unlocked') {
+          clearArrival();
+          used = Date.now();
+          note();
+        }
         // A lock takes the suite's key with it, so that holding an unlocked device is not enough to open the wallet again: it asks for the password, or for a
         // passkey or passcode this device made (DESIGN.md §9.1).
         if (state === 'locked') {
+          forgetResume(accountId);
           void keysRef.current.forget();
           // And a setup that was under way ends here: the root's bytes it held for a new passkey or passcode go too.
           setSetupMaterial((held) => {
@@ -201,16 +221,36 @@ export function WalletProvider({
           void wallet.mergeWaiting().then((again) => again && loop?.request());
       });
       // Use and visibility: the idle and hidden locks (DESIGN.md §9.2).
-      const touch = () => keyring.touch();
-      const hidden = () => keyring.setHidden(document.visibilityState === 'hidden');
+      const touch = () => {
+        keyring.touch();
+        // Once a second is often enough, and a time that is a moment old only locks a moment early.
+        if (Date.now() - used >= 1_000) {
+          used = Date.now();
+          note();
+        }
+      };
+      const hidden = () => {
+        const away = document.visibilityState === 'hidden';
+        if (away) note(Date.now());
+        // For "as soon as it is hidden" this locks, a reload included, and the note goes with the lock.
+        keyring.setHidden(away);
+        if (!away) {
+          used = Date.now();
+          note();
+        }
+      };
+      const leaving = () => note(Date.now());
       for (const event of ['pointerdown', 'keydown', 'touchstart', 'scroll'])
         window.addEventListener(event, touch, { passive: true });
       document.addEventListener('visibilitychange', hidden);
+      window.addEventListener('pagehide', leaving);
       teardown = () => {
+        clearTimeout(giveUp);
         unsubscribe();
         for (const event of ['pointerdown', 'keydown', 'touchstart', 'scroll'])
           window.removeEventListener(event, touch);
         document.removeEventListener('visibilitychange', hidden);
+        window.removeEventListener('pagehide', leaving);
         loop.stop();
         keyring.close();
         db.close();
@@ -235,6 +275,11 @@ export function WalletProvider({
   const unlockWith = useCallback<WalletContext['unlockWith']>(
     async (material) => {
       if (!parts) return;
+      // With no way to unlock this device yet, setup keeps a copy of the root's bytes to make one from (§9.3).
+      if ((await unlockMethods(parts.db)).length === 0) {
+        setSetupMaterial({ raw: new Uint8Array(material.raw), epoch: material.epoch });
+        setSettingUp(true);
+      }
       // The keyring gets a key that cannot be read back; the bytes are dropped.
       parts.keyring.unlock({ key: await importRoot(material.raw), epoch: material.epoch });
       material.raw.fill(0);
@@ -247,15 +292,17 @@ export function WalletProvider({
       // The key is proved every time, even where this browser holds it for the session: what a lock is for is that holding the device is not enough.
       if (keys.kind === 'core') {
         // Core's release leaves the page and comes back to `/keys/return`, which opens the wallet; it is silent while the person's session at Sovereign is unlocked.
-        remember(true);
+        arrive();
         const proof = await keys.unlock();
         if (proof.outcome === 'away') return { ok: false, reason: 'away' };
-        remember(false);
+        clearArrival();
         return { ok: false, reason: 'offline' };
       }
       const proof = await keys.unlock(password, email);
       if (proof.outcome === 'open') return openRoot(accountId, proof.key, { create: true });
       if (proof.outcome === 'kit') {
+        // The password was right: once the kit is kept, the wallet goes on to open.
+        arrive();
         window.location.assign(kitPath());
         return { ok: false, reason: 'away' };
       }
@@ -264,19 +311,28 @@ export function WalletProvider({
     [keys, accountId, email],
   );
 
-  // The suite's key, once it is open, brings the root to a device that has no way to unlock (the first time on it, or after its wrappers are gone), and to a
-  // device that asked it to (it came back from core's release). A device with a wrapper unlocks with that, with no network and no key.
+  // The account's key opens the wallet without asking in two cases, and in no other: the person has just proved the account in this tab (signed in, or came back
+  // from Sovereign's release), or the page was reloaded within the lock times (DESIGN.md §9.2). Both need the server. Everything else is the lock screen: a
+  // passkey or a passcode, with no network, or the account proved again.
   useEffect(() => {
     if (!parts || parts.keyring.state === 'unlocked' || settingUp) return;
-    const state = keys.current.state;
-    if (state === 'checking') return;
+    if (keys.current.state === 'checking') return;
     let cancelled = false;
     // Whether this run still has the say: not replaced by a newer one, and the wallet not opened meanwhile by a passkey, a passcode or the lock screen.
     const mine = () => !cancelled && parts.keyring.state !== 'unlocked';
     void (async () => {
       const wrappers = await unlockMethods(parts.db);
+      const held = await store.localValue<LockTimers>(parts.db, 'lockTimers', DEFAULT_TIMERS);
       if (!mine()) return;
-      if (keys.current.state === 'open' && (wrappers.length === 0 || remembered())) {
+      const state = keys.current.state;
+      const signedIn = arrived();
+      const mark = readMark(accountId);
+      const reloaded = mark !== undefined && stillOpen(mark, held, Date.now());
+      if (!signedIn && mark !== undefined && !reloaded) {
+        // A lock time ran out while the page was away: this is that lock, and it takes the account's key with it as any lock does.
+        clearMark(accountId);
+        void keys.forget();
+      } else if (keys.current.state === 'open' && (signedIn || reloaded)) {
         // The recovery kit comes before the wallet, for a person who has still to keep it.
         if (await keys.kitPending()) {
           if (mine()) window.location.assign(kitPath());
@@ -287,19 +343,16 @@ export function WalletProvider({
           if (result.ok) result.material.raw.fill(0);
           return;
         }
-        remember(false);
         if (result.ok) {
-          // With no way to unlock this device yet, setup keeps a copy of the root's bytes for it; with one, the root is only opened.
-          if (wrappers.length === 0) {
-            const { raw, epoch } = result.material;
-            setSetupMaterial({ raw: new Uint8Array(raw), epoch });
-            setSettingUp(true);
-          }
+          clearArrival();
           await unlockWith(result.material);
           return;
         }
       }
-      setStand(wrappers.length > 0 || state === 'locked' ? 'locked' : 'needs-connection');
+      // Not opened: nothing is left that would open it later without being asked. A sign-in that found no network waits for it.
+      clearMark(accountId);
+      if (state !== 'offline') clearArrival();
+      setStand(wrappers.length === 0 && state === 'offline' ? 'needs-connection' : 'locked');
     })();
     return () => {
       cancelled = true;
