@@ -6,6 +6,39 @@ All notable changes to Wallet are recorded here. The format follows [Keep a Chan
 Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
 titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
+## [0.7.0] - 2026-11-26
+
+**Before upgrading, read this: a wallet made by an earlier version is not carried over.** The encryption changed to the suite's, and the two cannot open each other. When this version
+starts, the entries of every account (they are ciphertext that nothing can open any more) are deleted from the database, and each browser clears what it held of them at its next
+visit. **If anyone's wallet matters, they should export what they need by hand before you upgrade**; there is no way back from the upgrade. Accounts and passwords are not touched:
+each person signs in as before, is shown a **recovery kit once** (on an instance that runs alone), and starts a new wallet. A device that has not been updated is told to, and keeps what it had until then.
+
+### Changed
+
+- **Wallet's encryption is the suite's** (Sovereign's RFC 0005), through its SDK, as Shopper's is, and no longer its own age-based design. An account has the suite's keys (made
+  from the password in the browser, with a **recovery kit** shown once, or Sovereign's, when it hosts Wallet); they wrap a **keyring root** that the server keeps and cannot open; each
+  entry's key is derived from the root; and the SDK encrypts. **What this is not:** a promise against whoever runs the server, whose code the browser runs, and it has **not been
+  independently audited yet**.
+- **Opening the wallet with no signal still works,** and so do Face ID and a fingerprint: setup asks for a passkey or a passcode, which holds the root on that device. A new device,
+  or one that lost them, signs in with the password and fetches the root once. **A lock now takes the suite's key with it:** opening the wallet again is a passkey, a passcode, or the
+  password.
+- **A password alone now opens a wallet on a new device** (it did not before: the wallet key was a file kept apart). A weak password is therefore attackable offline by whoever
+  copies the database, at the cost of Argon2id, as in every app of the suite. **Wallet does not yet tell you when a new device signs in** (devices and notices are not built).
+- **The recovery kit replaces the wallet key and the recovery key.** There is no key file to keep, and no sheet to print; the kit is the way back after a reset of the password.
+- The sync protocol is version 2. The referrer policy is `strict-origin-when-cross-origin` (Sovereign needs it to release the key silently). The manifest asks for the key's return
+  (`encryption.return`), so a Sovereign that hosts Wallet must release keys to apps, and its operator allow it for this one.
+- `pnpm seed` makes the development account's keys with the SDK and writes `seed/recovery-kit.txt` (no key files).
+
+### Removed
+
+- The age vault, the key files, the recovery sheet, `/api/vault` and the `vault` table; the entry's wrapped key (`entry.wrapped_key` is `entry.key_epoch`).
+
+### Notes
+
+- **Not checked:** the hosted key release against a real Sovereign (the SDK's fake has none) and a passkey's PRF on real phones. The passkey unlock works in Chromium's virtual
+  authenticator, and a password reset followed by the recovery kit is tested against the SDK's own vault, not yet in a browser.
+- A person's backups (a backup file, git) are not built yet. **When they are, a snapshot is not wrapped again in age:** it will show how many entries there are.
+
 ## [0.6.0] - 2026-11-25
 
 **Before upgrading:** nothing to do. The image carries one more file, `tools/wallet-admin.mjs` (about 3.5 MB). **If your instance has no mail**, this is how a person whose
