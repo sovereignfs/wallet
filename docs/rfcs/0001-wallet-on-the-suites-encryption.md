@@ -102,8 +102,8 @@ retires it.
   the SDK's own output.
 - **The `version` the SDK binds is the entry's key epoch,** not the row's version: a rebased or merged change then re-seals nothing, and a value made under another root still does not
   open. `entry.key_epoch` replaces `entry.wrapped_key`, and the sync protocol is version 2.
-- **A lock takes the suite's key with it,** and unlocking proves the key each time (the password, or Sovereign's release): holding an unlocked device must not be enough to open
-  the wallet again. The device's passkey or passcode is the offline way in.
+- **Unlocking with the account proves it each time** (the password, or Sovereign's release). The device's passkey or passcode is the offline way in. (This amendment also had a lock
+  discard the suite's key; amendment 3 reverses that.)
 
 ## Amendment 3 (2026-11-26, the owner's decision)
 
@@ -112,4 +112,9 @@ the session and opens only with the server, so **no key is stored by Wallet**; w
 §9.2. Two things are narrower than what was put to the owner, which allowed that closing the tab and reopening it within the hidden time might open without asking: the times are kept per
 tab, so **a new tab asks**; and a device with no passkey or passcode, which until now opened by the account's key on any later load, now obeys the same times.
 
-Rejected: opening offline after a reload, which needs a usable key kept in the browser, against the rule that a device holds ciphertext only.
+**A lock no longer discards the suite's key** (reversing amendment 2). A passcode or passkey unlock does not bring that key back, so after any lock a reload asked again, which was the
+owner's own case. The owner chose to **keep the key until sign-out**. The cost, accepted: while the person is signed in, a lock is held by the app, and someone able to run script in that
+browser could open the wallet without the passkey or passcode.
+
+Rejected: a lock that discards the suite's key, with an encrypted copy of the root kept per tab for a reload (new, unaudited encryption, and one more thing at rest); and opening offline after a
+reload, which needs a usable key kept in the browser, against the rule that a device holds ciphertext only.

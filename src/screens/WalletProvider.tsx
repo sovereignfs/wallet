@@ -197,18 +197,18 @@ export function WalletProvider({
         if (keyring.state === 'unlocked')
           writeMark(accountId, left === undefined ? { used } : { used, left });
       };
-      const unsubscribe = keyring.subscribe((state) => {
+      const unsubscribe = keyring.subscribe((state, reason) => {
         setStand(state);
         if (state === 'unlocked') {
           clearArrival();
           used = Date.now();
           note();
         }
-        // A lock takes the suite's key with it, so that holding an unlocked device is not enough to open the wallet again: it asks for the password, or for a
-        // passkey or passcode this device made (DESIGN.md §9.1).
         if (state === 'locked') {
+          // What a reload would go by goes with every lock: after one, the wallet asks, reload or not (DESIGN.md §9.2). The account's key itself stays for the
+          // session, so that a reload can reopen what a passkey or passcode opens next, and goes at sign-out.
           forgetResume(accountId);
-          void keysRef.current.forget();
+          if (reason === 'sign-out') void keysRef.current.forget();
           // And a setup that was under way ends here: the root's bytes it held for a new passkey or passcode go too.
           setSetupMaterial((held) => {
             held?.raw.fill(0);
@@ -289,7 +289,7 @@ export function WalletProvider({
 
   const openWithAccount = useCallback<WalletContext['openWithAccount']>(
     async (password) => {
-      // The key is proved every time, even where this browser holds it for the session: what a lock is for is that holding the device is not enough.
+      // The account is proved every time, even though this browser holds its key for the session: what a lock is for is that holding the device is not enough.
       if (keys.kind === 'core') {
         // Core's release leaves the page and comes back to `/keys/return`, which opens the wallet; it is silent while the person's session at Sovereign is unlocked.
         arrive();
@@ -328,11 +328,7 @@ export function WalletProvider({
       const signedIn = arrived();
       const mark = readMark(accountId);
       const reloaded = mark !== undefined && stillOpen(mark, held, Date.now());
-      if (!signedIn && mark !== undefined && !reloaded) {
-        // A lock time ran out while the page was away: this is that lock, and it takes the account's key with it as any lock does.
-        clearMark(accountId);
-        void keys.forget();
-      } else if (keys.current.state === 'open' && (signedIn || reloaded)) {
+      if (keys.current.state === 'open' && (signedIn || reloaded)) {
         // The recovery kit comes before the wallet, for a person who has still to keep it.
         if (await keys.kitPending()) {
           if (mine()) window.location.assign(kitPath());

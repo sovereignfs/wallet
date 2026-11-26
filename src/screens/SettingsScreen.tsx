@@ -116,7 +116,7 @@ function Security() {
         <p className={screens.muted}>
           These are for this device only. Locking drops the keys; a passkey or passcode unlocks with
           no connection. Until one of these times runs out, reloading the page does not lock Wallet
-          while you are online. Closing the tab does.
+          while you are online. A new tab asks again.
         </p>
         <FormField label="Lock after no use">
           {(field) => (

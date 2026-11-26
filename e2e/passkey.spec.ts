@@ -35,4 +35,11 @@ test('a passkey unlocks the wallet, with no network', async ({ page, context }) 
   await goTo(page, 'Cards');
   await expect(page.getByRole('link', { name: /Passkey card/ })).toBeVisible();
   await context.setOffline(false);
+
+  // Back online, a reload keeps open what the passkey opened.
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Lock the wallet' })).toBeEnabled({
+    timeout: 30_000,
+  });
+  await expect(page.getByRole('link', { name: /Passkey card/ })).toBeVisible();
 });

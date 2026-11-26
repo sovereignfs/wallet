@@ -24,7 +24,7 @@ import { walletVault } from './vault-client';
 export type KeyState =
   | { readonly state: 'checking' }
   | { readonly state: 'open'; readonly key: CryptoKey }
-  /** The session has no key now (it has not been opened, or a lock forgot it): a password, or core's release, opens it. */
+  /** The session has no key now (it has not been opened yet, or it is gone with the session): a password, or core's release, opens it. */
   | { readonly state: 'locked' }
   /** The server could not be asked: no network. Tried again when it returns. */
   | { readonly state: 'offline' }
@@ -41,7 +41,7 @@ export interface Keys {
   unlock(password?: string, email?: string): Promise<Proof>;
   /** Whether the recovery kit of an instance that runs alone is still to be kept. Hosted, the kit is core's. */
   kitPending(): Promise<boolean>;
-  /** Forgets what this browser keeps of the key: at a lock, and at sign-out. */
+  /** Forgets what this browser keeps of the key: at sign-out. */
   forget(): Promise<void>;
 }
 

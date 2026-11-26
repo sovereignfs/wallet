@@ -376,9 +376,10 @@ name and email, and in phase 3 push subscriptions and published cards. **It neve
 
 When unlocked, the browser holds in memory the **keyring root**, as a non-extractable HKDF `CryptoKey`, and, as they are used, **entry keys** derived from it (the SDK's document keys, held as
 non-extractable `CryptoKey`s), and the **opened entries** in an in-memory index (§11.1). Locking drops all of it: the root, the keys, the index, every rendered page's data (the app navigates to
-the lock screen and clears its state), and every object URL of a decrypted file. **A lock takes the suite's app key with it** (the SDK's `forget`),
-so opening the wallet again is a passkey, a passcode, or the account proved again (the password, or Sovereign's release): holding an unlocked device is not enough. The root is never kept
-in the clear: a device keeps it only under an unlock wrapper (§9.3).
+the lock screen and clears its state), and every object URL of a decrypted file. **A lock does not take the suite's app key** (the owner's
+decision, 2026-11-26): the SDK keeps it for the session, wrapped by the session's secret, and it goes at sign-out or when the session ends. The lock screen still asks: a passkey, a passcode, or
+the account proved again (the password, or Sovereign's release). **So a lock is held by the app, not by a missing key:** someone able to run script in the signed-in browser (in its developer
+tools, say) could open the wallet without the passkey or passcode, as in every app of the suite. The root is never kept in the clear: a device keeps it only under an unlock wrapper (§9.3).
 
 **Sync runs while locked:** the outbox drains and pulls arrive, since the store holds ciphertext only.
 
@@ -394,11 +395,12 @@ Tabs share one lock (BroadcastChannel): unlocking or locking one does the same i
 suite's key, which needs a connection, so setup asks for a passkey or a passcode and says why.
 
 **A reload is not a lock** (the owner's decision, 2026-11-26). The keys still live only in the page's memory, so a reloaded page has none; but it opens again **by the suite's key, without
-asking, when all of this holds**: it is the same tab; the server can be asked; the SDK still keeps the key for the session (no lock has taken it); and neither lock time has run out, counting
-the idle time from the last use and the hidden time from when the page was left. For that the tab keeps two times in `sessionStorage`, written only while the wallet is unlocked, and **no
-key** (`src/keyring/resume.ts`). It errs toward locking. So: **closing the tab locks** (a new tab asks), **"at once" when hidden makes a reload lock**, a lock time that ran out while the page
-was away is that lock (the suite's key goes with it), and **with no network a reload asks** for the passkey or passcode. What a browser restores with a tab (reopening a closed one) is within
-the same times. This asks no more of a device than leaving the page open would: within those times the wallet would still have been unlocked.
+asking, when all of this holds**: it is the same tab; the server can be asked; the SDK still keeps the key for the session; the wallet was not locked; and neither lock time has run out, counting
+the idle time from the last use and the hidden time from when the page was left. **However the wallet had been opened** (password, passkey or passcode), a reload keeps it open. For that the tab
+keeps two times in `sessionStorage`, written only while the wallet is unlocked and removed by every lock, and **no key** (`src/keyring/resume.ts`). It errs toward locking. So: **a new tab asks**,
+**"at once" when hidden makes a reload ask**, so does a lock time that ran out while the page was away, and **with no network a reload asks** for the passkey or passcode. What a browser restores
+with a tab (reopening a closed one) is within the same times. This asks no more of a device than leaving the page open would: within those times the wallet would still have been unlocked. The two
+times are the tab's own and use the device's clock: someone able to run script in the page, or to set the clock back, can change them (§9.1).
 
 ### 9.3 Ways to unlock
 
