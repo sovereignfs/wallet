@@ -38,6 +38,8 @@ then shown a **recovery kit, once**, and everyone starts a new wallet. A device 
 
 - **Not checked:** the hosted key release against a real Sovereign (the SDK's fake has none) and a passkey's PRF on real phones. The passkey unlock works in Chromium's virtual
   authenticator, and a password reset followed by the recovery kit is tested against the SDK's own vault, not yet in a browser.
+- Wallet has no screen to change a password, and changing one does not yet re-wrap the keys: a password changed through the sign-in's API asks for the recovery kit at the next
+  sign-in, as after a reset.
 - A person's backups (a backup file, git) are not built yet. **When they are, a snapshot is not wrapped again in age:** it will show how many entries there are.
 
 ## [0.6.0] - 2026-11-25

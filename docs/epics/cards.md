@@ -44,8 +44,7 @@ shipped; a component `CodeView` with no app dependency (a candidate for 21.7).
 
 **Technical:** `src/barcode/scan.ts`: `getUserMedia` (back camera, torch where supported), frames to `BarcodeDetector` when it supports the needed
 formats, else `zxing-wasm` in a worker (its `.wasm` served by the app under the CSP's `'wasm-unsafe-eval'`); scanning an image file, a pasted image or
-a dropped one; a result maps to format and payload; permission refused or no camera offers typing; licences checked. The same scanner reads the
-recovery sheet (3.5) and vCards (14.5).
+a dropped one; a result maps to format and payload; permission refused or no camera offers typing; licences checked. The same scanner reads vCards (14.5).
 
 **Accepts when:** with the fake camera, each format's test image is read to the right format and payload in Chromium; an image file is read in both
 browsers; refusing permission shows the typing form.

@@ -29,6 +29,8 @@ step 3.
 
 **Done as:** `src/screens/Setup.tsx`: welcome, wallet key (create, save, confirm; or import), recovery key (print or skip), a passkey or passcode, and done, one step at a time. The design system's step flow and passcode input (21.3) were not waited for: the steps are the screen's own.
 
+**Since 0.7.0 ([task 3.14](vault.md)) the paragraphs above describe what was built before:** there is no wallet key or recovery key. Setup is welcome, a passkey or passcode (at least one), and done; the recovery kit is shown at `/keys/kit` after sign-up; a new device signs in with the password, which brings the wallet's root, and then runs the same setup (DESIGN.md §26.3).
+
 #### ✅ 9.2 — The lock screen
 
 **Goal:** what a locked Wallet shows. **Design:** §26.2, §9.3. **Depends on:** 3.6.
@@ -40,6 +42,8 @@ key, "I've lost my keys" (3.11); no entry data rendered; the lock button in the 
 while locked.
 
 **Done as:** `src/screens/LockScreen.tsx`: it replaces everything while locked; passkey, passcode, or the wallet or recovery key (pasted or a file, a passphrase asked for when the file needs one), which also opens a new device and then offers a quick way. Nothing here asks the server.
+
+**Since 0.7.0 ([task 3.14](vault.md)):** the key and key file are gone. The lock screen offers the passkey, the passcode, and the account (the password, confirmed by the server, or Sovereign's release), which needs a connection (DESIGN.md §9.3, §9.4).
 
 #### ✅ 9.3 — Home and search
 

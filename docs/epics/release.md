@@ -27,6 +27,8 @@ expiring passport; extended by phase 2 (years of measurements, lab reports, jour
 
 **Done as:** `pnpm seed` (`scripts/seed.ts`): an account, a vault with a wallet key and a recovery key written to `seed/`, and nine cards, made with the vault format and the server's own `applyMutation`; done when run again; `--remove` through `People.deletePerson`; refuses in production and on a database that is not local. Tested.
 
+**Since 0.7.0 ([task 3.16](vault.md)):** there are no key files. The seed makes the account's keys with the SDK's own vault from the seed password, writes `seed/recovery-kit.txt`, and seals the cards under the keyring root; signing in with the password opens them.
+
 #### ✅ 20.2 — Security review before 0.1.0
 
 **Goal:** a written review of phase 1. **Design:** §8.6, §30. **Depends on:** every phase 1 task but 20.3–20.5.
