@@ -11,19 +11,19 @@ import {
   Input,
   Select,
   Tabs,
-  Textarea,
 } from '@sovereignfs/ui';
 import { IDLE_CHOICES, type HiddenLock, type IdleMinutes } from '../keyring/keyring';
 import { authClient, signInValue } from '../auth/client';
+import { useKeys } from '../keys/keys';
 import { coreLink } from '../auth/core-links';
 import { forgetIdentity } from '../identity';
 import { type RefusedItem, eraseLocal } from '../local/db';
 import { openSealed } from '../local/open';
 import { type Material, unlockMethods } from '../keyring/wrappers';
-import { classify, openProtected } from './keyFiles';
 import screens from './Screens.module.css';
 import { useIdentity } from './SignedInArea';
 import { UnlockMethods } from './UnlockMethods';
+import { accountProblem } from './accountProblem';
 import { useWallet } from './WalletProvider';
 
 /**
@@ -72,32 +72,38 @@ const HIDDEN_NAMES: Record<HiddenLock, string> = {
 };
 
 function Security() {
-  const { keyring, timers, setTimers, vault, db, openWithKeyText } = useWallet();
+  const { keyring, timers, setTimers, db, openWithAccount } = useWallet();
+  const keys = useKeys();
   const [methods, setMethods] = useState<number | null>(null);
   const [asking, setAsking] = useState(false);
-  const [keyText, setKeyText] = useState('');
-  const [protectedText, setProtectedText] = useState<string | null>(null);
-  const [passphrase, setPassphrase] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [material, setMaterial] = useState<Material | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(
     () => void unlockMethods(db).then((found) => setMethods(found.length)),
     [db],
   );
   useEffect(refresh, [refresh]);
-  const hasRecovery = vault?.recipients.some((r) => r.label === 'recovery') ?? false;
 
-  async function check(text: string) {
+  /** Changing how this device unlocks needs the root's bytes, which only the suite's key can give back: the password, or Sovereign's release (online). */
+  async function reveal(typed?: string) {
     setError(null);
-    if (classify(text).kind === 'protected') return setProtectedText(text);
-    const result = await openWithKeyText(text);
-    if (result === 'not_a_key') return setError('That is not a key.');
-    if (result === 'wrong_key' || result === 'no_vault')
-      return setError('That key does not open this wallet.');
-    setAsking(false);
-    setKeyText('');
-    setMaterial(result);
+    setBusy(true);
+    try {
+      const result = await openWithAccount(typed);
+      if (!result.ok) {
+        // `away`: the page is leaving, for Sovereign's release or the recovery kit.
+        if (result.reason !== 'away') setError(accountProblem(result.reason));
+        return;
+      }
+      setAsking(false);
+      setPassword('');
+      setMaterial(result.material);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -174,56 +180,38 @@ function Security() {
               {methods === null
                 ? ' '
                 : methods === 0
-                  ? 'This device has no quick way to unlock. You use your wallet key each time.'
+                  ? 'This device has no quick way to unlock, so it needs a connection and your account each time.'
                   : 'This device unlocks with a passkey or a passcode.'}
             </p>
             {asking ? (
               <div className={screens.stack}>
                 {error ? <Alert variant="error">{error}</Alert> : null}
-                <FormField
-                  label="Your wallet key or recovery key"
-                  hint="To change how this device unlocks, prove it is you. The key stays on this device."
-                >
-                  {(field) => (
-                    <Textarea
-                      {...field}
-                      rows={3}
-                      spellCheck={false}
-                      autoComplete="off"
-                      value={keyText}
-                      onChange={(event) => setKeyText(event.target.value)}
-                    />
-                  )}
-                </FormField>
-                {protectedText !== null ? (
-                  <div className={screens.stack}>
-                    <FormField label="Passphrase of the key file">
-                      {(field) => (
-                        <Input
-                          {...field}
-                          type="password"
-                          autoComplete="off"
-                          value={passphrase}
-                          onChange={(event) => setPassphrase(event.target.value)}
-                        />
-                      )}
-                    </FormField>
-                    <div>
-                      <Button
-                        onClick={async () => {
-                          const opened = await openProtected(protectedText, passphrase);
-                          if (!opened.ok) return setError('That passphrase is not right.');
-                          setProtectedText(null);
-                          await check(opened.text);
-                        }}
-                      >
-                        Open key file
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
+                {keys.kind === 'core' ? (
+                  <p className={screens.muted}>
+                    To change how this device unlocks, Sovereign asks you to unlock first.
+                  </p>
+                ) : (
+                  <FormField
+                    label="Your password"
+                    hint="To change how this device unlocks, prove it is you. It is checked on this device and never sent."
+                  >
+                    {(field) => (
+                      <Input
+                        {...field}
+                        type="password"
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
                 <div className={screens.row}>
-                  <Button disabled={keyText.trim() === ''} onClick={() => void check(keyText)}>
+                  <Button
+                    loading={busy}
+                    disabled={keys.kind !== 'core' && password === ''}
+                    onClick={() => void reveal(password)}
+                  >
                     Continue
                   </Button>
                   <Button variant="ghost" onClick={() => setAsking(false)}>
@@ -247,11 +235,11 @@ function Security() {
           Your keys
         </h2>
         <p className={screens.muted}>
-          Your wallet key opens everything.{' '}
-          {hasRecovery
-            ? 'You made a recovery key too: either one opens your wallet.'
-            : 'You skipped the recovery key: if you lose your wallet key, nobody can recover your wallet.'}{' '}
-          Replacing keys comes in a later version.
+          Your account password opens your wallet on a new device, and your recovery kit is the way
+          back if you forget it.{' '}
+          {keys.kind === 'core'
+            ? 'Sovereign keeps your keys: change them there.'
+            : 'Changing your password or making a new kit comes in a later version.'}
         </p>
       </section>
     </div>
@@ -277,7 +265,7 @@ function Storage() {
           const opened = await openSealed(
             accountId,
             keyring,
-            { id: last.entryId, wrappedKey: last.wrappedKey ?? '', shape: last.shape, body: null },
+            { id: last.entryId, keyEpoch: last.keyEpoch ?? 0, shape: last.shape, body: null },
             false,
           );
           if (opened.ok && opened.shape.kind === 'card') title = opened.shape.title;

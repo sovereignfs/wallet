@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { requireSession } from '@/src/auth/session';
+import { keySource } from '@/src/keys/server/source';
 import { addressOf } from '@/src/screens/addresses';
 import { SignedInArea } from '@/src/screens/SignedInArea';
 
@@ -14,7 +15,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!addressOf((await headers()).get('x-wallet-path') ?? '/')) notFound();
   const session = await requireSession();
   return (
-    <SignedInArea accountId={session.user.id} name={session.user.name} email={session.user.email}>
+    <SignedInArea
+      accountId={session.user.id}
+      name={session.user.name}
+      email={session.user.email}
+      keys={await keySource()}
+    >
       {children}
     </SignedInArea>
   );

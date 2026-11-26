@@ -4,7 +4,6 @@ import { readCapped } from '../../access/body';
 import type { Limits } from '../../config';
 import type { Database } from '../../db/client';
 import type { Limiter, Rule } from '../../limits/rate';
-import { readVault } from '../vault';
 import { applyMutation, modeOf, pullRows } from './apply';
 
 /**
@@ -68,7 +67,6 @@ export async function handleSync(
   }
 
   const { rows, more } = await pullRows(deps.database, accountId, cursor, PAGE_ROWS);
-  const vault = await readVault(deps.database, accountId);
   const answer: SyncResponse = {
     v: PROTOCOL_VERSION,
     applied,
@@ -77,7 +75,6 @@ export async function handleSync(
     cursor: rows.at(-1)?.seq ?? cursor,
     more,
     mode: await modeOf(deps.database, accountId),
-    vaultVersion: vault?.version ?? null,
   };
   return json(200, answer);
 }

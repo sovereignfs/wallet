@@ -122,7 +122,7 @@ describe('schema parity', () => {
 
   it('covers the wallet’s tables, and better-auth’s', () => {
     for (const table of [
-      'vault',
+      'keyring',
       'account_stream',
       'entry',
       'applied_mutation',

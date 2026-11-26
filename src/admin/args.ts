@@ -13,7 +13,7 @@ export const USAGE = `usage: node tools/wallet-admin.mjs accounts reset-link EMA
 
   accounts reset-link EMAIL   Print a link that lets the person with this address choose a new password. It works once, for an hour, and ends every session
                               of the account when it is used. For an instance with no mail, or a person who did not move in time. It gives back the account,
-                              not the wallet: the wallet key is the person's own. An authenticator app that was lost is not reset by it.
+                              not the wallet's keys: the recovery kit opens the wallet again. An authenticator app that was lost is not reset by it.
 
 Run it in Wallet's container, where its settings are:
 

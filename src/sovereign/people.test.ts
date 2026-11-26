@@ -19,7 +19,6 @@ import { RateLimiter } from '../limits/rate';
 import { applyMutation } from '../server/entries/apply';
 import { makeEntry, put } from '../server/entries/test-support';
 import { keepRoot } from '../server/keyring';
-import { createVault } from '../server/vault';
 import { deletePerson } from './people';
 
 /**
@@ -32,7 +31,6 @@ const { leg } = testTarget();
 
 /** Tables whose rows are the person's, and go with them. */
 const GOES = [
-  'vault',
   'keyring',
   'account_stream',
   'entry',
@@ -142,17 +140,7 @@ describe(`deleting a person (${leg})`, () => {
         who,
         NOW,
       ]);
-      // A vault, entries (one deleted: a tombstone), a credential and a rate counter.
-      await createVault(
-        database,
-        who,
-        {
-          recipients: [{ recipient: `age1${'q'.repeat(58)}`, label: 'wallet', addedAt: NOW }],
-          header: Buffer.from('age-encryption.org/v1\n'),
-          vaultKeyId: 'AAAAAAAAAAAAAAAA',
-        },
-        NOW,
-      );
+      // Entries (one deleted: a tombstone), a credential and a rate counter.
       // The wrapped keyring root, and the suite's keys of the person: their keys, one way in and the app's key, in the vault of the auth store.
       await keepRoot(database, who, { epoch: 1, wrapped: randomBytes(60) }, NOW);
       const key = () => randomBytes(32).toString('base64url');
@@ -194,14 +182,7 @@ describe(`deleting a person (${leg})`, () => {
     );
     expect(second.entries).toBe(0);
 
-    for (const table of [
-      'entry',
-      'applied_mutation',
-      'vault',
-      'keyring',
-      'account_stream',
-      'credential',
-    ])
+    for (const table of ['entry', 'applied_mutation', 'keyring', 'account_stream', 'credential'])
       expect(await count(table, `account_id = '${ada}'`), table).toBe(0);
     expect(await count('rate_bucket', `"key" LIKE '%:${ada}'`)).toBe(0);
     expect(await authCount('users', `id = '${ada}'`)).toBe(0);
@@ -214,7 +195,6 @@ describe(`deleting a person (${leg})`, () => {
     // Grace has everything she had.
     expect(await count('entry', `account_id = '${grace}'`)).toBe(2);
     expect(await count('applied_mutation', `account_id = '${grace}'`)).toBe(2);
-    expect(await count('vault', `account_id = '${grace}'`)).toBe(1);
     expect(await count('keyring', `account_id = '${grace}'`)).toBe(1);
     expect(await count('account_stream', `account_id = '${grace}'`)).toBe(1);
     expect(await count('credential', `account_id = '${grace}'`)).toBe(1);

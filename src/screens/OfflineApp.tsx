@@ -30,7 +30,7 @@ export function OfflineApp() {
       </main>
     );
   return (
-    <SignedInArea accountId={who.id} name={who.name} email={who.email}>
+    <SignedInArea accountId={who.id} name={who.name} email={who.email} keys={who.keys}>
       {known ? (
         <AppRoutes />
       ) : (

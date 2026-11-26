@@ -1,8 +1,17 @@
 import { expect, test } from '@playwright/test';
-import { PASSCODE, addCardByTyping, dumpBrowser, emailFor, goTo, setUp, signUp } from './helpers';
+import {
+  PASSCODE,
+  PASSWORD,
+  addCardByTyping,
+  dumpBrowser,
+  emailFor,
+  goTo,
+  setUp,
+  signUp,
+} from './helpers';
 
 /**
- * The journey of a person, in a real browser: sign up, set up the wallet (a key, a passcode), add a card, show it, lock, unlock, and use it with no
+ * The journey of a person, in a real browser: sign up, keep the recovery kit, set up the wallet (a passcode), add a card, show it, lock, unlock, and use it with no
  * connection. **And a raw dump of everything the browser keeps, which holds none of what was typed.**
  */
 const TITLE = 'Planted Gym Name';
@@ -40,7 +49,7 @@ test('sets up a wallet, keeps a card, shows it, locks and unlocks', async ({ pag
         (
           await page.request.post('/api/sync', {
             headers: { origin: new URL(page.url()).origin },
-            data: { v: 1, deviceId: crypto.randomUUID(), cursor: 0, mutations: [] },
+            data: { v: 2, deviceId: crypto.randomUUID(), cursor: 0, mutations: [] },
           })
         )
           .json()
@@ -51,19 +60,28 @@ test('sets up a wallet, keeps a card, shows it, locks and unlocks', async ({ pag
   const raw = await (
     await page.request.post('/api/sync', {
       headers: { origin: new URL(page.url()).origin },
-      data: { v: 1, deviceId: crypto.randomUUID(), cursor: 0, mutations: [] },
+      data: { v: 2, deviceId: crypto.randomUUID(), cursor: 0, mutations: [] },
     })
   ).text();
   expect(raw).not.toContain(TITLE);
   expect(raw).not.toContain(PAYLOAD);
-  expect(Buffer.from(raw).toString('base64')).not.toContain(
-    Buffer.from(PAYLOAD).toString('base64').slice(0, 20),
-  );
+  // The suite's marker test (core-app §5.10.8): a marker is in no row, in plain text, base64 or hex.
+  for (const marker of [TITLE, PAYLOAD]) {
+    expect(Buffer.from(raw).toString('latin1')).not.toContain(marker);
+    expect(Buffer.from(raw).toString('latin1')).not.toContain(
+      Buffer.from(marker).toString('base64').slice(0, 20),
+    );
+    expect(Buffer.from(raw).toString('latin1')).not.toContain(Buffer.from(marker).toString('hex'));
+  }
 
   // The raw dump of the browser: unlocked, and still nothing readable.
   const dump = await dumpBrowser(page);
-  for (const secret of [TITLE, PAYLOAD, keys.identity, PASSCODE])
+  for (const secret of [TITLE, PAYLOAD, keys.kit, PASSCODE, PASSWORD])
     expect(dump, secret).not.toContain(secret);
+  for (const marker of [TITLE, PAYLOAD]) {
+    expect(dump).not.toContain(Buffer.from(marker).toString('base64').slice(0, 20));
+    expect(dump).not.toContain(Buffer.from(marker).toString('hex'));
+  }
 
   // Locked: nothing of the wallet is on the page, and the card is not reachable until it is unlocked.
   await page.getByRole('button', { name: 'Lock the wallet' }).click();
@@ -82,12 +100,15 @@ test('sets up a wallet, keeps a card, shows it, locks and unlocks', async ({ pag
   await goTo(page, 'Cards');
   await expect(page.getByRole('link', { name: new RegExp(TITLE) })).toBeVisible();
 
-  // And with the key, on a device that has been wiped of its unlock methods: locked, then the key.
+  // And with the account's password, which opens the keys again: locked, then the password (it needs the server, and is checked on the device).
   await page.getByRole('button', { name: 'Lock the wallet' }).click();
-  await page.getByRole('button', { name: 'Use my wallet key or recovery key' }).click();
-  await page.getByLabel('Wallet key or recovery key').fill(keys.file);
-  await page.getByRole('button', { name: 'Unlock with key' }).click();
+  await page.getByRole('button', { name: 'Use my password' }).click();
+  await page.getByLabel('Your password').fill('not the password');
+  await page.getByRole('button', { name: 'Unlock with my password' }).click();
+  await expect(page.getByText(/does not open your wallet/)).toBeVisible({ timeout: 30_000 });
+  await page.getByLabel('Your password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Unlock with my password' }).click();
   await expect(page.getByRole('heading', { name: 'Your wallet is locked' })).toHaveCount(0, {
-    timeout: 20_000,
+    timeout: 30_000,
   });
 });

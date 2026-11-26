@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
 import { createHmac, randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createEntryKey, importVaultKey, open, seal } from '../core/vault';
+import { deriveEntryKey, importRoot, open, seal } from '../core/vault';
+import { suiteCipher } from '../keys/cipher';
 import { type LocalDatabase, openLocal } from '../local/db';
 import { unlockWrappers } from '../local/store';
 import { type Channel, Keyring } from './keyring';
@@ -32,23 +33,26 @@ async function fresh() {
     `wrappers-test-${counter}-${randomBytes(4).toString('hex')}`,
   );
   databases.push(db);
-  const keyring = new Keyring({ accountId: 'acct', channel: null as Channel | null });
+  const keyring = new Keyring({
+    accountId: 'acct',
+    channel: null as Channel | null,
+    cipher: suiteCipher,
+  });
   keyrings.push(keyring);
   const raw = new Uint8Array(randomBytes(32));
-  return { db, keyring, raw, material: { raw: new Uint8Array(raw), id: 'vk-1' } };
+  return { db, keyring, raw, material: { raw: new Uint8Array(raw), epoch: 1 } };
 }
 
 /** A cheap Argon2id for the tests that are not about its cost, and the real one for the one that is. */
 const cheap: Derive = (passcode, salt, params) =>
   deriveHere(passcode, salt, { ...params, memoryKiB: 1024, iterations: 1 });
 
-/** The vault key opens what was sealed under it: the proof that the right bytes came back. */
+/** The root opens what was sealed under it: the proof that the right bytes came back. */
 async function worksAs(keyring: Keyring, raw: Uint8Array) {
-  const mine = await importVaultKey(raw, 'vk-1');
-  const { wrapped } = await createEntryKey(mine, 'acct', 'e1');
-  const keys = await keyring.entryKeys('e1', wrapped);
-  const sealed = await seal(keys.aes, 'shape', 'acct', 'e1', { ok: true });
-  expect(await open(keys.aes, 'shape', 'acct', 'e1', sealed)).toEqual({ ok: true });
+  const mine = await deriveEntryKey(suiteCipher, await importRoot(raw), 'acct', 'e1');
+  const theirs = await keyring.entryKey('e1', 1);
+  const sealed = await seal(suiteCipher, theirs, 'shape', 'acct', 'e1', 1, { ok: true });
+  expect(await open(suiteCipher, mine, 'shape', 'acct', 'e1', 1, sealed)).toEqual({ ok: true });
 }
 
 /** Everything in the store, as bytes, to look for what must not be there. */
@@ -74,7 +78,7 @@ describe('unlocking with a device passcode', () => {
     const text = await dump(db);
     expect(text).not.toContain(Buffer.from(raw).toString('hex'));
     expect(text).not.toContain('correct horse');
-    expect(keyring.vaultKey.key.extractable).toBe(false);
+    expect(keyring.epoch).toBe(1);
   });
 
   it('refuses a wrong passcode and counts it; the right one clears the count', async () => {
@@ -241,7 +245,7 @@ describe('unlocking with a passkey', () => {
     await enrollPasskey(db, material, 'A', 1, api, 'wallet.test');
     await enrollPasskey(
       db,
-      { raw: new Uint8Array(material.raw), id: material.id },
+      { raw: new Uint8Array(material.raw), epoch: material.epoch },
       'B',
       2,
       api,

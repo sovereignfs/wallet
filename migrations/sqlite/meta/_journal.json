@@ -15,6 +15,27 @@
       "when": 1795645537525,
       "tag": "0001_add_keyring",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795646224513,
+      "tag": "0002_drop_vault_and_wrapped_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1795646232983,
+      "tag": "0003_start_clean",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1795646240952,
+      "tag": "0004_add_key_epoch",
+      "breakpoints": true
     }
   ]
 }

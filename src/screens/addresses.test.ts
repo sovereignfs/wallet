@@ -26,7 +26,7 @@ describe('the addresses of the signed-in area', () => {
     `/cards/${ID}/show/more`,
     '/settings/security',
     '/cards/new/more',
-    '/api/vault',
+    '/api/keys/root',
     '//evil.example',
   ])('%s is not an address, so the server answers 404 and a screen says it is not here', (path) => {
     expect(addressOf(path)).toBeUndefined();

@@ -3,13 +3,13 @@ import type { MutationWire, Refusal, RowWire } from '../core/sync/protocol';
 
 /**
  * The device's store (DESIGN.md §11.1, §29.4): IndexedDB through `idb`, **one database per account**, named for it, so that a second account on the same
- * device sees nothing of the first and signing out can delete exactly one. **Everything in it is ciphertext** (AGENTS.md): sealed shapes and bodies, wrapped
- * keys, the vault header, and unlock wrappers that hold the vault key only under a key the person's passkey or passcode makes. The raw-dump test finds no
+ * device sees nothing of the first and signing out can delete exactly one. **Everything in it is ciphertext** (AGENTS.md): sealed shapes and bodies, and unlock
+ * wrappers that hold the keyring root only under a key the person's passkey or passcode makes. The raw-dump test finds no
  * plaintext in it.
  *
- * - `meta`     the device's id, the sync cursor, the vault header as the server gave it, the account's mode.
+ * - `meta`     the device's id, the sync cursor, the account's mode.
  * - `unlock`   the ways this device can be unlocked (DESIGN.md §9.3).
- * - `entries`  every entry's row as the server last had it: shape, wrapped key, body (Synced), version. For an entry with unsent changes it is also the
+ * - `entries`  every entry's row as the server last had it: shape, key epoch, body (Synced), version. For an entry with unsent changes it is also the
  *              base the changes started from.
  * - `outbox`   the changes not yet answered, in the order they were made, with the row each started from, so that a stale one can be merged (§11.5).
  * - `refused`  changes the server refused for a reason that is not a stale version: "Couldn't sync", kept until the person retries or discards them.
@@ -34,17 +34,17 @@ export interface RefusedItem {
   readonly at: number;
 }
 
-/** How a device unlocks (DESIGN.md §9.3): the vault key's bytes, encrypted under a key that only this person on this device can produce. */
+/** How a device unlocks (DESIGN.md §9.3): the keyring root's bytes, encrypted under a key that only this person on this device can produce. */
 export interface UnlockWrapper {
   readonly id: string;
   readonly kind: 'passkey' | 'passcode';
   readonly label: string;
   readonly createdAt: number;
-  /** AES-GCM nonce and ciphertext of the vault key (and, for a passcode, the second layer under the device's own key). */
+  /** AES-GCM nonce and ciphertext of the root (and, for a passcode, the second layer under the device's own key). */
   readonly iv: Uint8Array<ArrayBuffer>;
   readonly ciphertext: Uint8Array<ArrayBuffer>;
-  /** The vault key id the wrapper opens, so that a wrapper of an old vault key is not used for a new header. */
-  readonly vaultKeyId: string;
+  /** The epoch of the root the wrapper opens, so that a wrapper of an old root is not used for a new one. */
+  readonly epoch: number;
   /** For a passkey: the credential, and for a passcode: its Argon2id parameters and salt. */
   readonly passkey?: { readonly credentialId: Uint8Array<ArrayBuffer> };
   readonly passcode?: {
@@ -71,7 +71,7 @@ export type LocalDatabase = IDBPDatabase<LocalSchema>;
  * The version of the stores. A change to them adds a step to `upgrade` and raises this; it never edits an earlier step (`db.test.ts` upgrades a
  * database made by each earlier version).
  */
-export const LOCAL_VERSION = 1;
+export const LOCAL_VERSION = 2;
 
 /** The database for an account (DESIGN.md §29.4). */
 export const localName = (accountId: string): string => `wallet-${accountId}`;
@@ -81,7 +81,7 @@ export async function openLocal(
   name = localName(accountId),
 ): Promise<LocalDatabase> {
   return openDB<LocalSchema>(name, LOCAL_VERSION, {
-    upgrade(db, oldVersion) {
+    async upgrade(db, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         db.createObjectStore('meta');
         db.createObjectStore('unlock', { keyPath: 'id' });
@@ -90,6 +90,17 @@ export async function openLocal(
         outbox.createIndex('byEntry', 'mutation.entryId');
         db.createObjectStore('refused', { keyPath: 'entryId' });
         db.createObjectStore('local');
+      }
+      // 0.7.0 starts clean (RFC 0001): what 0.1.x held is sealed under keys that no longer exist and cannot be opened, and a wrapper holds a vault key that no
+      // longer means anything. The device keeps its id and its own settings, and starts again from the server (whose old entries are gone too).
+      if (oldVersion >= 1 && oldVersion < 2) {
+        await Promise.all(
+          (['entries', 'outbox', 'refused', 'unlock'] as const).map((store) =>
+            transaction.objectStore(store).clear(),
+          ),
+        );
+        const meta = transaction.objectStore('meta');
+        for (const key of ['cursor', 'mode', 'vault', 'vaultVersion']) await meta.delete(key);
       }
     },
   });

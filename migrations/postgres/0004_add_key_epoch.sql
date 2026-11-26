@@ -1,0 +1,1 @@
+ALTER TABLE "wallet"."entry" ADD COLUMN "key_epoch" bigint DEFAULT 1 NOT NULL;

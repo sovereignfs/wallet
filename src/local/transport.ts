@@ -6,7 +6,7 @@ import {
 } from '../core/sync/protocol';
 
 /**
- * How the device talks to its server (DESIGN.md §11.3): `POST /api/sync` and `GET /api/vault`. It is a small interface so that the tests give the device a
+ * How the device talks to its server (DESIGN.md §11.3): `POST /api/sync`. It is a small interface so that the tests give the device a
  * server of their own, and the browser's is `fetchTransport`. **The browser talks only to its own server** (AGENTS.md): the address is a path.
  */
 export type SyncResult =
@@ -19,25 +19,8 @@ export type SyncResult =
   | { readonly kind: 'update' }
   | { readonly kind: 'failed'; readonly status: number };
 
-export interface VaultWire {
-  readonly version: number;
-  readonly header: string;
-  readonly vaultKeyId: string;
-  readonly recipients: readonly {
-    recipient: string;
-    label: 'wallet' | 'recovery';
-    addedAt: number;
-  }[];
-}
-
 export interface Transport {
   sync(request: SyncRequest): Promise<SyncResult>;
-  /** The account's vault, `null` when it has none, `undefined` when it could not be asked. */
-  vault(): Promise<VaultWire | null | undefined>;
-  /** Makes the vault. `true` when made, `false` when the account already has one. */
-  createVault(
-    body: unknown,
-  ): Promise<'created' | 'exists' | 'refused' | 'offline' | 'unauthorized'>;
 }
 
 export function fetchTransport(fetcher: typeof fetch = (...args) => fetch(...args)): Transport {
@@ -68,32 +51,6 @@ export function fetchTransport(fetcher: typeof fetch = (...args) => fetch(...arg
       return answer && answer.v === PROTOCOL_VERSION
         ? { kind: 'ok', answer }
         : { kind: 'failed', status: response.status };
-    },
-    async vault() {
-      try {
-        const response = await fetcher('/api/vault', { credentials: 'same-origin' });
-        if (!response.ok) return undefined;
-        const body = (await response.json()) as { vault: VaultWire | null };
-        return body.vault;
-      } catch {
-        return undefined;
-      }
-    },
-    async createVault(body) {
-      try {
-        const response = await fetcher('/api/vault', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body),
-          credentials: 'same-origin',
-        });
-        if (response.status === 201) return 'created';
-        if (response.status === 409) return 'exists';
-        if (response.status === 401) return 'unauthorized';
-        return 'refused';
-      } catch {
-        return 'offline';
-      }
     },
   };
 }

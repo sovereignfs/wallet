@@ -50,15 +50,15 @@ export function toRecords(rows: readonly Record<string, unknown>[]): Record_[] {
 }
 
 /**
- * **A person's part of core's export** (`contracts/export.md` §3), read on the server: their vault (the public recipients and the vault header, an age
- * file only their keys open) and every entry that is not deleted, each as stored: its key wrapped under the vault key, its shape and body sealed. The
- * server cannot read any of it (DESIGN.md §8.5), so every file is marked end to end; it opens with the person's wallet key or recovery key.
+ * **A person's part of core's export** (`contracts/export.md` §3), read on the server: their wrapped keyring roots (which only the app key, core's, opens) and
+ * every entry that is not deleted, each as stored: its key epoch, its shape and body sealed. The server cannot read any of it (DESIGN.md §8.5), so every
+ * file is marked end to end; it opens with the person's account key, as core's own export does (RFC 0008).
  */
 export async function personRecords(database: Database, accountId: string): Promise<RecordsPart[]> {
   const t = database.dialect === 'postgres' ? postgresSchema : sqliteSchema;
-  const vault = await dbAll<Record<string, unknown>>(
+  const keyring = await dbAll<Record<string, unknown>>(
     database,
-    sql`SELECT * FROM ${t.vault} WHERE account_id = ${accountId}`,
+    sql`SELECT * FROM ${t.keyring} WHERE account_id = ${accountId} ORDER BY epoch`,
   );
   const entries = await dbAll<Record<string, unknown>>(
     database,
@@ -66,9 +66,9 @@ export async function personRecords(database: Database, accountId: string): Prom
   );
   return [
     {
-      path: 'apps/wallet/records/vault.jsonl',
-      kind: 'vault',
-      records: toRecords(vault),
+      path: 'apps/wallet/records/keyring.jsonl',
+      kind: 'keyring',
+      records: toRecords(keyring),
       endToEnd: true,
     },
     {

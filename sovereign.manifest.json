@@ -15,6 +15,9 @@
     "export": "/api/sovereign/export",
     "scopes": ["openid", "profile", "email"]
   },
+  "encryption": {
+    "return": "/keys/return"
+  },
   "database": true,
   "generate": [
     "WALLET_AUTH_SECRET",

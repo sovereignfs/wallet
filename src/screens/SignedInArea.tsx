@@ -1,11 +1,12 @@
 'use client';
 
-import { usePathname, useRouter } from './nav';
 import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import type { Wallet } from '../local/wallet';
 import { Button } from '@sovereignfs/ui';
 import { AccountMenu } from '../auth/screens/AccountMenu';
 import { rememberIdentity } from '../identity';
+import { KeysProvider, useKeys } from '../keys/keys';
+import type { KeySource } from '../keys/source';
 import { site } from '../site';
 import { AppShell } from '../ui/AppShell';
 import { Frame } from './Frame';
@@ -42,21 +43,29 @@ export function SignedInArea({
   accountId,
   name,
   email,
+  keys,
   children,
 }: {
   accountId: string;
   name: string;
   email: string;
+  /** Where the suite's key comes from (`src/keys/source.ts`): the server says, and the shell has it from the device. */
+  keys: KeySource | undefined;
   children: ReactNode;
 }) {
-  useEffect(() => rememberIdentity({ id: accountId, name, email }), [accountId, name, email]);
+  useEffect(
+    () => rememberIdentity({ id: accountId, name, email, ...(keys ? { keys } : {}) }),
+    [accountId, name, email, keys],
+  );
   return (
     <WhoContext.Provider value={{ id: accountId, name, email }}>
-      <UndoProvider>
-        <WithUndo accountId={accountId} name={name} email={email}>
-          {children}
-        </WithUndo>
-      </UndoProvider>
+      <KeysProvider source={keys}>
+        <UndoProvider>
+          <WithUndo accountId={accountId} name={name} email={email}>
+            {children}
+          </WithUndo>
+        </UndoProvider>
+      </KeysProvider>
     </WhoContext.Provider>
   );
 }
@@ -79,6 +88,7 @@ function WithUndo({
   return (
     <WalletProvider
       accountId={accountId}
+      email={email}
       fallback={<Shell name={name} email={email} />}
       onMerged={(merged: Merged) =>
         undo({
@@ -117,17 +127,8 @@ function Gate({
   registerWallet: (wallet: Wallet) => void;
 }) {
   const { stand, keyring, wallet, settingUp } = useWallet();
+  const keys = useKeys();
   registerWallet(wallet);
-  const router = useRouter();
-  const path = usePathname();
-
-  // Setup is where a person with no wallet goes, and no one else.
-  useEffect(() => {
-    if (stand === 'no-vault' && path !== '/setup') router.replace('/setup');
-    if (stand !== 'no-vault' && stand !== 'starting' && path === '/setup' && stand === 'locked')
-      router.replace('/');
-  }, [stand, path, router, settingUp]);
-
   const lock = (
     <Button
       size="sm"
@@ -143,7 +144,17 @@ function Gate({
     <AppShell
       name={site.name}
       bell={stand === 'unlocked' ? lock : null}
-      account={<AccountMenu name={name} email={email} onLeave={() => keyring.lock('sign-out')} />}
+      account={
+        <AccountMenu
+          name={name}
+          email={email}
+          onLeave={() => {
+            keyring.lock('sign-out');
+            // The suite's key goes with the session: what this browser kept of it opens nothing once it ends.
+            void keys.forget();
+          }}
+        />
+      }
     >
       <ServiceWorkerRegistration appName={site.name} />
       {stand === 'starting' ? null : stand === 'needs-connection' ? (
@@ -151,12 +162,12 @@ function Gate({
           <div className={`${styles.column} ${styles.narrow}`}>
             <h1 className={styles.heading}>Connect to open your wallet</h1>
             <p className={styles.lead}>
-              This device has not opened your wallet before, and signing in the first time needs a
-              connection. Once it has, it works with none.
+              This device has not opened your wallet before, and the first time needs a connection.
+              Once it has, it works with none.
             </p>
           </div>
         </main>
-      ) : stand === 'no-vault' || settingUp ? (
+      ) : settingUp ? (
         <Setup name={name} />
       ) : stand === 'locked' ? (
         <LockScreen />

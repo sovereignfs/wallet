@@ -1,5 +1,5 @@
 import { copy, encoder, randomBytes } from '../core/vault/bytes';
-import { importVaultKey } from '../core/vault';
+import { importRoot } from '../core/vault';
 import type { LocalDatabase, UnlockWrapper } from '../local/db';
 import {
   localValue,
@@ -11,33 +11,34 @@ import {
 import type { Keyring } from './keyring';
 
 /**
- * The ways a device unlocks (DESIGN.md §9.3). Each keeps the **vault key's bytes encrypted under a key that only this person on this device can make**, in
- * the device's store, so that unlocking works with no network and no server. The wallet key and the recovery key open the header itself and need no wrapper.
+ * The ways a device unlocks (DESIGN.md §9.3). Each keeps the **keyring root's bytes encrypted under a key that only this person on this device can make**, in
+ * the device's store, so that unlocking works with no network and no server (the suite's own key, which needs the server, brings the root to a new device and
+ * back after a wrapper is gone).
  *
  *  - **A passkey** (Face ID, a fingerprint, Windows Hello) with the WebAuthn PRF extension: the credential's PRF output for the salt `wallet/v1/unlock`,
- *    through HKDF-SHA-256, is an AES-256-GCM key that wraps the vault key. The credential is made for unlocking and is not the sign-in passkey.
- *  - **A device passcode** (at least six characters): Argon2id (64 MiB, 3 passes, 1 lane) of it and a random salt is the key that wraps the vault key; that
+ *    through HKDF-SHA-256, is an AES-256-GCM key that wraps the root. The credential is made for unlocking and is not the sign-in passkey.
+ *  - **A device passcode** (at least six characters): Argon2id (64 MiB, 3 passes, 1 lane) of it and a random salt is the key that wraps the root; that
  *    wrapper is then wrapped again under a key the browser keeps and cannot be read out (`extractable: false`), so a copy of the store alone cannot be
  *    guessed at offline. **Five wrong passcodes delete the wrapper;** the counter is written before each try, so that closing the tab cannot dodge it.
  *
- * A wrapper is made when the vault key's bytes are in hand: at setup, or after the person has entered their wallet key again. The bytes are zeroed after.
+ * A wrapper is made when the root's bytes are in hand: at setup, or after the suite's key has opened the wrapped root again. The bytes are zeroed after.
  */
 export const PASSCODE_MIN_LENGTH = 6;
 export const MAX_FAILURES = 5;
 export const PASSCODE_PARAMS = { memoryKiB: 64 * 1024, iterations: 3, parallelism: 1 } as const;
-export const PRF_SALT = 'wallet/v1/unlock';
+export const PRF_SALT = 'wallet/v2/unlock';
 
-/** The vault key's bytes and id, as the header gives them. The caller zeroes the bytes when it has made its wrappers. */
+/** The root's bytes and epoch, as the suite's key opened them (or as they were just made). The caller zeroes the bytes when it has made its wrappers. */
 export interface Material {
   readonly raw: Uint8Array<ArrayBuffer>;
-  readonly id: string;
+  readonly epoch: number;
 }
 
 /** The result of an unlock attempt with a wrapper. */
 export type Attempt = 'ok' | 'wrong' | 'removed' | 'none';
 
-const aadOf = (kind: 'passkey' | 'passcode', vaultKeyId: string) =>
-  encoder.encode(`wallet/v1/unlock|${kind}|${vaultKeyId}`);
+const aadOf = (kind: 'passkey' | 'passcode', epoch: number) =>
+  encoder.encode(`wallet/v2/unlock|${kind}|${epoch}`);
 
 async function encrypt(key: CryptoKey, iv: Uint8Array, aad: Uint8Array, plain: Uint8Array) {
   return new Uint8Array(
@@ -110,7 +111,7 @@ export async function enrollPasscode(
   const inner = await aesKey(await derive(passcode, salt, PASSCODE_PARAMS));
   const iv = randomBytes(12);
   const outerIv = randomBytes(12);
-  const aad = aadOf('passcode', material.id);
+  const aad = aadOf('passcode', material.epoch);
   const first = await encrypt(inner, iv, aad, material.raw);
   const ciphertext = await encrypt(await deviceKey(db), outerIv, aad, first);
   const wrapper: UnlockWrapper = {
@@ -120,7 +121,7 @@ export async function enrollPasscode(
     createdAt: now,
     iv,
     ciphertext,
-    vaultKeyId: material.id,
+    epoch: material.epoch,
     passcode: {
       salt,
       memoryKiB: PASSCODE_PARAMS.memoryKiB,
@@ -154,7 +155,7 @@ export async function unlockWithPasscode(
   let raw: Uint8Array | undefined;
   try {
     const inner = await aesKey(await derive(passcode, wrapper.passcode.salt, wrapper.passcode));
-    const aad = aadOf('passcode', wrapper.vaultKeyId);
+    const aad = aadOf('passcode', wrapper.epoch);
     const first = await decrypt(
       await deviceKey(db),
       wrapper.passcode.outerIv,
@@ -162,7 +163,7 @@ export async function unlockWithPasscode(
       wrapper.ciphertext,
     );
     raw = await decrypt(inner, wrapper.iv, aad, first);
-    keyring.unlock(await importVaultKey(raw, wrapper.vaultKeyId));
+    keyring.unlock({ key: await importRoot(raw), epoch: wrapper.epoch });
     await setLocalValue(db, 'passcodeFailures', 0);
     return 'ok';
   } catch {
@@ -218,7 +219,7 @@ const bytesOfPrf = (value: ArrayBuffer | ArrayBufferView): Uint8Array<ArrayBuffe
       : new Uint8Array(value),
   );
 
-/** HKDF-SHA-256 of a PRF output: the AES-256-GCM key that wraps the vault key. */
+/** HKDF-SHA-256 of a PRF output: the AES-256-GCM key that wraps the root. */
 async function keyOfPrf(output: Uint8Array): Promise<CryptoKey> {
   const ikm = await crypto.subtle.importKey('raw', copy(output), 'HKDF', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
@@ -226,7 +227,7 @@ async function keyOfPrf(output: Uint8Array): Promise<CryptoKey> {
       name: 'HKDF',
       hash: 'SHA-256',
       salt: new Uint8Array(0),
-      info: encoder.encode('wallet/v1/unlock-key'),
+      info: encoder.encode('wallet/v2/unlock-key'),
     },
     ikm,
     { name: 'AES-GCM', length: 256 },
@@ -258,7 +259,7 @@ async function prfOutput(
   return bytesOfPrf(first);
 }
 
-/** Makes a passkey for unlocking and wraps the vault key under it. Two prompts: one to make it, one to prove it works. */
+/** Makes a passkey for unlocking and wraps the root under it. Two prompts: one to make it, one to prove it works. */
 export async function enrollPasskey(
   db: LocalDatabase,
   material: Material,
@@ -295,10 +296,10 @@ export async function enrollPasskey(
     ciphertext: await encrypt(
       await keyOfPrf(output),
       iv,
-      aadOf('passkey', material.id),
+      aadOf('passkey', material.epoch),
       material.raw,
     ),
-    vaultKeyId: material.id,
+    epoch: material.epoch,
     passkey: { credentialId },
   };
   output.fill(0);
@@ -339,10 +340,10 @@ export async function unlockWithPasskey(
     raw = await decrypt(
       await keyOfPrf(bytesOfPrf(first)),
       wrapper.iv,
-      aadOf('passkey', wrapper.vaultKeyId),
+      aadOf('passkey', wrapper.epoch),
       wrapper.ciphertext,
     );
-    keyring.unlock(await importVaultKey(raw, wrapper.vaultKeyId));
+    keyring.unlock({ key: await importRoot(raw), epoch: wrapper.epoch });
     return 'ok';
   } catch {
     return 'wrong';

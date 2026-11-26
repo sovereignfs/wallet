@@ -14,7 +14,7 @@ import * as sqliteSchema from '../db/schema/sqlite';
  * still find it.
  *
  *  1. The wallet: every entry, deleted ones included (they are ciphertext, and what is deleted is deleted), the record of applied mutations, the
- *     vault, the wrapped keyring roots and the account's change counter. **Files under `/data/blobs/<account id>` go here too once files exist (4.6).**
+ *     wrapped keyring roots and the account's change counter. **Files under `/data/blobs/<account id>` go here too once files exist (4.6).**
  *  2. What was kept for them: sealed credentials, the rate counters.
  *  3. The sign-in store: sessions and what the package keeps with them, the suite's key records of the person (the vault's `deleteAccount`: with them
  *     gone, nothing encrypted for them opens for anyone, backups included), sign-ins (password, passkeys, second factors and a Sovereign
@@ -55,10 +55,6 @@ export async function deletePerson(deps: PeopleDeps, accountId: string): Promise
     await dbAll(
       tx,
       sql`DELETE FROM ${app.appliedMutation} WHERE account_id = ${accountId} RETURNING id`,
-    );
-    await dbAll(
-      tx,
-      sql`DELETE FROM ${app.vault} WHERE account_id = ${accountId} RETURNING account_id`,
     );
     await dbAll(
       tx,

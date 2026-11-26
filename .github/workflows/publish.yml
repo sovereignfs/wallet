@@ -69,8 +69,6 @@ jobs:
       # The pnpm the package names (`packageManager` in package.json).
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      # The real `age`, so that the cipher is held to the format and not to itself (src/cipher/testing.ts fails without it).
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends age
       # Fails the build on a manifest an instance would refuse.
       - run: pnpm manifest:check
       - run: pnpm typecheck

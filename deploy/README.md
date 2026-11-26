@@ -85,8 +85,8 @@ privately, since whoever holds it can choose that account's password.** It works
 chooses the new password themselves, in their browser, and Wallet never sees it. It says there is no account if there is none, and that it has nothing to do on an instance that
 signs people in through Sovereign, whose passwords they are (there, Sovereign's own `sovereign-admin accounts reset-link` does it).
 
-**It gives back the account, not the wallet.** The wallet key is the person's own and is not touched: with it they open everything as before, and without it nobody can, you
-included. A lost authenticator app is not reset by this either; backup codes are the way.
+**It gives back the account, not what is in the wallet.** The password that was forgotten opened the person's keys: at their next sign-in Wallet asks for their **recovery kit**, and
+the new password opens the wallet from then on. A device of theirs that unlocks with a passkey or a passcode still opens it. With none of these nobody can open it, you included. A lost authenticator app is not reset by this either; backup codes are the way.
 
 ## On a Sovereign instance
 
@@ -104,14 +104,14 @@ signed.
 
 ## What the server keeps, and what only you do
 
-Everything a person keeps in Wallet is **sealed in their browser** under a key they hold, and the server stores ciphertext it cannot open
-(`docs/specs/vault-format.md`). So:
+Everything a person keeps in Wallet is **encrypted in their browser** before it leaves it, and the server stores ciphertext and no key that opens it
+(`docs/specs/vault-format.md`). It is not yet independently audited. So:
 
 - **`WALLET_ENCRYPTION_KEY` is the server's own** (`openssl rand -base64 32`, once). It seals the server's own secrets at rest and **never an entry**.
   Keep it with your other secrets, apart from the database backups. To change it, give the new one and put the old one in `WALLET_ENCRYPTION_KEY_PREVIOUS`
   until the server has started once with both.
-- **Nobody can recover a wallet whose key is lost.** Not you, as the operator, and not the people who wrote Wallet. A person's wallet key (and recovery key,
-  if they made one) is theirs, and is in no file on the server. Say so to the people you run this for.
+- **A forgotten password and a lost recovery kit cannot be undone** by you or by the people who wrote Wallet: the server keeps a person's keys only wrapped under
+  those. Say so to the people you run this for. **A weak password can be guessed at against a copy of the database** (at Argon2id's cost), so ask for long ones.
 - **What an operator can see** is the number of entries an account has, their sizes (in buckets), which tier and when they changed, the account's name and
   address, and the network addresses of requests. Not the kind of an entry, its title, or anything in it (`DESIGN.md` §8.5).
 - **What an operator can do to a person** is limited to what the browser lets them: **a server that serves altered JavaScript could take a key once it is

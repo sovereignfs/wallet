@@ -245,8 +245,8 @@ editable), the session it belongs to, when it was first and last seen. Settings 
 
 ### 7.1 The account key and the app key
 
-A person has an **account key**: 32 random bytes made in their browser and wrapped once for each way to unlock (the password, a passkey, the recovery kit, escrow where an instance
-turns it on). Changing a way re-wraps one key and re-encrypts nothing. Wallet is given an **app key**, random and its own, wrapped by the account key, as an AES-GCM `CryptoKey`
+A person has an **account key**: 32 random bytes made in their browser and wrapped once for each way to unlock (standalone, the password and the recovery kit; at core also
+passkeys, and escrow where an instance turns it on). Changing a way re-wraps one key and re-encrypts nothing. Wallet is given an **app key**, random and its own, wrapped by the account key, as an AES-GCM `CryptoKey`
 that cannot be exported. **Wallet never sees the account key,** so a compromised Wallet exposes Wallet's data and no other app's.
 
 - **Hosted (suite mode):** core keeps the keys. The page gets Wallet's app key from core once a session (`appKeys` from `@sovereignfs/sdk/keys`, answered at `/keys/return`), and core's
@@ -318,12 +318,12 @@ Device stores are emptied at their next sync (task 3.11).
 ```
 plaintext    UTF-8 JSON, then 0x80, then 0x00 bytes to the next multiple of the bucket
              (shape: 256 bytes; body: 1,024 bytes)  (ISO/IEC 7816-4 padding)
-envelope     encryptBytes(entryKey, { documentId: "<account id>/<entry id>/<part>", version: <the entry's version> }, plaintext)
+envelope     encryptBytes(entryKey, { documentId: "<account id>/<entry id>/<part>", version: <the entry's key epoch> }, plaintext)
              (part: "shape" or "body")
 ```
 
-- **The binding** ties each value to its account, entry, part and version, so the server cannot move a value to another entry, account, part or version unnoticed.
-- **Padding** hides small differences in length: a server sees a shape as 256 or 512 bytes (plus the envelope's fixed overhead), not as the length of a title.
+- **The binding** ties each value to its account, entry and part (the document id) and to its key epoch (the version, as Shopper binds its keyring's epoch), so the server cannot move a value to another entry, account or part, or give one made under another root, unnoticed. The row's own version is not bound, so merging and rebasing a change re-seals nothing.
+- **Padding** hides small differences in length: a server sees a shape as 256 or 512 bytes plus the envelope, not as the length of a title. **The envelope adds 63 bytes and the document id**, which it carries in the clear and the server knows (16 more for each further 64 KiB chunk), so the server checks that a value has the length padding makes (`docs/specs/vault-format.md`).
 - **Versioned by the suite:** the envelope names its suite (RFC 0005 §1), so the algorithm can change without guessing.
 
 ### 8.3 Files
@@ -376,8 +376,9 @@ name and email, and in phase 3 push subscriptions and published cards. **It neve
 
 When unlocked, the browser holds in memory the **keyring root**, as a non-extractable HKDF `CryptoKey`, and, as they are used, **entry keys** derived from it (the SDK's document keys, held as
 non-extractable `CryptoKey`s), and the **opened entries** in an in-memory index (§11.1). Locking drops all of it: the root, the keys, the index, every rendered page's data (the app navigates to
-the lock screen and clears its state), and every object URL of a decrypted file. **The suite's app key is not what a lock drops:** it stays for the session, as the SDK keeps it, and it is what
-brings the root back from the server when no wrapper does. The root is never kept in the clear: a device keeps it only under an unlock wrapper (§9.3).
+the lock screen and clears its state), and every object URL of a decrypted file. **A lock takes the suite's app key with it** (the SDK's `forget`),
+so opening the wallet again is a passkey, a passcode, or the account proved again (the password, or Sovereign's release): holding an unlocked device is not enough. The root is never kept
+in the clear: a device keeps it only under an unlock wrapper (§9.3).
 
 **Sync runs while locked:** the outbox drains and pulls arrive, since the store holds ciphertext only.
 
@@ -386,7 +387,7 @@ brings the root back from the server when no wrapper does. The root is never kep
 - **After a time without use:** 1, 5 (the default), 15 or 60 minutes, set per device.
 - **When Wallet is hidden** (another app, the screen off): at once, after 1 minute (the default), or never.
 - **By hand:** the lock button in the header.
-- **At sign-out** and when the session ends, when the SDK forgets the app key with the session. The device's wrappers stay with its ciphertext, as they did.
+- **At sign-out,** and what the SDK keeps of the app key opens nothing once the session ends. The device's wrappers stay with its ciphertext, as they did.
 - **Hosted:** also core's lock (`sovereign`'s RFC 0006), which closes the app key.
 
 Tabs share one lock (BroadcastChannel): unlocking or locking one does the same in every tab of the account. **A device with no wrapper set has nothing to come back with**: its lock needs the

@@ -48,8 +48,9 @@ export function ResetForm({
   if (done)
     return (
       <AuthNotice>
-        Your password is changed, and you are signed out everywhere else.{' '}
-        <AuthLink href="/sign-in">Sign in</AuthLink>
+        Your password is changed, and you are signed out everywhere else. Sign in with it, and have
+        your recovery kit to hand: what is in your wallet is encrypted, and the kit opens it the
+        first time. <AuthLink href="/sign-in">Sign in</AuthLink>
       </AuthNotice>
     );
   // The form's own words for a link that is gone offer to ask for another, which an instance with no mail cannot send.

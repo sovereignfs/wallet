@@ -8,7 +8,11 @@ import { TIERS, type Tier, isRecord, isUuid } from '../entries/types';
  * A request carries the device's id, its cursor and its outbox in order; the answer says what was applied, what was refused and why, and the rows past the
  * cursor. A refused mutation is never lost: the device keeps it in Couldn't sync.
  */
-export const PROTOCOL_VERSION = 1;
+/**
+ * Version 2 (0.7.0): an entry carries its key epoch and no wrapped key (DESIGN.md §8.1, RFC 0001), and the answer says nothing of a vault header. A device that
+ * speaks version 1 is told to update, and keeps its outbox.
+ */
+export const PROTOCOL_VERSION = 2;
 
 /** The most mutations in one request, and the most rows in one answer: the rest follows on the next. */
 export const MAX_MUTATIONS = 50;
@@ -25,8 +29,8 @@ export interface MutationWire {
   /** The version the device last agreed with the server: 0 for a new entry. */
   readonly baseVersion: number;
   readonly tier: Tier;
-  /** `put` only: the entry key, wrapped (base64url). */
-  readonly wrappedKey?: string;
+  /** `put` only: the epoch of the keyring root the entry's key is derived from (`1` until rotating everything is built). */
+  readonly keyEpoch?: number;
   /** `put` only: the sealed shape (base64url). */
   readonly shape?: string;
   /** `put` only: the sealed body, or absent for an entry that has none. */
@@ -48,7 +52,7 @@ export interface RowWire {
   readonly tier: Tier;
   readonly version: number;
   readonly seq: number;
-  readonly wrappedKey: string;
+  readonly keyEpoch: number;
   readonly shape: string | null;
   readonly body: string | null;
   readonly deletedAt: number | null;
@@ -89,8 +93,6 @@ export interface SyncResponse {
   /** Whether there are more rows past `cursor`. */
   readonly more: boolean;
   readonly mode: 'normal' | 'offline';
-  /** The version of the vault header the server holds, or null when there is no vault: a device that has an older one fetches it. */
-  readonly vaultVersion: number | null;
 }
 
 export type ParsedRequest =
@@ -125,23 +127,25 @@ export function parseSyncRequest(text: string): ParsedRequest {
   const mutations: MutationWire[] = [];
   for (const raw of input.mutations as unknown[]) {
     if (!isRecord(raw)) return bad;
-    const { id, op, entryId, baseVersion, tier, wrappedKey, shape, body } = raw;
+    const { id, op, entryId, baseVersion, tier, keyEpoch, shape, body } = raw;
     if (!isUuid(id) || !isUuid(entryId)) return bad;
     if (op !== 'put' && op !== 'delete') return bad;
     if (typeof baseVersion !== 'number' || !Number.isSafeInteger(baseVersion) || baseVersion < 0)
       return bad;
     if (typeof tier !== 'string' || !(TIERS as readonly string[]).includes(tier)) return bad;
     if (op === 'put') {
-      if (typeof wrappedKey !== 'string' || typeof shape !== 'string') return bad;
+      if (typeof keyEpoch !== 'number' || !Number.isSafeInteger(keyEpoch) || keyEpoch < 1)
+        return bad;
+      if (typeof shape !== 'string') return bad;
       if (body !== undefined && typeof body !== 'string') return bad;
-    } else if (wrappedKey !== undefined || shape !== undefined || body !== undefined) return bad;
+    } else if (keyEpoch !== undefined || shape !== undefined || body !== undefined) return bad;
     mutations.push({
       id,
       op,
       entryId,
       baseVersion,
       tier: tier as Tier,
-      ...(typeof wrappedKey === 'string' ? { wrappedKey } : {}),
+      ...(typeof keyEpoch === 'number' ? { keyEpoch } : {}),
       ...(typeof shape === 'string' ? { shape } : {}),
       ...(typeof body === 'string' ? { body } : {}),
     });
@@ -156,17 +160,16 @@ export function parseSyncRequest(text: string): ParsedRequest {
 /** The structure of an answer, as the device reads it: a server that answers with something else is not trusted with the device's cursor. */
 export function parseSyncResponse(input: unknown): SyncResponse | undefined {
   if (!isRecord(input) || input.v !== PROTOCOL_VERSION) return undefined;
-  const { applied, refused, rows, cursor, more, mode, vaultVersion } = input;
+  const { applied, refused, rows, cursor, more, mode } = input;
   if (!Array.isArray(applied) || !Array.isArray(refused) || !Array.isArray(rows)) return undefined;
   if (typeof cursor !== 'number' || typeof more !== 'boolean') return undefined;
   if (mode !== 'normal' && mode !== 'offline') return undefined;
-  if (vaultVersion !== null && typeof vaultVersion !== 'number') return undefined;
   const rowOk = (row: unknown): row is RowWire =>
     isRecord(row) &&
     isUuid(row.id) &&
     typeof row.version === 'number' &&
     typeof row.seq === 'number' &&
-    typeof row.wrappedKey === 'string' &&
+    typeof row.keyEpoch === 'number' &&
     (row.shape === null || typeof row.shape === 'string') &&
     (row.body === null || typeof row.body === 'string') &&
     (row.deletedAt === null || typeof row.deletedAt === 'number') &&

@@ -35,7 +35,7 @@ Wallet already had the parts: `@sovereignfs/auth` derives the sign-in value with
 2. **A keyring root, and entry keys derived from it.** The account's first device makes 32 random bytes, the **root**, and the server keeps it **wrapped under the app key**
    (AES-256-GCM, bound to the account and the epoch; one row). Every entry's key is `HKDF-SHA-256(root, "wallet/v2/entry|<account id>|<entry id>")`: the SDK's document key.
    Nothing is wrapped per entry any more, so a device can **make and open entries with no signal**, which a key wrapped per entry under a key only the server releases could not.
-3. **The SDK's cipher encrypts**: shape and body by `encryptBytes`, bound to a document id (account, entry, part) and the entry's version; files by `encryptContent` in 64 KiB
+3. **The SDK's cipher encrypts**: shape and body by `encryptBytes`, bound to a document id (account, entry, part) and the entry's key epoch (as Shopper binds its keyring's epoch); files by `encryptContent` in 64 KiB
    chunks. Wallet keeps its **plaintext padding** (size buckets), which hides lengths from the server and is not a cipher.
 4. **The standalone server** keeps the vault's records and nothing it can open: `AppVault` over the auth store, `vaultRoute`, a session key secret (`keySecrets`), and
    `vault.deleteAccount` in `People.deletePerson`.
@@ -94,3 +94,13 @@ so the owner chose a device layer and full offline use, and the key hierarchy be
 `DESIGN.md` §4, §7, §8, §9 and §25.1 as this RFC says; `docs/specs/vault-format.md` is replaced by a short statement of what Wallet binds, derives and pads, with its own vectors; the roadmap's
 tasks 3.1, 3.2, 3.4, 3.5, 3.9 and 3.12 are superseded (3.6 to 3.8, the keyring and its wrappers, stay and are re-rooted by 3.14); 3.13 to 3.17 are new. `AGENTS.md`'s rules that name `src/core/vault` change with the code that
 retires it.
+
+## Amendment 2 (2026-11-26, found while building it)
+
+- **The envelope's overhead is not constant.** The SDK's envelope carries the document id in the clear: **63 bytes and the length of `<account id>/<entry id>/<part>`**, 16 more for
+  each further 64 KiB chunk. The first spike measured a short id. The server checks sizes with that sum, knowing the ids (`src/core/sync/limits.ts`), and `limits.test.ts` holds it to
+  the SDK's own output.
+- **The `version` the SDK binds is the entry's key epoch,** not the row's version: a rebased or merged change then re-seals nothing, and a value made under another root still does not
+  open. `entry.key_epoch` replaces `entry.wrapped_key`, and the sync protocol is version 2.
+- **A lock takes the suite's key with it,** and unlocking proves the key each time (the password, or Sovereign's release): holding an unlocked device must not be enough to open
+  the wallet again. The device's passkey or passcode is the offline way in.

@@ -14,24 +14,6 @@ export const app = pgSchema(APP_STORE);
 /** See `schema/sqlite/app.ts` for what each table is. */
 
 /**
- * The vault of an account (DESIGN.md §7.4, §8.1): the recipients of the wallet key and the recovery key, and the vault header, the vault key
- * encrypted to them with age. One per account. `version` is what a change of keys (after 0.1.0) must repeat to be applied.
- */
-export const vault = app.table('vault', {
-  accountId: ref('account_id').primaryKey(),
-  version: counter('version').notNull(),
-  /** JSON: `[{ recipient, label: 'wallet' | 'recovery', addedAt }]`. Public keys only. */
-  recipients: text('recipients').notNull(),
-  /** The vault header: an age file, sealed to `recipients`. */
-  header: binary('header').notNull(),
-  vaultKeyId: text('vault_key_id').notNull(),
-  /** `active`, or `rotating` while every entry is re-sealed under a new vault key (after 0.1.0). */
-  state: text('state').notNull().default('active'),
-  createdAt: epochMs('created_at').notNull(),
-  updatedAt: epochMs('updated_at').notNull(),
-});
-
-/**
  * The keyring root of an account, wrapped (DESIGN.md §7.4, §8.1): 32 random bytes made by the account's first device, kept here **only under the suite's app key**
  * (AES-256-GCM, nonce first), which opens in the browser. One row per epoch of the root (a rotation makes the next, task 3.10). The server can open none of it.
  */
@@ -56,7 +38,7 @@ export const accountStream = app.table('account_stream', {
 
 /**
  * One thing in the wallet (DESIGN.md §10.1). **Its kind is not a column:** it is in the sealed `shape`, so the server cannot tell a passport from a
- * loyalty card (§8.5). `wrapped_key` is the entry's key under the vault key; `shape` and `body` are sealed, and a tombstone has neither.
+ * loyalty card (§8.5). `key_epoch` names the root its key is derived from; `shape` and `body` are sealed, and a tombstone has neither.
  * `file_count` is 0 until files are built. `version` is the number a mutation's `baseVersion` must equal.
  */
 export const entry = app.table(
@@ -69,7 +51,8 @@ export const entry = app.table(
     holderDeviceId: ref('holder_device_id'),
     version: counter('version').notNull(),
     seq: counter('seq').notNull(),
-    wrappedKey: binary('wrapped_key').notNull(),
+    /** The epoch of the account's keyring root that the entry's key is derived from (DESIGN.md §8.1): 1 until rotating everything is built. */
+    keyEpoch: counter('key_epoch').notNull().default(1),
     shape: binary('shape'),
     body: binary('body'),
     fileCount: counter('file_count').notNull().default(0),

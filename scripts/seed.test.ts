@@ -5,12 +5,23 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type TwoAccounts, twoAccounts } from '../src/access/two-accounts';
 import { parseBody, parseShape } from '../src/core/entries';
-import { importVaultKey, open, openHeader, parseIdentity, unwrapEntryKey } from '../src/core/vault';
+import { AppVault } from '@sovereignfs/sdk/vault';
+import { FIRST_EPOCH, deriveEntryKey, open } from '../src/core/vault';
+import { suiteCipher } from '../src/keys/cipher';
 import type { Database } from '../src/db/client';
 import { dbAll } from '../src/db/exec';
 import { openStoreBesideAuth, testTarget } from '../src/db/test-support';
-import { readVault } from '../src/server/vault';
-import { CARDS, SEED_EMAIL, derivedId, isLocalDatabase, main, removeSeed, runSeed } from './seed';
+import { readRoots } from '../src/server/keyring';
+import {
+  CARDS,
+  SEED_EMAIL,
+  derivedId,
+  isLocalDatabase,
+  main,
+  removeSeed,
+  runSeed,
+  seedRoot,
+} from './seed';
 
 const { leg } = testTarget();
 let t: TwoAccounts;
@@ -29,17 +40,17 @@ afterAll(async () => {
 });
 
 const entries = async (accountId: string) =>
-  dbAll<{ id: string; shape: unknown; body: unknown; wrapped_key: unknown }>(
+  dbAll<{ id: string; shape: unknown; body: unknown; key_epoch: unknown }>(
     app,
     sql.raw(
-      `SELECT id, shape, body, wrapped_key FROM ${app.dialect === 'postgres' ? 'wallet.entry' : 'entry'} WHERE account_id = '${accountId}'`,
+      `SELECT id, shape, body, key_epoch FROM ${app.dialect === 'postgres' ? 'wallet.entry' : 'entry'} WHERE account_id = '${accountId}'`,
     ),
   );
 const bytes = (value: unknown) =>
   new Uint8Array(value instanceof ArrayBuffer ? value : (value as Uint8Array));
 
 describe(`the seed (${leg})`, () => {
-  it('makes an account, a vault, and cards that the key it writes opens, as a browser would', async () => {
+  it('makes an account, its keys, and cards that its root opens, as a browser would', async () => {
     const stores = { app, authStore: t.auth.store };
     const result = await runSeed(stores, t.auth.settings, { dir });
     expect(result.created).toBe(true);
@@ -48,26 +59,39 @@ describe(`the seed (${leg})`, () => {
     const rows = await entries(result.accountId);
     expect(rows).toHaveLength(CARDS.length);
 
-    // The key file opens the header; so does the recovery key; and the vault key opens each entry as the app does.
-    const vaultRecord = await readVault(app, result.accountId);
-    if (!vaultRecord) throw new Error('no vault');
-    const header = new Uint8Array(vaultRecord.header);
-    const wallet = await parseIdentity(readFileSync(result.keyFile, 'utf8'));
-    const recovery = await parseIdentity(readFileSync(result.recoveryFile, 'utf8'));
-    if (!wallet.ok || !recovery.ok) throw new Error('not keys');
-    const opened = await openHeader(header, wallet.identity);
-    expect((await openHeader(header, recovery.identity)).id).toBe(opened.id);
-    const vault = await importVaultKey(opened.raw, opened.id);
+    // The account's keys are made, the recovery kit is written for the developer, and the root the server keeps (wrapped under the app key) opens each entry as the
+    // app does: derived from the root, bound to the account, the entry and the part.
+    expect(readFileSync(result.kitFile, 'utf8').trim().length).toBeGreaterThan(20);
+    const keyring = await readRoots(app, result.accountId);
+    expect(keyring.map((each) => each.epoch)).toEqual([FIRST_EPOCH]);
+    const root = await seedRoot(stores, result.accountId, result.kitFile, 1);
     const titles: string[] = [];
     for (const row of rows) {
-      const keys = await unwrapEntryKey(vault, result.accountId, row.id, bytes(row.wrapped_key));
+      expect(Number(row.key_epoch)).toBe(FIRST_EPOCH);
+      const key = await deriveEntryKey(suiteCipher, root, result.accountId, row.id);
       const shape = parseShape(
-        await open(keys.aes, 'shape', result.accountId, row.id, bytes(row.shape)),
+        await open(
+          suiteCipher,
+          key,
+          'shape',
+          result.accountId,
+          row.id,
+          FIRST_EPOCH,
+          bytes(row.shape),
+        ),
       );
       if (!shape.ok || shape.value.kind !== 'card') throw new Error('not a card');
       const body = parseBody(
         'card',
-        await open(keys.aes, 'body', result.accountId, row.id, bytes(row.body)),
+        await open(
+          suiteCipher,
+          key,
+          'body',
+          result.accountId,
+          row.id,
+          FIRST_EPOCH,
+          bytes(row.body),
+        ),
       );
       expect(body.ok, shape.value.title).toBe(true);
       titles.push(shape.value.title);
@@ -113,8 +137,9 @@ describe(`the seed (${leg})`, () => {
     const accountId = found[0]?.id ?? '';
     expect(await removeSeed(stores, dir)).toBe(true);
     expect(await entries(accountId)).toEqual([]);
-    expect(await readVault(app, accountId)).toBeUndefined();
-    expect(existsSync(join(dir, 'wallet-key.txt'))).toBe(false);
+    expect(await readRoots(app, accountId)).toEqual([]);
+    expect((await new AppVault(t.auth.store).read(accountId)).account).toBeUndefined();
+    expect(existsSync(join(dir, 'recovery-kit.txt'))).toBe(false);
     expect(await removeSeed(stores, dir)).toBe(false);
     // Ada and Grace of the test's two accounts are still there.
     const left = await dbAll<{ n: number | string }>(

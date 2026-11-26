@@ -1,11 +1,12 @@
 import { type Page, expect, test } from '@playwright/test';
-import { goTo, setUp } from './helpers';
 import { PORTS } from './ports';
 
 /**
  * Signing in through Sovereign (DESIGN.md §25): an instance that takes only a core, a fake one that says who is at the keyboard. In suite mode `/sign-in` and
  * `/sign-up` send the browser to core at once, and the fake signs in whoever it was told to, so arriving at either is coming back signed in. The first sign-in
- * makes the account, and the wallet then needs a key of its own: **signing in through core never opens a wallet** (DESIGN.md §9.4).
+ * makes the account, and the wallet then needs the app's key, which core releases (DESIGN.md §7.1, §9.4). **The fake core has no key release,** so what is shown
+ * here is the wallet locked, offering to unlock through Sovereign; the release itself, and the wallet it opens, are not exercised by these tests (the SDK's
+ * fake core has none either), and are checked against a real instance.
  */
 test.use({ baseURL: `http://localhost:${PORTS.sovereign}` });
 
@@ -14,7 +15,7 @@ test.use({ baseURL: `http://localhost:${PORTS.sovereign}` });
  * this instance from one, so it may be told to wait: it then does, as a person would.
  */
 async function throughSovereign(page: Page, path = '/sign-in') {
-  const arrived = page.getByRole('button', { name: 'Get started' });
+  const arrived = page.getByRole('heading', { name: 'Your wallet is locked' });
   const limited = page.getByText(/Too many/i);
   for (let attempt = 0; attempt < 3; attempt++) {
     await page.goto(path);
@@ -30,7 +31,7 @@ const control = `http://localhost:${PORTS.coreControl}`;
 const person = (label: string) =>
   `${label}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
-test('signing in through Sovereign makes an account, which sets up a wallet of its own', async ({
+test('signing in through Sovereign makes an account, whose wallet waits for core to release its key', async ({
   page,
   request,
 }) => {
@@ -47,7 +48,7 @@ test('signing in through Sovereign makes an account, which sets up a wallet of i
   await expect(page.getByRole('link', { name: 'Sign in with Sovereign' })).toBeVisible();
   await throughSovereign(page);
   await expect(page.getByLabel('Password')).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Set up your wallet' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your wallet is locked' })).toBeVisible();
   await page.getByRole('button', { name: 'User menu' }).click();
   await expect(page.getByText(/^sov-.*@example\.com$/)).toBeVisible();
 });
@@ -107,20 +108,9 @@ test('deleting the account is core’s: Wallet says where it is, and does not do
   const session = await page.request.get('/api/auth/get-session');
   expect(await session.json()).not.toBeNull();
 
-  // And Settings says the same: a way to core's pages, and no button that deletes.
-  await setUp(page);
-  await page.getByRole('button', { name: 'Go to Home' }).click();
-  await goTo(page, 'Settings');
-  await page.getByRole('tab', { name: 'Account' }).click();
-  await expect(page.getByRole('link', { name: 'Delete it in Sovereign' })).toHaveAttribute(
-    'href',
-    `http://localhost:${PORTS.coreAuth}/delete-account`,
-  );
-  await expect(page.getByRole('link', { name: 'your security' })).toHaveAttribute(
-    'href',
-    `http://localhost:${PORTS.coreAuth}/security`,
-  );
-  await expect(page.getByRole('button', { name: 'Delete my account…' })).toHaveCount(0);
+  // The wallet is locked until core releases its key, and offers to: there is no password to ask for here, and nothing to delete from here.
+  await expect(page.getByRole('button', { name: 'Unlock through Sovereign' })).toBeVisible();
+  await expect(page.getByLabel('Your password')).toHaveCount(0);
 });
 
 test('core’s notices end the session, and a deletion removes the account, before it answers', async ({
@@ -151,7 +141,7 @@ test('core’s notices end the session, and a deletion removes the account, befo
     ).status(),
   ).toBe(400);
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Get started' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your wallet is locked' })).toBeVisible();
 
   // The real notice: answered 200, and the account is gone with its session.
   const token = await notice('account-deleted');

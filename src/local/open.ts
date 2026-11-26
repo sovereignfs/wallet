@@ -1,6 +1,7 @@
 import { type Body, type Kind, type Shape, parseBody, parseShape } from '../core/entries';
 import { fromBase64Url } from '../core/encoding';
 import { open } from '../core/vault';
+import { suiteCipher } from '../keys/cipher';
 import type { RowWire } from '../core/sync/protocol';
 import type { Keyring } from '../keyring/keyring';
 
@@ -11,7 +12,7 @@ import type { Keyring } from '../keyring/keyring';
  */
 export interface Sealed {
   readonly id: string;
-  readonly wrappedKey: string;
+  readonly keyEpoch: number;
   readonly shape: string | null;
   readonly body: string | null;
 }
@@ -26,12 +27,19 @@ export async function openSealed(
   sealed: Sealed,
   withBody = true,
 ): Promise<Opened> {
-  const wrapped = fromBase64Url(sealed.wrappedKey);
   const shape = sealed.shape === null ? undefined : fromBase64Url(sealed.shape);
-  if (!wrapped || !shape) return { ok: false, reason: 'unreadable' };
+  if (!shape) return { ok: false, reason: 'unreadable' };
   try {
-    const keys = await keyring.entryKeys(sealed.id, wrapped);
-    const shapeJson = await open(keys.aes, 'shape', accountId, sealed.id, shape);
+    const key = await keyring.entryKey(sealed.id, sealed.keyEpoch);
+    const shapeJson = await open(
+      suiteCipher,
+      key,
+      'shape',
+      accountId,
+      sealed.id,
+      sealed.keyEpoch,
+      shape,
+    );
     const parsed = parseShape(shapeJson);
     if (!parsed.ok) return { ok: false, reason: 'newer' };
     let body: Body | null = null;
@@ -39,7 +47,7 @@ export async function openSealed(
     if (withBody && bodyBytes) {
       const bodyParsed = parseBody(
         parsed.value.kind as Kind,
-        await open(keys.aes, 'body', accountId, sealed.id, bodyBytes),
+        await open(suiteCipher, key, 'body', accountId, sealed.id, sealed.keyEpoch, bodyBytes),
       );
       if (!bodyParsed.ok) return { ok: false, reason: 'newer' };
       body = bodyParsed.value;
@@ -52,7 +60,7 @@ export async function openSealed(
 
 export const sealedOfRow = (row: RowWire): Sealed => ({
   id: row.id,
-  wrappedKey: row.wrappedKey,
+  keyEpoch: row.keyEpoch,
   shape: row.shape,
   body: row.body,
 });

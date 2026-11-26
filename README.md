@@ -1,7 +1,7 @@
 # Wallet
 
-**The private things you carry, readable only by you.** Wallet keeps your cards (loyalty, transport, membership) as scannable codes, in a wallet that is
-locked in your browser with a key only you hold. The server stores scrambled bytes it cannot open. It works with no connection: at the till, in the
+**The private things you carry, encrypted in your browser.** Wallet keeps your cards (loyalty, transport, membership) as scannable codes, in a wallet that is
+encrypted in your browser before it leaves it. The server stores bytes it has no key for. It works with no connection: at the till, in the
 basement, on a plane. It runs on its own, or on a [Sovereign](https://github.com/sovereignfs/sovereign) instance you already use, signing in the same way as
 your other apps.
 
@@ -10,18 +10,21 @@ your other apps.
 
 ## What it protects, and what it does not
 
-Everything you keep (a card's name, its code, your notes) is encrypted **in your browser** before it leaves it, with AES-256-GCM under a key made for each
-entry, which is itself wrapped under a vault key, which is opened by an [age](https://age-encryption.org) key that only you have: your **wallet key**, a file
-or a line of text you save when you set up, and, if you made one, your **recovery key**, printed on a sheet. Day to day you unlock with your face, a
-fingerprint (a passkey) or a passcode, which works with no connection. The formats are written down, with test vectors, in
+Everything you keep (a card's name, its code, your notes) is encrypted **in your browser** before it leaves it, with the suite's encryption
+([Sovereign's RFC 0005](https://github.com/sovereignfs/sovereign), through its SDK): a key made for each entry from a **keyring root**, which your account's own
+keys wrap: your password and your **recovery kit**, shown once when you sign up (hosted by Sovereign, the keys are Sovereign's). Day to day you unlock with your face, a fingerprint (a passkey) or a
+passcode, which works with no connection. What Wallet adds to the suite's cipher is written down, with test vectors, in
 [`docs/specs/vault-format.md`](docs/specs/vault-format.md).
 
-| It protects against                                                                                                     | It does not protect against                                                                                                                                   |
-| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Anyone who reads the database, its dumps or its backups, **including whoever runs the server**                          | **A server that serves altered JavaScript**, which could take your key once the wallet is unlocked: the browser runs what the server sends                    |
-| A stolen password: nothing opens without a key                                                                          | **A device that is taken while unlocked**, or malware on it. The wallet locks after a time, when hidden, and by hand                                          |
-| The server moving or replaying a value between entries or accounts (each value is bound to its account, entry and part) | **What the server can still see:** how many entries you have, their sizes (to the nearest bucket), when they change, your name and address, network addresses |
-| A copy of the browser's data, as far as your unlock method's strength allows                                            | **Losing every key and every unlocked device. Nobody can recover your wallet:** not the operator and not the people who wrote Wallet                          |
+**This is not a promise against whoever runs the server**, whose code your browser runs, and it **has not been independently audited yet.** What an operator's
+backups hold is ciphertext; the keys are in your browsers.
+
+| It protects against                                                                                                     | It does not protect against                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anyone who reads the database, its dumps or its backups, **as far as the strength of your password allows**             | **A server that serves altered JavaScript**, which could take your key once the wallet is unlocked: the browser runs what the server sends                                   |
+| Someone who picks up your locked device: they need your passkey, your passcode or your password                         | **Someone who has your password:** it opens your wallet on a new device. An authenticator app on the account stops the sign-in; Wallet does not yet tell you of a new device |
+| The server moving or replaying a value between entries or accounts (each value is bound to its account, entry and part) | **What the server can still see:** how many entries you have, their sizes (to the nearest bucket), when they change, your name and address, network addresses                |
+| A copy of the browser's data, as far as your unlock method's strength allows                                            | **A forgotten password and a lost recovery kit,** with no device that still unlocks: Wallet has no way to give the wallet back, nor has whoever runs it                      |
 
 Wallet has **not had an independent review yet.** The design, the code and the tests are open to read, and a review before 1.0 is planned
 ([`DESIGN.md`](DESIGN.md) §33).
@@ -46,8 +49,8 @@ updating, giving someone their account back when mail cannot (`wallet-admin`), a
 
 `sv app add wallet --image ghcr.io/sovereignfs/wallet` hosts it from [`sovereign.manifest.json`](sovereign.manifest.json). The instance gives it a database
 and tells it where it is; **everyone signs in through the instance**, with no password to keep here, no sign-up page and no reset: Wallet's own accounts exist
-only when it runs on its own. An instance signs people in one way, never both. **Signing in through Sovereign never opens a wallet:** each person still makes
-a key of their own.
+only when it runs on its own. An instance signs people in one way, never both. **Wallet's key comes from Sovereign** too: it releases it to the browser, and each device then sets up
+its own passkey or passcode.
 
 ### Developing
 
@@ -60,7 +63,7 @@ pnpm format:check && pnpm lint && pnpm typecheck && pnpm test
 pnpm build && pnpm exec playwright install chromium webkit && pnpm e2e       # the browser tests
 ```
 
-A development wallet with a few cards and a key file for it: `pnpm seed` (never in production). [`AGENTS.md`](AGENTS.md) holds the rules of the code,
+A development account with a few cards and its recovery kit in `seed/`: `pnpm seed` (never in production). [`AGENTS.md`](AGENTS.md) holds the rules of the code,
 [`DESIGN.md`](DESIGN.md) what Wallet is and why, and [`CONTRIBUTING.md`](CONTRIBUTING.md) how a change is made.
 
 ## Every setting
@@ -92,8 +95,8 @@ all at start-up and stops on a wrong one, naming it and never its value.** [`.en
 **The operator's backups are the database's and `/data`'s**, and what they hold is ciphertext: as safe as the keys people keep. A person's own backups (a
 backup file, an encrypted git repository, a readable export) come in a later version.
 
-**If a person loses their wallet key and has no recovery key, and no device that is unlocked, nobody can open their wallet.** An unlocked device can show
-the wallet's cards until it locks. The only way back is **Reset wallet** (a later version), which deletes the wallet's contents and starts again; today an
+**If a person forgets their password and has lost their recovery kit, and no device of theirs is unlocked, Wallet has no way to give their wallet back.** An
+unlocked device can show the wallet's cards until it locks. The only way back is **Reset wallet** (a later version), which deletes the wallet's contents and starts again; today an
 account can be deleted from Settings.
 
 ## What 0.1.0 does not do
@@ -105,6 +108,6 @@ for them: the vault, the entries' tiers and kinds, and the sync protocol are spe
 
 ## Licence
 
-AGPL-3.0-or-later, since it bundles [`@sovereignfs/ui`](https://github.com/sovereignfs/sovereign). It uses `age-encryption` (BSD-3-Clause), `bwip-js` (MIT),
+AGPL-3.0-or-later, since it bundles [`@sovereignfs/ui`](https://github.com/sovereignfs/sovereign). It uses `bwip-js` (MIT),
 `zxing-wasm` (MIT, with zxing-cpp under Apache-2.0), `hash-wasm` (MIT) and `idb` (ISC); their licences travel with the image under
 `/usr/share/licenses/`.

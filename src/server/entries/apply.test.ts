@@ -7,7 +7,7 @@ import type { Database } from '../../db/client';
 import { dbAll, dbGet } from '../../db/exec';
 import { makeStore, testTarget } from '../../db/test-support';
 import { applyMutation, pullRows } from './apply';
-import { makeEntry, put, remove, testVault, uuid } from './test-support';
+import { makeEntry, put, remove, uuid } from './test-support';
 
 const { leg } = testTarget();
 const LIMITS: Limits = {
@@ -41,13 +41,14 @@ const rowOf = (id: string) =>
   dbGet<{
     account_id: string;
     version: number | string;
+    key_epoch: number | string;
     shape: unknown;
     body: unknown;
     deleted_at: unknown;
     seq: number | string;
   }>(
     database,
-    sql`SELECT account_id, version, shape, body, deleted_at, seq FROM ${table()} WHERE id = ${id}`,
+    sql`SELECT account_id, version, key_epoch, shape, body, deleted_at, seq FROM ${table()} WHERE id = ${id}`,
   );
 
 describe(`applying a mutation (${leg})`, () => {
@@ -211,22 +212,27 @@ describe(`what the server checks of what it cannot read (${leg})`, () => {
       status: 'refused',
       code: 'invalid',
     });
-    expect(await apply(a, { ...m, wrappedKey: short(m.wrappedKey) })).toEqual({
-      status: 'refused',
-      code: 'invalid',
-    });
     expect(await apply(a, { ...m, shape: '' })).toEqual({ status: 'refused', code: 'invalid' });
   });
 
-  it('refuses a version byte it does not know', async () => {
+  it('refuses a key epoch it does not know, and none at all', async () => {
     const a = account();
     const m = await put(a, await makeEntry(a));
-    const bytes = Buffer.from(m.shape ?? '', 'base64url');
-    bytes[0] = 2;
-    expect(await apply(a, { ...m, shape: toBase64Url(bytes) })).toEqual({
-      status: 'refused',
-      code: 'invalid',
-    });
+    for (const keyEpoch of [0, 2, 1.5, -1])
+      expect(await apply(a, { ...m, keyEpoch }), `${keyEpoch}`).toEqual({
+        status: 'refused',
+        code: 'invalid',
+      });
+    const { keyEpoch: _gone, ...without } = m;
+    expect(await apply(a, without)).toEqual({ status: 'refused', code: 'invalid' });
+  });
+
+  it('keeps the key epoch it was sent, and hands it back', async () => {
+    const a = account();
+    const made = await makeEntry(a);
+    await apply(a, await put(a, made));
+    const row = await rowOf(made.entryId);
+    expect(Number(row?.key_epoch)).toBe(1);
   });
 
   it('refuses a body over the limit, and a shape over 4 KB', async () => {
@@ -315,6 +321,5 @@ describe(`two writers at once (${leg})`, () => {
     expect(Number((await rowOf(made.entryId))?.version)).toBe(2);
     // No number was lost or used twice: the account's counter is the count of what applied.
     expect(await seqOf(a)).toBe(2);
-    void testVault;
   });
 });

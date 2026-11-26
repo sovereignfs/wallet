@@ -3,7 +3,8 @@ import { randomBytes } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { type CardBody, type CardShape, newCard } from '../core/entries';
 import { PROTOCOL_VERSION, parseSyncResponse } from '../core/sync/protocol';
-import { importVaultKey } from '../core/vault';
+import { importRoot } from '../core/vault';
+import { suiteCipher } from '../keys/cipher';
 import type { Limits } from '../config';
 import type { Database } from '../db/client';
 import { makeStore } from '../db/test-support';
@@ -43,8 +44,6 @@ function serverFor(account: string, limits = LIMITS) {
       const answer = parseSyncResponse(await response.json());
       return answer ? { kind: 'ok', answer } : { kind: 'failed', status: response.status };
     },
-    vault: async () => null,
-    createVault: async () => 'created',
   };
   return { state, transport };
 }
@@ -57,15 +56,15 @@ afterEach(() => {
   }
 });
 
-/** One device: its own store, its own keyring, unlocked with the vault key every device of the account has. */
+/** One device: its own store, its own keyring, unlocked with the root every device of the account has. */
 async function device(
   account: string,
   transport: Transport,
-  vaultBytes: Uint8Array,
+  rootBytes: Uint8Array,
   options: { merged?: Merged[]; unlocked?: boolean } = {},
 ) {
   const db = await openLocal(account, `wallet-test-${randomBytes(6).toString('hex')}`);
-  const keyring = new Keyring({ accountId: account, channel: null });
+  const keyring = new Keyring({ accountId: account, channel: null, cipher: suiteCipher });
   open.push({ db, keyring });
   const wallet = new Wallet({
     accountId: account,
@@ -75,7 +74,7 @@ async function device(
     onMerged: (m) => options.merged?.push(m),
   });
   const unlock = async () => {
-    keyring.unlock(await importVaultKey(vaultBytes, 'AAAAAAAAAAAAAAAA'));
+    keyring.unlock({ key: await importRoot(rootBytes), epoch: 1 });
     await wallet.load();
   };
   if (options.unlocked !== false) await unlock();
@@ -182,7 +181,7 @@ describe('the wallet on one device', () => {
     const c = card('Gym');
     await one.wallet.create(c.shape, c.body);
     await one.wallet.sync();
-    // Another device whose vault key is a different one: what it pulls does not open.
+    // Another device whose root is a different one: what it pulls does not open.
     const other = await device(account, transport, randomBytes(32));
     await other.wallet.sync();
     expect(other.wallet.getSnapshot()).toEqual([]);
@@ -388,8 +387,6 @@ describe('a connection that fails', () => {
     const account = accountId();
     const transport: Transport = {
       sync: async () => ({ kind: 'update' }),
-      vault: async () => null,
-      createVault: async () => 'created',
     };
     const { wallet } = await device(account, transport, randomBytes(32));
     const c = card('Gym');

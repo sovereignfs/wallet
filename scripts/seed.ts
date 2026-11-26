@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { Database as AuthStore } from '@sovereignfs/auth/database';
-import { AppVault } from '@sovereignfs/sdk/vault';
+import { formatKit } from '@sovereignfs/sdk/keys';
+import { AppVault, vaultRoute } from '@sovereignfs/sdk/vault';
 import { sql } from 'drizzle-orm';
 import { createAuth } from '../src/auth/auth';
 import type { AuthSettings } from '../src/auth/config';
@@ -12,15 +13,16 @@ import { toBase64Url } from '../src/core/encoding';
 import { type CardColor, type CardType, newCard } from '../src/core/entries';
 import type { MutationWire } from '../src/core/sync/protocol';
 import {
-  createEntryKey,
-  createIdentity,
-  createVaultHeader,
-  importVaultKey,
-  keyFile,
-  openHeader,
-  parseIdentity,
+  FIRST_EPOCH,
+  deriveEntryKey,
+  importRoot,
+  newRoot,
   seal,
+  unwrapRoot,
+  wrapRoot,
 } from '../src/core/vault';
+import { suiteCipher } from '../src/keys/cipher';
+import { keepRoot, readRoots } from '../src/server/keyring';
 import type { Database } from '../src/db/client';
 import type { DatabaseConfig } from '../src/db/config';
 import { getStores } from '../src/db/boot';
@@ -28,18 +30,19 @@ import { dbGet } from '../src/db/exec';
 import * as postgresSchema from '../src/db/schema/postgres';
 import * as sqliteSchema from '../src/db/schema/sqlite';
 import { applyMutation } from '../src/server/entries/apply';
-import { createVault, readVault } from '../src/server/vault';
 import { deletePerson } from '../src/sovereign/people';
 
 /**
- * A wallet for development (DESIGN.md §30, task 20.1). **It is made the way the app makes one:** the same vault format (`src/core/vault`) makes the keys, the
- * header and every sealed value, and the same `applyMutation` the sync endpoint uses stores them, so what it makes is what a browser would have, with the
- * checks the server makes. Nothing is written to a table directly except to take it away.
+ * A wallet for development (DESIGN.md §30, task 20.1). **It is made the way the app makes one:** the SDK's own `localVault` makes the account's keys from the seed
+ * password (with an in-process answer where a browser would ask the server), Wallet's format (`src/core/vault`) makes the keyring root and every sealed value, and
+ * the same `applyMutation` the sync endpoint uses stores them, so what it makes is what a browser would have, with the checks the server makes. Nothing is
+ * written to a table directly except to take it away.
  *
- * - **The key is written to `seed/` (development only):** `seed/wallet-key.txt` opens the seeded wallet in the browser, and `seed/recovery-key.txt` does too.
- *   It refuses to run when `NODE_ENV=production`, and on a database that is not on this machine.
+ * - **The password and the recovery kit are for development only:** the password is `SEED_PASSWORD`, and `seed/recovery-kit.txt` is the kit. Signing in with the
+ *   password opens the seeded wallet in the browser, which asks for a passcode or a passkey for the device once. It refuses to run when `NODE_ENV=production`, and
+ *   on a database that is not on this machine.
  * - **Idempotent.** Every entry's id is derived from the account and a name, so running it again finds them there and changes nothing.
- * - **Removes only its own:** `--reset` and `--remove` delete the seeded account through `People.deletePerson`, and the key files.
+ * - **Removes only its own:** `--reset` and `--remove` delete the seeded account through `People.deletePerson`, and the kit.
  * - It grows with the features: a feature that has a shape worth looking at adds it here, in the task that builds it.
  */
 export const SEED_EMAIL = 'seed@example.test';
@@ -156,8 +159,7 @@ export interface SeedResult {
   readonly created: boolean;
   readonly accountId: string;
   readonly cards: number;
-  readonly keyFile: string;
-  readonly recoveryFile: string;
+  readonly kitFile: string;
 }
 
 async function findUser(auth: AuthStore): Promise<string | undefined> {
@@ -196,6 +198,81 @@ async function signInValue(auth: AuthStore): Promise<string> {
   return (await vault.derive(SEED_PASSWORD, SEED_EMAIL.trim().toLowerCase())).signIn;
 }
 
+/**
+ * The seeded account's keyring root, as a browser would have it: the suite's keys set up from the seed password through `localVault` (the first time), the app
+ * key opened, and the root made, wrapped under it and kept (the first time) or read back and opened. The session's secret is a random one for this run.
+ */
+export async function seedRoot(
+  stores: { app: Database; authStore: AuthStore },
+  accountId: string,
+  kitFile: string,
+  now: number,
+): Promise<CryptoKey> {
+  const { localVault } = await import('@sovereignfs/sdk/local-vault');
+  const origin = 'http://seed.invalid';
+  const vault = new AppVault(stores.authStore);
+  const route = vaultRoute(vault, { origin });
+  const secret = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+  const kept = new Map<string, unknown>();
+  const local = localVault({
+    clientId: 'wallet',
+    vaultId: await vault.vaultId(),
+    path: '/api/keys/vault',
+    secretPath: '/api/auth/sv/key-secret',
+    backend: {
+      get: async (key) => kept.get(key),
+      set: async (key, value) => void kept.set(key, value),
+      delete: async (key) => void kept.delete(key),
+    },
+    fetch: async (input, init) => {
+      const url = new URL(
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+        origin,
+      );
+      if (url.pathname === '/api/auth/sv/key-secret')
+        return Response.json({ sub: accountId, secret });
+      if (url.pathname === '/api/keys/vault') {
+        const headers = new Headers(init?.headers);
+        headers.set('origin', origin);
+        return route(new Request(url, { ...init, headers }), accountId);
+      }
+      return new Response(null, { status: 404 });
+    },
+  });
+  const derived = await local.derive(SEED_PASSWORD, SEED_EMAIL.trim().toLowerCase());
+  if ((await local.afterSignIn(derived.secret)) === 'locked')
+    throw new Error(
+      'the seeded account’s keys do not open with the seed password: run pnpm seed -- --reset',
+    );
+  if (await local.kitPending()) {
+    const kit = crypto.getRandomValues(new Uint8Array(32));
+    if (!(await local.keepKit(kit))) throw new Error('the recovery kit could not be kept');
+    mkdirSync(dirname(kitFile), { recursive: true });
+    writeFileSync(kitFile, `${await formatKit(kit)}\n`, { mode: 0o600 });
+  }
+  const opened = await local.open();
+  if (opened.state !== 'open') throw new Error('the seeded account’s app key did not open');
+  const stored = (await readRoots(stores.app, accountId)).find(
+    (each) => each.epoch === FIRST_EPOCH,
+  );
+  if (stored)
+    return importRoot(await unwrapRoot(opened.key, accountId, FIRST_EPOCH, stored.wrapped));
+  const bytes = newRoot();
+  const wrapped = await wrapRoot(opened.key, accountId, FIRST_EPOCH, bytes);
+  if (
+    !(await keepRoot(
+      stores.app,
+      accountId,
+      { epoch: FIRST_EPOCH, wrapped: Buffer.from(wrapped) },
+      now,
+    ))
+  )
+    throw new Error('the keyring root could not be kept');
+  const root = await importRoot(bytes);
+  bytes.fill(0);
+  return root;
+}
+
 export async function runSeed(
   stores: { app: Database; authStore: AuthStore },
   settings: AuthSettings,
@@ -203,44 +280,14 @@ export async function runSeed(
 ): Promise<SeedResult> {
   const now = options.now ?? Date.now();
   const dir = options.dir ?? SEED_DIR;
-  const walletFile = join(dir, 'wallet-key.txt');
-  const recoveryFile = join(dir, 'recovery-key.txt');
+  const kitFile = join(dir, 'recovery-kit.txt');
   let accountId = await findUser(stores.authStore);
   const created = accountId === undefined;
   accountId ??= await makeUser(stores.authStore, settings);
 
-  // The vault: made once, with a wallet key and a recovery key, written to `seed/` so that a browser can open it.
-  let vaultRecord = await readVault(stores.app, accountId);
-  if (!vaultRecord) {
-    const wallet = await createIdentity();
-    const recovery = await createIdentity();
-    const header = await createVaultHeader([wallet.recipient, recovery.recipient], new Date(now));
-    const made = await createVault(
-      stores.app,
-      accountId,
-      {
-        recipients: [
-          { recipient: wallet.recipient, label: 'wallet', addedAt: now },
-          { recipient: recovery.recipient, label: 'recovery', addedAt: now },
-        ],
-        header: Buffer.from(header.header),
-        vaultKeyId: header.contents.id,
-      },
-      now,
-    );
-    if (!made) throw new Error('the vault could not be made');
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(walletFile, keyFile(wallet, 'wallet', new Date(now)), { mode: 0o600 });
-    writeFileSync(recoveryFile, keyFile(recovery, 'recovery', new Date(now)), { mode: 0o600 });
-    vaultRecord = await readVault(stores.app, accountId);
-  }
-  if (!vaultRecord) throw new Error('the vault is not there');
-  if (!existsSync(walletFile))
-    throw new Error(`the vault exists and ${walletFile} does not: run pnpm seed -- --reset`);
-  const parsed = await parseIdentity(readFileSync(walletFile, 'utf8'));
-  if (!parsed.ok) throw new Error('the key file is not a key');
-  const opened = await openHeader(new Uint8Array(vaultRecord.header), parsed.identity);
-  const vault = await importVaultKey(opened.raw, opened.id);
+  // The account's keys: made once, by the SDK's `localVault` over this database, with the answers a browser would get from the server given in this process.
+  const root = await seedRoot(stores, accountId, kitFile, now);
+  const cipher = suiteCipher;
 
   let made = 0;
   let position = 0;
@@ -263,16 +310,20 @@ export async function runSeed(
       notes: card.notes ?? '',
       position,
     });
-    const { keys, wrapped } = await createEntryKey(vault, accountId, entryId);
+    const key = await deriveEntryKey(cipher, root, accountId, entryId);
     const mutation: MutationWire = {
       id: derivedId(accountId, `${card.name}:mutation`),
       op: 'put',
       entryId,
       baseVersion: 0,
       tier: 'synced',
-      wrappedKey: toBase64Url(wrapped),
-      shape: toBase64Url(await seal(keys.aes, 'shape', accountId, entryId, model.shape)),
-      body: toBase64Url(await seal(keys.aes, 'body', accountId, entryId, model.body)),
+      keyEpoch: FIRST_EPOCH,
+      shape: toBase64Url(
+        await seal(cipher, key, 'shape', accountId, entryId, FIRST_EPOCH, model.shape),
+      ),
+      body: toBase64Url(
+        await seal(cipher, key, 'body', accountId, entryId, FIRST_EPOCH, model.body),
+      ),
     };
     const result = await applyMutation(stores.app, accountId, mutation, {
       now,
@@ -282,7 +333,7 @@ export async function runSeed(
       throw new Error(`the seed was refused (${result.code}) for ${card.name}`);
     made += 1;
   }
-  return { created, accountId, cards: made, keyFile: walletFile, recoveryFile };
+  return { created, accountId, cards: made, kitFile };
 }
 
 export async function removeSeed(
@@ -338,11 +389,9 @@ export async function main(argv: string[]): Promise<number> {
       `${result.created ? 'Made' : 'Found'} ${SEED_EMAIL}; ${result.cards} cards ${result.cards === 0 ? 'were already there' : 'made'}.`,
     );
     console.log(
-      `Sign in with ${SEED_EMAIL} and the password in scripts/seed.ts (SEED_PASSWORD), then unlock with the key in ${result.keyFile}`,
+      `Sign in with ${SEED_EMAIL} and the password in scripts/seed.ts (SEED_PASSWORD); the recovery kit is in ${result.kitFile}.`,
     );
-    console.log(
-      `(or the recovery key in ${result.recoveryFile}). They are for development only and are not committed.`,
-    );
+    console.log('They are for development only and are not committed.');
     return 0;
   } finally {
     await stores.close();

@@ -197,7 +197,7 @@ describe('the worker’s cache', () => {
       ['/settings', { mode: 'navigate' }],
       ['/cards?_rsc=abc', {}],
       ['/api/sync', {}],
-      ['/api/vault', {}],
+      ['/api/keys/root', {}],
       ['/api/auth/get-session', {}],
       ['/_next/static/chunks/a.js', {}],
       ['/icons/icon-192.png', {}],

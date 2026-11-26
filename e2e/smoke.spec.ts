@@ -8,7 +8,9 @@ test('the landing page says what Wallet is, and loads nothing from anywhere else
   const requested: string[] = [];
   page.on('request', (request) => requested.push(request.url()));
   const response = await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Only you can read your wallet' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Your wallet, locked in your browser' }),
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   // The browser talks only to its own server (AGENTS.md).
   const origin = new URL(baseURL ?? '').origin;
@@ -25,7 +27,7 @@ test('the landing page says what Wallet is, and loads nothing from anywhere else
   expect(csp).toContain("frame-ancestors 'none'");
   expect(csp).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
   expect(response?.headers()['x-content-type-options']).toBe('nosniff');
-  expect(response?.headers()['referrer-policy']).toBe('no-referrer');
+  expect(response?.headers()['referrer-policy']).toBe('strict-origin-when-cross-origin');
   expect(response?.headers()['permissions-policy']).toContain('camera=(self)');
 });
 
@@ -74,8 +76,9 @@ test('an address of the signed-in area sends a visitor to sign in, and the API s
 }) => {
   await page.goto('/cards');
   await expect(page).toHaveURL(/\/sign-in/);
-  expect((await request.post('/api/sync', { data: { v: 1 } })).status()).toBe(401);
-  expect((await request.get('/api/vault')).status()).toBe(401);
+  expect((await request.post('/api/sync', { data: { v: 2 } })).status()).toBe(401);
+  expect((await request.get('/api/keys/root')).status()).toBe(401);
+  expect((await request.get('/api/keys/vault')).status()).toBe(401);
 });
 
 test('an address that is nothing is a 404 for a visitor, and a card address that is not an id is too', async ({

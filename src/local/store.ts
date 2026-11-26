@@ -25,25 +25,6 @@ export async function modeOf(db: LocalDatabase): Promise<Mode> {
   return (await db.get('meta', 'mode')) === 'offline' ? 'offline' : 'normal';
 }
 
-/** The vault header and recipients as the server gave them, kept so that unlocking works offline (DESIGN.md §9.3). */
-export interface StoredVault {
-  readonly version: number;
-  readonly header: string;
-  readonly vaultKeyId: string;
-  readonly recipients: readonly {
-    recipient: string;
-    label: 'wallet' | 'recovery';
-    addedAt: number;
-  }[];
-}
-
-export async function vaultOf(db: LocalDatabase): Promise<StoredVault | undefined> {
-  const value = (await db.get('meta', 'vault')) as StoredVault | undefined;
-  return value && typeof value.header === 'string' ? value : undefined;
-}
-
-export const saveVault = (db: LocalDatabase, vault: StoredVault) => db.put('meta', vault, 'vault');
-
 export const allRows = (db: LocalDatabase): Promise<RowWire[]> => db.getAll('entries');
 export const rowOf = (db: LocalDatabase, id: string): Promise<RowWire | undefined> =>
   db.get('entries', id);
@@ -78,7 +59,6 @@ export async function applyAnswer(
     rows: readonly RowWire[];
     cursor: number;
     mode: Mode;
-    vaultVersion: number | null;
   },
 ): Promise<void> {
   const tx = db.transaction(['meta', 'entries', 'outbox'], 'readwrite');
@@ -97,7 +77,6 @@ export async function applyAnswer(
   if (answer.cursor > (typeof held === 'number' ? held : 0))
     await meta.put(answer.cursor, 'cursor');
   await meta.put(answer.mode, 'mode');
-  if (answer.vaultVersion !== null) await meta.put(answer.vaultVersion, 'vaultVersion');
   await tx.done;
 }
 

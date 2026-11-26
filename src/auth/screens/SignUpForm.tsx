@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { signUp, signUpProblem } from '@sovereignfs/auth/client';
 import { SignUpForm as Form, type SignUpValues } from '@sovereignfs/ui';
-import { authClient, deriveForSignIn } from '../client';
+import { kitPath } from '../../keys/vault-client';
+import { authClient, currentVault, deriveForSignIn } from '../client';
 import { passwordPolicy } from '../policy';
 
 /**
@@ -23,7 +24,11 @@ export function SignUpForm({ minLength }: { minLength: number }) {
     setPending(true);
     setError(undefined);
     const result = await signUp(authClient, deriveForSignIn, { ...values, callbackURL: '/' });
-    if (result.outcome === 'signed-in') return window.location.assign('/');
+    if (result.outcome === 'signed-in') {
+      // The keys are made now, from the same password, and the recovery kit is shown before anything else (RFC 0001).
+      await (await currentVault()).afterSignIn(result.secret).catch(() => undefined);
+      return window.location.assign(kitPath());
+    }
     setPending(false);
     if (result.outcome === 'waiting') setWaitingFor(values.email);
     else if (result.outcome === 'refused') setError(result.message);

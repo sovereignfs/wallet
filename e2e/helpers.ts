@@ -10,7 +10,7 @@ let counter = 0;
 export const emailFor = (label: string) =>
   `${label}-${Date.now().toString(36)}-${++counter}@example.com`;
 
-/** Signs up, and lands on setup. */
+/** Signs up, and lands on the recovery kit, which an instance that runs alone shows once, before anything else (RFC 0001). */
 export async function signUp(page: Page, email: string, name = 'Ada Lovelace') {
   await page.goto('/sign-up');
   await page.getByLabel('Name').fill(name);
@@ -20,7 +20,7 @@ export async function signUp(page: Page, email: string, name = 'Ada Lovelace') {
   await submitUntilThrough(
     page,
     'Create account',
-    page.getByRole('button', { name: 'Get started' }),
+    page.getByRole('heading', { name: 'Save your recovery kit' }),
   );
 }
 
@@ -45,56 +45,51 @@ async function submitUntilThrough(
 }
 
 export interface Keys {
-  /** The wallet key's text, as shown once. */
-  readonly identity: string;
-  /** The key file, as downloaded. */
-  readonly file: string;
+  /** The recovery kit's text, as saved from the kit screen. */
+  readonly kit: string;
+}
+
+/** The kit as the file the screen saves holds it: groups of four, joined by dashes. */
+const KIT = /[0-9A-Z]{4}(?:-[0-9A-Z]{4}){3,}/;
+
+/**
+ * The recovery kit, as a person keeps it: saved as a file, and said to be kept. Returns what the file holds, which a test keeps to open the wallet again after a
+ * reset.
+ */
+export async function keepKit(page: Page): Promise<string> {
+  await expect(page.getByRole('heading', { name: 'Save your recovery kit' })).toBeVisible();
+  const [saved] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Save as a file' }).click(),
+  ]);
+  const kit = (await text(saved)).match(KIT)?.[0];
+  expect(kit, 'the kit file holds the kit').toBeTruthy();
+  await page.getByRole('checkbox', { name: /kept my recovery kit/ }).check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  return kit ?? '';
 }
 
 /**
- * Setup, as a person does it: a new key, saved and confirmed, no recovery key (said so), and a passcode. Returns the key, which the test keeps to unlock
- * with the key, and leaves the wallet unlocked on the "ready" screen.
+ * Setup, as a person does it: the recovery kit kept, then how this device unlocks (a passcode, or a passkey): the suite's key has already opened the wallet, and
+ * what is asked is only how the device opens it with no connection. Returns the kit, and leaves the wallet unlocked on the "ready" screen.
  */
 export async function setUp(
   page: Page,
-  options: { passcode?: string | null; passkey?: boolean; recovery?: 'skip' | 'make' } = {},
-): Promise<Keys & { recovery?: string }> {
-  const { passkey = false, recovery = 'skip' } = options;
+  options: { passcode?: string | null; passkey?: boolean; kit?: boolean } = {},
+): Promise<Keys> {
+  const { passkey = false } = options;
   const passcode = options.passcode === undefined ? (passkey ? null : PASSCODE) : options.passcode;
+  const kit = options.kit === false ? '' : await keepKit(page);
+  await finishSetup(page, { passcode, passkey });
+  return { kit };
+}
+
+/** The steps of setup that every device meets: welcome, then a way to unlock the device, then ready. */
+export async function finishSetup(
+  page: Page,
+  { passcode, passkey }: { passcode: string | null; passkey: boolean },
+) {
   await page.getByRole('button', { name: 'Get started' }).click();
-  await expect(page.getByRole('heading', { name: 'Your wallet key' })).toBeVisible();
-
-  const key = page.getByLabel('Your wallet key');
-  await expect(key).toBeVisible();
-  const identity = ((await key.textContent()) ?? '').trim();
-  expect(identity).toMatch(/^AGE-SECRET-KEY-1[A-Z0-9]+$/);
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Download the key file' }).click(),
-  ]);
-  const file = await text(download);
-  expect(file).toContain(identity);
-  await page.getByLabel(/last six characters/).fill(identity.slice(-6).toLowerCase());
-  await page.getByRole('button', { name: 'I have saved my key' }).click();
-
-  await expect(page.getByRole('heading', { name: 'Your recovery key' })).toBeVisible();
-  let recoveryKey: string | undefined;
-  if (recovery === 'skip') {
-    await page.getByRole('checkbox', { name: /nobody can recover my wallet/ }).check();
-    await page.getByRole('button', { name: 'Continue without a recovery key' }).click();
-  } else {
-    const sheet = page.getByRole('article', { name: 'Recovery sheet' });
-    await expect(sheet).toBeVisible();
-    const [saved] = await Promise.all([
-      page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Download it instead' }).click(),
-    ]);
-    recoveryKey = (await text(saved)).match(/AGE-SECRET-KEY-1[A-Z0-9]+/)?.[0];
-    expect(recoveryKey).toBeTruthy();
-    await page.getByLabel(/last six characters/).fill((recoveryKey ?? '').slice(-6));
-    await page.getByRole('button', { name: 'I have kept my recovery key' }).click();
-  }
-
   await expect(page.getByRole('heading', { name: 'Unlock this device' })).toBeVisible({
     timeout: 30_000,
   });
@@ -112,11 +107,8 @@ export async function setUp(
       timeout: 30_000,
     });
     await page.getByRole('button', { name: 'Continue' }).click();
-  } else {
-    await page.getByRole('button', { name: 'Not now' }).click();
   }
   await expect(page.getByRole('heading', { name: 'Your wallet is ready' })).toBeVisible();
-  return { identity, file, ...(recoveryKey ? { recovery: recoveryKey } : {}) };
 }
 
 async function text(download: Download): Promise<string> {
@@ -203,7 +195,7 @@ export async function dumpBrowser(page: Page): Promise<string> {
   });
 }
 
-/** Signs in with the password. A new device then meets the lock screen, since it holds no key of this wallet yet. */
+/** Signs in with the password. The page that follows is the wallet's: set up, on a device that has never opened it (`setUpNewDevice`), or locked. */
 export async function signIn(page: Page, email: string) {
   await page.goto('/sign-in');
   await page.getByLabel('Email').fill(email);
@@ -211,20 +203,13 @@ export async function signIn(page: Page, email: string) {
   await submitUntilThrough(page, 'Sign in', page.getByRole('button', { name: 'User menu' }));
 }
 
-/** The first unlock of a device that has none: the key file, then no quick way (said so). */
-export async function unlockNewDevice(page: Page, keyFile: string) {
-  await expect(page.getByRole('heading', { name: 'Your wallet is locked' })).toBeVisible({
-    timeout: 20_000,
-  });
-  await page.getByLabel('Wallet key or recovery key').fill(keyFile);
-  await page.getByRole('button', { name: 'Unlock with key' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Make unlocking quick on this device' }),
-  ).toBeVisible({ timeout: 20_000 });
-  await page.getByRole('button', { name: 'Not now' }).click();
-  await expect(page.getByRole('heading', { name: 'Your wallet is locked' })).toHaveCount(0, {
-    timeout: 20_000,
-  });
+/**
+ * A device that has never opened the wallet, signed in with the password: the suite's key brings the wallet's root, and the device is set up the way the first one
+ * was (a passcode), which is what lets it open with no connection afterwards.
+ */
+export async function setUpNewDevice(page: Page, passcode = PASSCODE) {
+  await expect(page.getByRole('heading', { name: /^Welcome/ })).toBeVisible({ timeout: 30_000 });
+  await finishSetup(page, { passcode, passkey: false });
 }
 
 /** What the sync loop does when a person comes back to the page: so that a test need not wait the thirty seconds. */

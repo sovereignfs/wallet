@@ -131,14 +131,15 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
   accepts an entry field in plain text. The server's own key (`src/crypto/`) seals only the server's secrets (§8.7), never an entry.
 - **The kind of an entry is in its sealed shape,** never a column. The server sees only `DESIGN.md` §8.5's list; a new column on `entry` is a design
   change.
-- **Keys stay in memory, non-extractable, and go at lock.** The wallet key and recovery key are never stored by Wallet; the vault key and entry keys
-  are `CryptoKey`s with `extractable: false` once loaded; locking clears them, the in-memory index, decrypted object URLs and screen state (§9.1).
+- **Keys stay in memory, non-extractable, and go at lock.** The suite's app key is the SDK's and Wallet never stores it; the keyring root and entry keys
+  are `CryptoKey`s with `extractable: false` once loaded, the root's bytes exist only while a wrapper is made for it and are overwritten; locking clears them,
+  the in-memory index, decrypted object URLs and screen state (§9.1).
 - **The device's store holds ciphertext only:** IndexedDB, Cache Storage and the service worker cache never hold a plaintext entry, and **never
   anything of an Online only entry** (§10.2). The raw-dump test (3.6) guards this and is extended with every new kind.
 - **Tier and mode rules are in the statement:** a body only for `synced` and `server` entries, a `device` tier change only from its holder, no body in
   fully offline mode (§5.2).
-- **The format has one implementation and a specification:** the vault (§8), sync (§11) and backup (§23) formats live in `src/core/` and in
-  `docs/specs/` with test vectors; a change bumps the version byte and updates both. **Never invent a format beside them.**
+- **The format has one implementation and a specification:** what Wallet adds to the suite's cipher (§8), sync (§11) and backup (§23) live in `src/core/` and in
+  `docs/specs/` with test vectors; a change updates both and bumps the version it names. **Never invent a format beside them.**
 - **`src/core/` is portable:** no React, Next.js, `src/server/` or DOM beyond WebCrypto, `TextEncoder`/`TextDecoder` and `fetch` (a lint rule), so a
   native app can take it (§31.2).
 - **A pure figure has one implementation,** in `src/core/`: Due, BMI, units, the test catalogue and conversions, trends, flags, journal aggregates,
@@ -146,7 +147,8 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
 - **Entries are written only through the one path:** `writeEntry` validates, seals, writes the store and the outbox in one transaction; `/api/sync`
   applies it in one short transaction that increments the account's `seq`. A replayed mutation writes nothing. **Conflicts are merged on the device**
   (§11.5). Nothing anyone typed is thrown away: a refused change goes to Couldn't sync.
-- **The vault header, devices, the backup connection, publishing and share links are online operations,** decided by the server at once.
+- **The keyring root's first record, the suite's key records, devices, the backup connection, publishing and share links are online operations,** decided by
+  the server at once.
 - **A person's rows carry `account_id`; the permission is in the statement.** A refusal reads as not found. A route, operation or mutation finds the
   session first, checks `Origin` on a write, is listed in `src/access/routes.ts`, and has a test calling it as a second person. Phase 3's `/c/<slug>`
   and `/s/<id>` are the only routes without a session.
@@ -165,7 +167,7 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
 - **The browser talks only to its own server.** No third-party load or request; WebAssembly modules, the pdf.js worker and fonts are served by Wallet.
   The only navigation elsewhere is the person opening a Google Wallet link (§20.2). What people write is rendered as text, never HTML.
 - **The database has three forms and two dialects:** a schema and migrations per dialect, generated with `pnpm db:generate`, never written by hand or
-  `push`ed; standard SQL, values bound; no `LISTEN/NOTIFY`, trigger, extension or foreign key; every deletion names what it deletes, in a transaction;
+  `push`ed (a change of data only, which no diff of the schema makes, is a `--custom` one, whose statements are written once); standard SQL, values bound; no `LISTEN/NOTIFY`, trigger, extension or foreign key; every deletion names what it deletes, in a transaction;
   short transactions, nothing held across a call to core, SMTP or GitHub. A data-layer test runs on sqld, a `file:` database and PostgreSQL. **Tests
   read `WALLET_TEST_*` and never the app's variables, and never reach the internet.**
 - **A released migration is never edited:** a fix is a new migration.
@@ -177,7 +179,7 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
   by design); Hanken Grotesk served by the app. **Reusable UI is built in `@sovereignfs/ui` in `sovereign`, released, then used** (epic 21), never
   forked here.
 - **Never fork a navigation decision by viewport;** fork only what is rendered. Every chart has a list of the same.
-- **User-facing words are "wallet", "entry", "card", "document", "family member", "Me", "wallet key", "recovery key", "lock", "unlock", "This device
+- **User-facing words are "wallet", "entry", "card", "document", "family member", "Me", "recovery kit", "lock", "unlock", "This device
   only", "Synced", "Online only", "Fully offline", "Due", "backup file", "app"** (`DESIGN.md` §4), never "vault", "tier", "stub", "blob", "DEK",
   "plugin", "tenant", "client", "E2EE" or "dependant".
 - **Next.js tracks the latest stable release.** Read the guide bundled with the installed version (`node_modules/next/dist/docs/`) before writing Next
@@ -190,7 +192,7 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
 As Tusk's: `pnpm install --frozen-lockfile` for every routine install; `pnpm-workspace.yaml` carries pnpm's settings and the Dockerfile copies it;
 pnpm refuses a release less than a day old and an install script nobody decided on (each in `allowBuilds` is decided in its task); an exception in
 `minimumReleaseAgeExclude` only for a package of ours, exact-pinned. Never accept pnpm's offer to add one. **Cryptographic dependencies**
-(`age-encryption`, `hash-wasm`) are pinned exactly and updated only in a PR of their own that reruns the format's test vectors.
+(`hash-wasm`, and `@sovereignfs/sdk`, whose cipher is the suite's) are pinned exactly and updated only in a PR of their own that reruns the format's test vectors.
 
 ## Commands
 
@@ -204,14 +206,15 @@ pnpm refuses a release less than a day old and an install script nobody decided 
 | `pnpm boot-check`                                               | A built server against the database the environment names                                                                            |
 | `pnpm db:generate <name>`, `pnpm db:dev`                        | Generate a migration for both dialects and both stores; start sqld or PostgreSQL in Docker                                           |
 | `pnpm manifest:check`                                           | `sovereign.manifest.json` is valid                                                                                                   |
-| `pnpm seed`, `pnpm seed -- --reset`, `--remove`                 | A development wallet with its key in `seed/` (never in production)                                                                   |
+| `pnpm seed`, `pnpm seed -- --reset`, `--remove`                 | A development wallet with its recovery kit in `seed/` (never in production)                                                          |
 | `scripts/deploy-check.sh`                                       | Bring the image up in every documented setup                                                                                         |
 
 ## Layout
 
 `app/` routes (one signed-in page for every address of the area, `app/(app)/[...path]`, which the browser turns into a screen from the address), `src/core/`
-(portable: `vault/`, `entries/`, `sync/`; no React, Next.js, Node or DOM), `src/keyring/` (keys in memory, locking, unlock wrappers), `src/local/` (the device's
-store, the wallet, the sync loop), `src/server/` (entries and the vault header: stores ciphertext, never imports `src/core/vault`), `src/barcode/` (drawing and
+(portable: `vault/`, `entries/`, `sync/`; no React, Next.js, Node, DOM or `@sovereignfs/*`), `src/keys/` (the suite's key in the page, over both modes, and the SDK's
+cipher), `src/keyring/` (keys in memory, locking, unlock wrappers), `src/local/` (the device's store, the wallet, the sync loop), `src/server/` (entries and the wrapped
+keyring root: stores ciphertext, never imports `src/core/vault`), `src/barcode/` (drawing and
 scanning codes), `src/screens/` and `src/ui/` (the screens), `src/db/`, `src/auth/`, `src/crypto/` (the server's own key), `src/sovereign/` (core's notices and
 `People.deletePerson`), `src/admin/` (the operator's tool, bundled into `tools/`), `src/config/`, `src/security/`, `src/sw/`, `src/jobs/`, `src/limits/`, `src/access/` (the table of routes), `docs/specs/` (the
 formats), `docs/research/`, `docs/epics/`, `migrations/`, `deploy/`, `e2e/`, `scripts/`.

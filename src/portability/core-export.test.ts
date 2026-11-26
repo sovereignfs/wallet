@@ -11,7 +11,7 @@ import { MAX_BODY_BYTES } from '../sovereign/notices';
 import { EXPORT_RATE, answerCoreExport, personRecords, toRecords } from './core-export';
 
 /**
- * A person's part of core's export (`signIn.export`): their vault and their entries, as the server stores them, sealed, and nothing of anyone else's or of
+ * A person's part of core's export (`signIn.export`): their wrapped roots and their entries, as the server stores them, sealed, and nothing of anyone else's or of
  * what was deleted.
  */
 const { leg } = testTarget();
@@ -42,8 +42,8 @@ describe(`a person’s part (${leg})`, () => {
     const t = database.dialect === 'postgres' ? postgresSchema : sqliteSchema;
     await dbRun(
       database,
-      sql`INSERT INTO ${t.entry} (id, account_id, tier, holder_device_id, version, seq, wrapped_key, shape, body, file_count, bytes, deleted_at, created_at, updated_at)
-          VALUES (${crypto.randomUUID()}, ${accountId}, 'synced', NULL, 1, 1, ${Buffer.from('wrapped')}, ${Buffer.from('shape')}, ${Buffer.from(body)}, 0, 10, ${deletedAt}, 1, 1)`,
+      sql`INSERT INTO ${t.entry} (id, account_id, tier, holder_device_id, version, seq, key_epoch, shape, body, file_count, bytes, deleted_at, created_at, updated_at)
+          VALUES (${crypto.randomUUID()}, ${accountId}, 'synced', NULL, 1, 1, 1, ${Buffer.from('shape')}, ${Buffer.from(body)}, 0, 10, ${deletedAt}, 1, 1)`,
     );
   }
 
@@ -53,8 +53,8 @@ describe(`a person’s part (${leg})`, () => {
     const t = database.dialect === 'postgres' ? postgresSchema : sqliteSchema;
     await dbRun(
       database,
-      sql`INSERT INTO ${t.vault} (account_id, version, recipients, header, vault_key_id, state, created_at, updated_at)
-          VALUES (${ada}, 1, '[]', ${Buffer.from('age header')}, 'k1', 'active', 1, 1)`,
+      sql`INSERT INTO ${t.keyring} (account_id, epoch, wrapped_root, created_at)
+          VALUES (${ada}, 1, ${Buffer.alloc(60, 7)}, 1)`,
     );
     await entry(ada, 'ada’s card');
     await entry(ada, 'ada’s deleted card', 2);
@@ -62,10 +62,10 @@ describe(`a person’s part (${leg})`, () => {
   });
   afterAll(async () => database.close());
 
-  it('holds the vault and every entry that is not deleted, sealed as stored, marked end to end', async () => {
+  it('holds the wrapped root and every entry that is not deleted, sealed as stored, marked end to end', async () => {
     const parts = await personRecords(database, ada);
     expect(parts.map((each) => [each.kind, each.records.length, each.endToEnd])).toEqual([
-      ['vault', 1, true],
+      ['keyring', 1, true],
       ['entry', 1, true],
     ]);
     const body = parts.find((each) => each.kind === 'entry')?.records[0]?.body;

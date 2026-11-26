@@ -12,7 +12,7 @@
 export type RouteAccess = { kind: 'public'; because?: string } | { kind: 'account' };
 
 export interface RouteRule {
-  /** The route as the app router spells it: `/api/vault`. */
+  /** The route as the app router spells it: `/api/sync`. */
   route: string;
   /** For an API route, each method it answers. A page has none. */
   methods?: Record<string, RouteAccess>;
@@ -30,6 +30,10 @@ export const ROUTES: RouteRule[] = [
   { route: '/reset-password', page: { kind: 'public' } },
   // The page the service worker keeps (DESIGN.md §26.6): the same for everyone, with nothing of an account in it. Who is signed in is read on the device.
   { route: '/shell', page: { kind: 'public' } },
+  // The key's return and the recovery kit (RFC 0001): core sends a person back to `/keys/return` with the app's key sealed to their browser, and the kit is shown once after
+  // an instance that runs alone makes a person's keys. Both are for someone signed in, and each redirects where the instance has no such step.
+  { route: '/keys/return', page: { kind: 'account' } },
+  { route: '/keys/kit', page: { kind: 'account' } },
   // The app, for someone signed in: Home (the front address `/` shows it to someone signed in, the proxy rewriting it to `/home`, and `/home` itself is sent
   // back to `/`), setup, the cards, a card, showing it and Settings. The layout around it (`app/(app)/layout.tsx`) finds who, and the page asks for itself as
   // well. The server renders this one page; **the browser chooses the screen from the address** (`src/screens/AppRoutes.tsx`), so that moving about works with
@@ -39,8 +43,6 @@ export const ROUTES: RouteRule[] = [
   // APIs
   // The one door every write to an entry comes through (DESIGN.md §11.3): the account is the session's, and the server applies what a device sends only to it.
   { route: '/api/sync', methods: { POST: { kind: 'account' } } },
-  // The vault header and its recipients (DESIGN.md §7.4, §8.1): read by the account's devices, made once. Only public keys and a sealed header; the account is the session's.
-  { route: '/api/vault', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
   // Wallet's own vault, for an instance that runs alone (DESIGN.md §7.4, sdk §9.5): the account's keys, wrapped, which the SDK's `vaultRoute` serves for the session's
   // account and takes a change to only from this app's origin. 404 when hosted, where the keys are core's.
   { route: '/api/keys/vault', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },

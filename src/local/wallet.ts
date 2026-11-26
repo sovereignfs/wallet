@@ -1,5 +1,5 @@
 import { type Body, type Shape, parseBody, parseShape } from '../core/entries';
-import { fromBase64Url, toBase64Url } from '../core/encoding';
+import { toBase64Url } from '../core/encoding';
 import { merge } from '../core/sync/merge';
 import {
   MAX_MUTATIONS,
@@ -8,7 +8,8 @@ import {
   type Refusal,
   type RowWire,
 } from '../core/sync/protocol';
-import { createEntryKey, seal } from '../core/vault';
+import { seal } from '../core/vault';
+import { suiteCipher } from '../keys/cipher';
 import type { Keyring } from '../keyring/keyring';
 import type { LocalDatabase, OutboxItem, RefusedItem } from './db';
 import { type Opened, openSealed, sealedOfRow } from './open';
@@ -182,7 +183,7 @@ export class Wallet {
     if (last?.mutation.op === 'put')
       sealed = {
         id,
-        wrappedKey: last.mutation.wrappedKey ?? '',
+        keyEpoch: last.mutation.keyEpoch ?? 0,
         shape: last.mutation.shape ?? null,
         body: last.mutation.body ?? null,
       };
@@ -250,30 +251,34 @@ export class Wallet {
       if (!parsed.ok) throw new InvalidEntry(parsed.reason);
       checkedBody = parsed.value;
     }
-    const vault = this.keyring.vaultKey;
     const row = await store.rowOf(this.db, id);
     const pending = await store.pendingFor(this.db, id);
     const last = pending.at(-1);
 
-    let wrappedKey: string;
-    let keys;
+    let keyEpoch: number;
     if (isNew) {
       if (row || last) throw new InvalidEntry('That entry already exists.');
-      const made = await createEntryKey(vault, this.accountId, id);
-      wrappedKey = toBase64Url(made.wrapped);
-      keys = made.keys;
-      this.keyring.rememberEntryKeys(id, keys);
+      // A new entry's key is derived from the root the wallet is unlocked with: nothing is made, wrapped or sent for it, so this works with no signal.
+      keyEpoch = this.keyring.epoch;
     } else {
-      // The key of the latest change that carries one (a delete carries none), or the server's row.
-      const lastPut = [...pending].reverse().find((item) => item.mutation.wrappedKey);
-      wrappedKey = lastPut?.mutation.wrappedKey ?? row?.wrappedKey ?? '';
-      const bytes = fromBase64Url(wrappedKey);
-      if (!bytes) throw new InvalidEntry('That entry is not here.');
-      keys = await this.keyring.entryKeys(id, bytes);
+      // The epoch of the latest change that carries one (a delete carries none), or the server's row.
+      const lastPut = [...pending].reverse().find((item) => item.mutation.keyEpoch !== undefined);
+      const known = lastPut?.mutation.keyEpoch ?? row?.keyEpoch;
+      if (known === undefined) throw new InvalidEntry('That entry is not here.');
+      keyEpoch = known;
     }
-    const sealedShape = await seal(keys.aes, 'shape', this.accountId, id, checkedShape.value);
+    const key = await this.keyring.entryKey(id, keyEpoch);
+    const sealedShape = await seal(
+      suiteCipher,
+      key,
+      'shape',
+      this.accountId,
+      id,
+      keyEpoch,
+      checkedShape.value,
+    );
     const sealedBody = checkedBody
-      ? await seal(keys.aes, 'body', this.accountId, id, checkedBody)
+      ? await seal(suiteCipher, key, 'body', this.accountId, id, keyEpoch, checkedBody)
       : undefined;
 
     const mutation: MutationWire = {
@@ -282,7 +287,7 @@ export class Wallet {
       entryId: id,
       baseVersion: last ? last.mutation.baseVersion + 1 : (row?.version ?? 0),
       tier: 'synced',
-      wrappedKey,
+      keyEpoch,
       shape: toBase64Url(sealedShape),
       ...(sealedBody ? { body: toBase64Url(sealedBody) } : {}),
     };
@@ -361,7 +366,7 @@ export class Wallet {
           tier: m.tier,
           version: each.version,
           seq: each.seq,
-          wrappedKey: m.wrappedKey ?? item.base?.wrappedKey ?? '',
+          keyEpoch: m.keyEpoch ?? item.base?.keyEpoch ?? 1,
           shape: m.op === 'put' ? (m.shape ?? null) : null,
           body: m.op === 'put' ? (m.body ?? null) : null,
           deletedAt: m.op === 'delete' ? now : null,
@@ -375,7 +380,6 @@ export class Wallet {
         rows: answer.rows,
         cursor: answer.cursor,
         mode: answer.mode,
-        vaultVersion: answer.vaultVersion,
       });
       applied += appliedRows.length;
       pulled += answer.rows.length;
@@ -401,19 +405,9 @@ export class Wallet {
         }
       }
       for (const id of touched) await this.refresh(id);
-      await this.refreshVault(answer.vaultVersion);
       if (!answer.more && !merged) return { status: 'ok', applied, refused, pulled };
     }
     return { status: 'ok', applied, refused, pulled };
-  }
-
-  /** Keeps the device's copy of the vault header current: a device that has an older one fetches the new one. */
-  private async refreshVault(serverVersion: number | null): Promise<void> {
-    if (serverVersion === null) return;
-    const held = await store.vaultOf(this.db);
-    if (held && held.version >= serverVersion) return;
-    const vault = await this.transport.vault();
-    if (vault) await store.saveVault(this.db, vault);
   }
 
   /**
@@ -446,17 +440,15 @@ export class Wallet {
       return true;
     }
 
-    const keys = await this.keyring.entryKeys(
-      entryId,
-      fromBase64Url(last.mutation.wrappedKey ?? '') ?? new Uint8Array(),
-    );
+    const keyEpoch = last.mutation.keyEpoch ?? fresh.keyEpoch;
+    const key = await this.keyring.entryKey(entryId, keyEpoch);
     const open = async (
-      sealed: { id: string; wrappedKey: string; shape: string | null; body: string | null } | null,
+      sealed: { id: string; keyEpoch: number; shape: string | null; body: string | null } | null,
     ) => (sealed ? openSealed(this.accountId, this.keyring, sealed, true) : null);
     const base = await open(first.base ? sealedOfRow(first.base) : null);
     const mine = await open({
       id: entryId,
-      wrappedKey: last.mutation.wrappedKey ?? '',
+      keyEpoch,
       shape: last.mutation.shape ?? null,
       body: last.mutation.body ?? null,
     });
@@ -491,9 +483,17 @@ export class Wallet {
       await store.refuse(this.db, entryId, 'invalid', this.now());
       return false;
     }
-    const sealedShape = await seal(keys.aes, 'shape', this.accountId, entryId, checkedShape.value);
+    const sealedShape = await seal(
+      suiteCipher,
+      key,
+      'shape',
+      this.accountId,
+      entryId,
+      keyEpoch,
+      checkedShape.value,
+    );
     const sealedBody = checkedBody?.ok
-      ? await seal(keys.aes, 'body', this.accountId, entryId, checkedBody.value)
+      ? await seal(suiteCipher, key, 'body', this.accountId, entryId, keyEpoch, checkedBody.value)
       : undefined;
     await store.replacePending(this.db, entryId, {
       mutation: {
@@ -502,7 +502,7 @@ export class Wallet {
         entryId,
         baseVersion: fresh.version,
         tier: last.mutation.tier,
-        wrappedKey: last.mutation.wrappedKey ?? '',
+        keyEpoch,
         shape: toBase64Url(sealedShape),
         ...(sealedBody ? { body: toBase64Url(sealedBody) } : {}),
       },

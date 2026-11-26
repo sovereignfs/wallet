@@ -62,7 +62,6 @@ COPY --from=build /app/node_modules/@sovereignfs/ui/LICENSE /usr/share/licenses/
 COPY --from=build /app/node_modules/@sovereignfs/ui/NOTICE /usr/share/licenses/sovereignfs-ui/NOTICE
 COPY --from=build /app/node_modules/zxing-wasm/LICENSE /usr/share/licenses/zxing-wasm/LICENSE
 COPY --from=build /app/node_modules/hash-wasm/LICENSE /usr/share/licenses/hash-wasm/LICENSE
-COPY --from=build /app/node_modules/age-encryption/LICENSE /usr/share/licenses/age-encryption/LICENSE
 COPY --from=build /app/node_modules/bwip-js/LICENSE /usr/share/licenses/bwip-js/LICENSE
 
 # The database file, when the instance keeps one (WALLET_SQLITE_URL=file:/data/wallet.db), and nothing else, is written. The directory is the
