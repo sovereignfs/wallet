@@ -215,7 +215,7 @@ export async function setUpNewDevice(page: Page, passcode = PASSCODE) {
   await finishSetup(page, { passcode, passkey: false });
 }
 
-/** What the sync loop does when a person comes back to the page: so that a test need not wait the thirty seconds. */
+/** What the page says when a person comes back to it, which the sync loop syncs on. */
 export async function syncNow(page: Page) {
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
 }

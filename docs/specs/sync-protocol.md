@@ -116,7 +116,8 @@ the transaction. A refusal takes no number. It **reads nothing of an entry but i
 ## What a device does
 
 - **Writes never wait.** A change is sealed, and written to the store and the **outbox** (with the row it started from) in one transaction; the loop sends it
-  a moment later, when the page loads or comes into view, when the connection returns, and every 30 seconds while visible, one tab at a time.
+  a moment later, and also syncs when the page loads or is returned to, when the connection returns, and again after an attempt that did not get through; never
+  by the clock alone (DESIGN.md §11.3). One tab at a time.
 - **A response is applied in one transaction:** the rows of the mutations that applied are put in the store as the device now knows them (so that a long
   pull cannot make them disappear for a moment), the pulled rows replace older ones (a row of a lower version is ignored), the outbox items that were
   answered are removed, and the cursor moves. Applying a response twice changes nothing.

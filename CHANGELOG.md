@@ -29,6 +29,8 @@ then shown a **recovery kit, once**, and everyone starts a new wallet. A device 
 - **A password alone now opens a wallet on a new device** (it did not before: the wallet key was a file kept apart). A weak password is therefore attackable offline by whoever
   copies the database, at the cost of Argon2id, as in every app of the suite. **Wallet does not yet tell you when a new device signs in** (devices and notices are not built).
 - **The recovery kit replaces the wallet key and the recovery key.** There is no key file to keep, and no sheet to print; the kit is the way back after a reset of the password.
+- **An open wallet no longer asks its server every 30 seconds.** It syncs when there is a reason to: after a change, when you open or return to it, when the connection comes back,
+  and at an unlock after a while; an attempt that fails is tried again after 30 seconds, then less often. A change made on another device shows at your next return or reload.
 - The sync protocol is version 2. The referrer policy is `strict-origin-when-cross-origin` (Sovereign needs it to release the key silently). The manifest asks for the key's return
   (`encryption.return`), so a Sovereign that hosts Wallet must release keys to apps, and its operator allow it for this one.
 - `pnpm seed` makes the development account's keys with the SDK and writes `seed/recovery-kit.txt` (no key files).
@@ -38,6 +40,7 @@ then shown a **recovery kit, once**, and everyone starts a new wallet. A device 
 - The wallet's mark filled the whole lock screen; it is the size of the sign-in screen's now.
 - **A page taller than the window can be scrolled.** It was cut off at the bottom and nothing moved, on the signed-in screens and the front page alike; the navigation now also
   runs to the bottom of the window on a page with little on it.
+- **Background sync now reaches Wallet.** The browser woke the page when a connection returned after a change made without one, and nothing in the page was listening.
 
 ### Removed
 

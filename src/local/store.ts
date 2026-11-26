@@ -76,7 +76,8 @@ export async function applyAnswer(
   const held = await meta.get('cursor');
   if (answer.cursor > (typeof held === 'number' ? held : 0))
     await meta.put(answer.cursor, 'cursor');
-  await meta.put(answer.mode, 'mode');
+  // An answer with nothing new writes nothing.
+  if ((await meta.get('mode')) !== answer.mode) await meta.put(answer.mode, 'mode');
   await tx.done;
 }
 

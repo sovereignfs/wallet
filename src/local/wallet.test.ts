@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { randomBytes } from 'node:crypto';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { type CardBody, type CardShape, newCard } from '../core/entries';
 import { PROTOCOL_VERSION, parseSyncResponse } from '../core/sync/protocol';
 import { importRoot } from '../core/vault';
@@ -187,6 +187,22 @@ describe('the wallet on one device', () => {
     expect(other.wallet.getSnapshot()).toEqual([]);
     expect(other.wallet.unopenedEntries()).toHaveLength(1);
     expect((await other.db.getAll('entries')).length).toBe(1);
+  });
+
+  it('writes nothing on the device when a sync brings nothing new', async () => {
+    const account = accountId();
+    const { wallet } = await device(account, serverFor(account).transport, randomBytes(32));
+    await wallet.sync();
+    const put = vi.spyOn(IDBObjectStore.prototype, 'put');
+    const add = vi.spyOn(IDBObjectStore.prototype, 'add');
+    try {
+      expect((await wallet.sync()).status).toBe('ok');
+      expect(put).not.toHaveBeenCalled();
+      expect(add).not.toHaveBeenCalled();
+    } finally {
+      put.mockRestore();
+      add.mockRestore();
+    }
   });
 });
 

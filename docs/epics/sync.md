@@ -60,13 +60,15 @@ plaintext in the store.
 **Goal:** writes never wait, and reach the server. **Design:** §11.1, §11.3. **Depends on:** 4.2, 4.3.
 
 **Technical:** `writeEntry(kind, model, tier)` validates, seals, and writes store and outbox in one IndexedDB transaction; the loop from Tusk
-(debounce, load, focus, online, 30 seconds while visible, Background Sync where available, Web Locks for one tab, BroadcastChannel to others), running
+(debounce, load, focus, online, a retry after a failure, Background Sync where available, Web Locks for one tab, BroadcastChannel to others), running
 while locked; refusals other than `stale` go to a **Couldn't sync** list (Settings > Storage) with the reason in a sentence and Retry or Discard.
 
 **Accepts when:** an entry written offline appears on a second context after going online; a refused write appears in Couldn't sync and is not lost;
 the loop keeps running while locked.
 
 **Done as:** `Wallet.create/update/remove` (validate, seal, write the outbox in one transaction), `src/local/loop.ts` (debounce, load, focus, online, 30 seconds while visible, one tab at a time through a Web Lock, Background Sync registered where there is one), and Couldn't sync in Settings, Storage with Retry and Discard. The loop keeps running while locked.
+
+**Since 2026-11-26 the loop differs from Tusk's** (the owner's decision): there is no 30-second timer. It tries again only after an attempt that did not get through (30 seconds doubling to 5 minutes, while visible) or when another tab was busy; a return to a tab makes one request, an unlock syncs if the last one is not recent, and an answer with nothing new writes nothing. Background Sync had registered and woken the pages since 0.1.0 with **no page listening**; the loop listens now.
 
 #### ✅ 4.5 — Merging a stale edit
 

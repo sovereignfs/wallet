@@ -553,8 +553,11 @@ carries what was applied, what was refused and why, the account's `mode` and new
   the mutation id recorded so a replay writes nothing.
 - **Pull** returns rows past the cursor, paged: a Synced entry with its body, an Online only or Device only entry with its shape only, and tombstones.
   Files are fetched apart (§11.6).
-- **A device syncs** after a write (debounced), on load, on focus, on coming online, every 30 seconds while visible, and through Background Sync where
-  there is one; one tab at a time (Web Locks). A protocol version travels with each request; a device too old is told to update and keeps its outbox.
+- **A device syncs when there is a reason to, and not by the clock:** after a write (debounced), on load, on being returned to (focus or visibility,
+  one request), on coming online, at an unlock if the last sync is not recent, and through Background Sync where there is one, when something waits. An
+  attempt that did not get through is tried again while the page is visible, after 30 seconds and then twice as long each time, up to 5 minutes. One tab
+  at a time (Web Locks). So an idle wallet sends nothing, and a change made on another device shows at the next of these. A protocol version travels
+  with each request; a device too old is told to update and keeps its outbox.
 
 ### 11.4 What the server checks
 
@@ -1498,3 +1501,4 @@ None waits on a decision. These wait on an input:
 | 2026-11-25 | **A snapshot is not encrypted again;** it opens with the account's key                                                                                   | An outer age layer would be a format of Wallet's own beside the suite's                                                                                                                             |
 | 2026-11-26 | **A reload keeps the wallet open** within the lock times, and the suite's key stays until sign-out, so that it works after a code or passkey unlock too  | The owner's decision (RFC 0001, amendment 3): accepted that a lock is then held by the app, over an encrypted copy of the root per tab                                                              |
 | 2026-11-26 | **No home screen:** Wallet opens on Cards, with what needs attention at its top                                                                          | The owner's decision                                                                                                                                                                                |
+| 2026-11-26 | **No sync by the clock:** a device syncs when there is a reason to, and tries again only after a failure                                                 | A wallet changes seldom, and 30-second polling asked 120 times an hour for nothing (the owner's decision)                                                                                           |

@@ -216,9 +216,12 @@ export function WalletProvider({
           });
           setSettingUp(false);
         }
-        // Changes that waited for the keys are merged as soon as they are there.
-        if (state === 'unlocked')
-          void wallet.mergeWaiting().then((again) => again && loop?.request());
+        if (state === 'unlocked') {
+          // What is shown is brought up to date, if the last sync is not recent: a locked page may not have been returned to since.
+          loop.catchUp();
+          // Changes that waited for the keys are merged as soon as they are there.
+          void wallet.mergeWaiting().then((again) => again && loop.request());
+        }
       });
       // Use and visibility: the idle and hidden locks (DESIGN.md §9.2).
       const touch = () => {
