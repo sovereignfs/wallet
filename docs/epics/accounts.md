@@ -88,7 +88,8 @@ entries offers both choices and "erase" empties IndexedDB.
 
 **Goal:** what a signed-out visitor sees. **Design:** §26.5. **Depends on:** 1.8.
 
-**Technical:** `/` signed out: what Wallet is, the one-line promise ("Only you can read your wallet"), sign-in and, where allowed, sign-up; no
+**Technical:** `/` signed out: what Wallet is, the one-line promise ("Only you can read your wallet"; since 0.7.0 "Your wallet, locked in your browser", since Wallet makes no
+promise against whoever runs the server), sign-in and, where allowed, sign-up; no
 third-party content.
 
 **Accepts when:** the page renders at both widths in both themes, with no request to another origin.

@@ -9,7 +9,7 @@
   },
   "type": "module",
   "packageManager": "pnpm@11.28.9",
-  "description": "Wallet: the private things you carry, encrypted so that only you can read them, offline first, on its own or on a Sovereign instance.",
+  "description": "Wallet: the private things you carry, encrypted in your browser, offline first, on its own or on a Sovereign instance.",
   "engines": {
     "node": ">=24.15 <25"
   },

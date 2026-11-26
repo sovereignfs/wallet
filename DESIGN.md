@@ -1110,7 +1110,7 @@ restart and by every process.
   "manifest": 2,
   "prefix": "wallet",
   "name": "Wallet",
-  "description": "Your cards, documents and health records, encrypted so only you can read them, and working offline",
+  "description": "Your cards, documents and health records, encrypted in your browser, and working offline",
   "icon": "/icons/icon.svg",
   "port": 3006,
   "health": "/api/health",

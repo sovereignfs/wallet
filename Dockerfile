@@ -36,7 +36,7 @@ ARG PORT
 RUN test -n "${PORT}" || { echo 'Build with: eval "docker build $(pnpm exec sovereign-manifest docker-args) ."' >&2; exit 1; }
 
 LABEL org.opencontainers.image.title="Wallet" \
-      org.opencontainers.image.description="The private things you carry, readable only by you" \
+      org.opencontainers.image.description="The private things you carry, encrypted in your browser" \
       org.opencontainers.image.source="https://github.com/sovereignfs/wallet" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
