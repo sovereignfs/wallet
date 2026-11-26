@@ -46,6 +46,8 @@ export const ROUTES: RouteRule[] = [
   // Wallet's own vault, for an instance that runs alone (DESIGN.md §7.4, sdk §9.5): the account's keys, wrapped, which the SDK's `vaultRoute` serves for the session's
   // account and takes a change to only from this app's origin. 404 when hosted, where the keys are core's.
   { route: '/api/keys/vault', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
+  // The account's own password again, as its sign-in value, before the page makes or opens its keys with it (DESIGN.md §9.4): counted per account, 404 when hosted.
+  { route: '/api/keys/confirm', methods: { POST: { kind: 'account' } } },
   // The account's wrapped keyring root (DESIGN.md §7.4, §8.1), in both modes: a key wrapped under the suite's app key, made once per epoch by the first device. The account is the session's.
   { route: '/api/keys/root', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
   // Deleting the account (DESIGN.md §28): standalone, what it would do and doing it with the password; in suite mode it is core's, so the preview says where

@@ -414,8 +414,13 @@ Each device keeps one or more **unlock wrappers** in its store: the root, wrappe
 
 Signing in proves the account to the server and needs a network, and **signing in also opens the suite's key** (a password derives the unlocking value; hosted, core releases the app key), which is what
 fetches the root onto a device. **Unlocking proves the key to the device and happens every time,** offline, with the wrapper. So day to day, **Face ID is the way in**, as the owner asked, and
-the password is the way back in after a new device or a reset. Hosted, signing in through Sovereign and the key's release are core's two redirects, silent while core's session is unlocked; **for the
-release to be silent the page must send its origin as the referrer** (§30). Nothing of the wallet depends on a file the person must keep: the kit is the way back after a reset.
+the password is the way back in after a new device or a reset. Hosted, signing in through Sovereign is one redirect and the key's release another, **one press on the lock screen** (Unlock
+through Sovereign), which core answers without asking while its session is unlocked; **for that the page must send its origin as the referrer** (§30). Nothing of the wallet depends on a file the
+person must keep: the kit is the way back after a reset.
+
+**A password typed at the lock screen or in Settings is first confirmed by the server** (its sign-in value, `/api/keys/confirm`, wrong ones counted per account), and only then given to the vault:
+an account that has no keys yet (one older than 0.7.0 whose session is still alive, or a sign-up that could not reach the vault) is given them from the first secret the vault sees, so a typo
+would otherwise become the keys' password.
 
 ## 10. Entries and where they live
 

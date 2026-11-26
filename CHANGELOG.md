@@ -10,8 +10,9 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
 **Before upgrading, read this: a wallet made by an earlier version is not carried over.** The encryption changed to the suite's, and the two cannot open each other. When this version
 starts, the entries of every account (they are ciphertext that nothing can open any more) are deleted from the database, and each browser clears what it held of them at its next
-visit. **If anyone's wallet matters, they should export what they need by hand before you upgrade**; there is no way back from the upgrade. Accounts and passwords are not touched:
-each person signs in as before, is shown a **recovery kit once** (on an instance that runs alone), and starts a new wallet. A device that has not been updated is told to, and keeps what it had until then.
+visit. **If anyone's wallet matters, they should export what they need by hand before you upgrade**; there is no way back from the upgrade. Accounts and passwords are not touched.
+Someone still signed in finds their wallet locked and types their password (hosted, unlocks through Sovereign); anyone else signs in as before. On an instance that runs alone they are
+then shown a **recovery kit, once**, and everyone starts a new wallet. A device that has not been updated is told to, and keeps what it had until then.
 
 ### Changed
 

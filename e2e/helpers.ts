@@ -11,17 +11,20 @@ export const emailFor = (label: string) =>
   `${label}-${Date.now().toString(36)}-${++counter}@example.com`;
 
 /** Signs up, and lands on the recovery kit, which an instance that runs alone shows once, before anything else (RFC 0001). */
-export async function signUp(page: Page, email: string, name = 'Ada Lovelace') {
+export async function signUp(
+  page: Page,
+  email: string,
+  name = 'Ada Lovelace',
+  arrived: ReturnType<Page['getByRole']> = page.getByRole('heading', {
+    name: 'Save your recovery kit',
+  }),
+) {
   await page.goto('/sign-up');
   await page.getByLabel('Name').fill(name);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByLabel('Confirm password').fill(PASSWORD);
-  await submitUntilThrough(
-    page,
-    'Create account',
-    page.getByRole('heading', { name: 'Save your recovery kit' }),
-  );
+  await submitUntilThrough(page, 'Create account', arrived);
 }
 
 /**

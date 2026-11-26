@@ -25,7 +25,8 @@ import { fetchTransport } from '../local/transport';
 import { type Merged, type OpenEntry, Wallet } from '../local/wallet';
 
 /** What opening with the account came to: the root, or why not. `away` is a page being left (core's release, or the recovery kit). */
-export type AccountResult = RootResult | { readonly ok: false; readonly reason: 'wrong' | 'away' };
+export type AccountResult =
+  RootResult | { readonly ok: false; readonly reason: 'wrong' | 'limited' | 'signed-out' | 'away' };
 
 /**
  * Everything a signed-in screen shares (DESIGN.md §9.1, §11.1): this account's device store, the keyring, the wallet over them and the sync loop, made once in

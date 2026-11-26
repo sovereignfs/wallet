@@ -6,14 +6,15 @@ import {
   emailFor,
   finishSetup,
   goTo,
+  keepKit,
   setUp,
   signUp,
   unlockWithPasscode,
 } from './helpers';
 
 /**
- * The ways round a lock that is not opened the usual way (DESIGN.md §9): the recovery kit that comes before the wallet, a password asked for with no network, and a
- * device that has lost its passcode, which the account opens again and sets up anew.
+ * The ways round a lock that is not opened the usual way (DESIGN.md §9): the recovery kit that comes before the wallet, a password asked for with no network, a
+ * mistyped password for an account that has no keys yet, and a device that has lost its passcode, which the account opens again and sets up anew.
  */
 test.setTimeout(120_000);
 
@@ -77,4 +78,37 @@ test('five wrong passcodes delete the passcode, and the password opens the walle
   await page.getByRole('button', { name: 'Go to Home' }).click();
   await goTo(page, 'Cards');
   await expect(page.getByRole('link', { name: /Still here/ })).toBeVisible({ timeout: 20_000 });
+});
+
+test('a mistyped password does not become the keys’ password, for an account that has none yet', async ({
+  page,
+}) => {
+  // An account with a live session and no keys, as one older than 0.7.0 is after the upgrade: signed up while the vault could not be reached.
+  await page.route('**/api/keys/vault**', (route) => route.abort());
+  await signUp(
+    page,
+    emailFor('typo'),
+    'Ada Lovelace',
+    page.getByRole('heading', { name: 'Connect to open your wallet' }),
+  );
+  await page.unroute('**/api/keys/vault**');
+  await page.reload();
+
+  const keys = async () =>
+    ((await (await page.request.get('/api/keys/vault')).json()) as { value: { account?: unknown } })
+      .value.account;
+  await expect(page.getByRole('heading', { name: 'Your wallet is locked' })).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByLabel('Your password').fill('correct horse batery');
+  await page.getByRole('button', { name: 'Unlock with my password' }).click();
+  await expect(page.getByText(/does not open your wallet/)).toBeVisible({ timeout: 30_000 });
+  expect(await keys(), 'no keys are made from a typo').toBeUndefined();
+
+  // The right one makes them, and the recovery kit comes before the wallet.
+  await page.getByLabel('Your password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Unlock with my password' }).click();
+  await keepKit(page);
+  expect(await keys()).toBeDefined();
+  await finishSetup(page, { passcode: PASSCODE, passkey: false });
 });
