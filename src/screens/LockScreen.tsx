@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import { deriveInWorker } from '../keyring/derive';
 import {
@@ -20,13 +20,16 @@ import { useWallet } from './WalletProvider';
  * The lock screen (DESIGN.md §9, §26.2): it replaces everything while the wallet is locked. Unlocking is the daily way in and needs no connection: a passkey
  * (Face ID, a fingerprint) or a device passcode. **With neither on this device, or after five wrong passcodes, the suite's key opens it**: the password, for an
  * instance that runs alone, or Sovereign's release, hosted, which needs the network and brings the root back so that a way to unlock can be made again.
+ *
+ * **A box is read when its form is sent,** since a password manager can fill it without telling the page; no button waits for the page to hear of it, and an empty
+ * box is the browser's to ask for.
  */
 export function LockScreen() {
   const { db, keyring, openWithAccount, unlockWith } = useWallet();
   const keys = useKeys();
   const [methods, setMethods] = useState<UnlockWrapper[] | null>(null);
-  const [passcode, setPasscode] = useState('');
-  const [password, setPassword] = useState('');
+  const passcodeBox = useRef<HTMLInputElement>(null);
+  const passwordBox = useRef<HTMLInputElement>(null);
   const [useAccount, setUseAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -55,7 +58,7 @@ export function LockScreen() {
         setMethods(await unlockMethods(db));
         setUseAccount(true);
       }
-      if (result === 'ok') setPasscode('');
+      if (result === 'ok' && passcodeBox.current) passcodeBox.current.value = '';
     } catch {
       setError('That did not work. Try again, or use your password.');
     } finally {
@@ -73,7 +76,7 @@ export function LockScreen() {
         if (result.reason !== 'away') setError(accountProblem(result.reason));
         return;
       }
-      setPassword('');
+      if (passwordBox.current) passwordBox.current.value = '';
       // The root goes straight in; a device with no way to unlock it is asked for one, in setup, while the root is in hand (`WalletProvider`).
       await unlockWith(result.material);
     } catch {
@@ -127,6 +130,7 @@ export function LockScreen() {
                 className={styles.stack}
                 onSubmit={(event) => {
                   event.preventDefault();
+                  const passcode = passcodeBox.current?.value ?? '';
                   void run(
                     () => unlockWithPasscode(db, keyring, passcode, deriveInWorker),
                     'That passcode is not right.',
@@ -137,15 +141,15 @@ export function LockScreen() {
                   {(field) => (
                     <Input
                       {...field}
+                      ref={passcodeBox}
                       type="password"
                       autoComplete="off"
-                      value={passcode}
-                      onChange={(event) => setPasscode(event.target.value)}
+                      required
                     />
                   )}
                 </FormField>
                 <div>
-                  <Button type="submit" loading={busy} disabled={passcode === ''}>
+                  <Button type="submit" loading={busy}>
                     Unlock
                   </Button>
                 </div>
@@ -163,7 +167,7 @@ export function LockScreen() {
                   className={styles.stack}
                   onSubmit={(event) => {
                     event.preventDefault();
-                    void withAccount(password);
+                    void withAccount(passwordBox.current?.value ?? '');
                   }}
                 >
                   <FormField
@@ -173,15 +177,15 @@ export function LockScreen() {
                     {(field) => (
                       <Input
                         {...field}
+                        ref={passwordBox}
                         type="password"
                         autoComplete="current-password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
+                        required
                       />
                     )}
                   </FormField>
                   <div>
-                    <Button type="submit" loading={busy} disabled={password === ''}>
+                    <Button type="submit" loading={busy}>
                       Unlock with my password
                     </Button>
                   </div>

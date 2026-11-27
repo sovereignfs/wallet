@@ -6,6 +6,14 @@ All notable changes to Wallet are recorded here. The format follows [Keep a Chan
 Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
 titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
+## [0.7.1] - 2026-11-27
+
+### Fixed
+
+- **A password or passcode filled in by a password manager is now used.** On the lock screen, in Settings (changing how this device unlocks, and deleting
+  the account) and where a passcode is set, the box is read when you press the button. Before, it could look empty to Wallet: the button stayed greyed out,
+  or the passcode was called too short. The sign-in, sign-up and reset forms are not changed by this.
+
 ## [0.7.0] - 2026-11-26
 
 **Before upgrading, read this: a wallet made by an earlier version is not carried over.** The encryption changed to the suite's, and the two cannot open each other. When this version

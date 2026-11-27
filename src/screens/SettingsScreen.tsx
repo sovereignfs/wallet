@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from './nav';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Button,
@@ -77,7 +77,8 @@ function Security() {
   const keys = useKeys();
   const [methods, setMethods] = useState<number | null>(null);
   const [asking, setAsking] = useState(false);
-  const [password, setPassword] = useState('');
+  // Read when Continue is pressed, since a password manager can fill the box without telling the page.
+  const passwordBox = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [material, setMaterial] = useState<Material | null>(null);
   const [busy, setBusy] = useState(false);
@@ -100,11 +101,17 @@ function Security() {
         return;
       }
       setAsking(false);
-      setPassword('');
       setMaterial(result.material);
     } finally {
       setBusy(false);
     }
+  }
+
+  function proceed() {
+    const typed = passwordBox.current?.value ?? '';
+    // No form is round the box to ask for it, so an empty one is said here, and nothing is sent.
+    if (keys.kind !== 'core' && typed === '') return setError('Type your password.');
+    void reveal(typed);
   }
 
   return (
@@ -200,20 +207,15 @@ function Security() {
                     {(field) => (
                       <Input
                         {...field}
+                        ref={passwordBox}
                         type="password"
                         autoComplete="current-password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
                       />
                     )}
                   </FormField>
                 )}
                 <div className={screens.row}>
-                  <Button
-                    loading={busy}
-                    disabled={keys.kind !== 'core' && password === ''}
-                    onClick={() => void reveal(password)}
-                  >
+                  <Button loading={busy} onClick={proceed}>
                     Continue
                   </Button>
                   <Button variant="ghost" onClick={() => setAsking(false)}>
@@ -386,7 +388,8 @@ function Storage() {
 function Account({ email }: { email: string }) {
   const { accountId, keyring, db, loop } = useWallet();
   const [open, setOpen] = useState(false);
-  const [password, setPassword] = useState('');
+  // Read when the deletion is confirmed, since a password manager can fill the box without telling the page.
+  const passwordBox = useRef<HTMLInputElement>(null);
   const [typed, setTyped] = useState('');
   const [needsPassword, setNeedsPassword] = useState(true);
   // Core's address in suite mode (DESIGN.md §25.1), where the account is looked after and deleted; null alone, and until the server has said.
@@ -406,10 +409,12 @@ function Account({ email }: { email: string }) {
 
   async function remove() {
     setError(null);
+    const password = passwordBox.current?.value ?? '';
+    if (needsPassword && password === '') return setError('Type your password.');
     setBusy(true);
     try {
       // The password is never sent (auth.md §4, rule 1): what the server checks is the sign-in value the page makes from it.
-      const value = needsPassword && password ? await signInValue(password, email) : '';
+      const value = needsPassword ? await signInValue(password, email) : '';
       const response = await fetch('/api/account/delete', {
         method: 'POST',
         credentials: 'same-origin',
@@ -501,10 +506,9 @@ function Account({ email }: { email: string }) {
                 {(field) => (
                   <Input
                     {...field}
+                    ref={passwordBox}
                     type="password"
                     autoComplete="current-password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
                   />
                 )}
               </FormField>
@@ -513,9 +517,7 @@ function Account({ email }: { email: string }) {
         }
         confirmLabel={busy ? 'Deleting…' : 'Delete everything'}
         destructive
-        pending={
-          busy || typed.trim().toLowerCase() !== 'delete' || (needsPassword && password === '')
-        }
+        pending={busy || typed.trim().toLowerCase() !== 'delete'}
         error={error}
         onConfirm={() => void remove()}
       />
