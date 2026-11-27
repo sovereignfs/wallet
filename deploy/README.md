@@ -44,7 +44,7 @@ The smallest setup of all is one `docker run`, with no Compose:
 ```bash
 docker run -d -p 127.0.0.1:3006:3006 -v wallet:/data \
   -e WALLET_DB_DIALECT=sqlite -e WALLET_SQLITE_URL=file:/data/wallet.db \
-  -e WALLET_URL=https://wallet.example.com -e WALLET_AUTH_LOCAL=1 \
+  -e WALLET_URL=https://wallet.example.com -e WALLET_AUTH_LOCAL=true \
   -e WALLET_AUTH_SECRET="$(openssl rand -base64 48)" -e WALLET_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
   ghcr.io/sovereignfs/wallet
 ```

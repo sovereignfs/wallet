@@ -223,7 +223,8 @@ send mail. **It is the only personal data the server can read,** and Settings sa
 
 **Standalone, `closed` (the first account only) unless `WALLET_AUTH_SIGNUP` says `open`.** A closed sign-up answers every address alike, and says
 nothing of whether one has an account; an open one with no mail cannot, since it signs the person in at once, and says an address is taken. In suite mode (§25.1) it has nothing to decide: who may sign up is
-core's, and signing in through core always gets an account (`app-manifest.md` §4). Wallet has no invitations until phase 4 (§31.1).
+core's, and signing in through core always gets an account (`app-manifest.md` §4). Wallet has no invitations until phase 4 (§31.1), so `invite`, the
+suite's mode for an app that issues them (`contracts/env.md` §2), is read as `closed`.
 
 ### 6.3 Devices
 
@@ -1074,10 +1075,10 @@ Few, and about the account, since the server cannot read entries:
 store of its own (`wallet_auth`, opened again in the package's shape, `src/auth/store.ts`). **An instance signs people in one way, never both**, as
 Shopper's (its §15.1), from one image:
 
-| Mode                                     | Who signs in, and how                                                                                                                                                                                                                           |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Suite mode** (`WALLET_CORE_*` are set) | Everyone, through core: the package's `./core` on the SDK's steps (PKCE, matched by `sub`), `WALLET_CORE_URL` being the instance's own address                                                                                                  |
-| **Standalone mode** (no core)            | Everyone, with Wallet's own accounts (`WALLET_AUTH_LOCAL=1`): a password, passkeys and an authenticator app with backup codes; verified, and a reset asked for, by mail when set up; a reset link an operator makes (`wallet-admin`) needs none |
+| Mode                                     | Who signs in, and how                                                                                                                                                                                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Suite mode** (`WALLET_CORE_*` are set) | Everyone, through core: the package's `./core` on the SDK's steps (PKCE, matched by `sub`), `WALLET_CORE_URL` being the instance's own address                                                                                                     |
+| **Standalone mode** (no core)            | Everyone, with Wallet's own accounts (`WALLET_AUTH_LOCAL=true`): a password, passkeys and an authenticator app with backup codes; verified, and a reset asked for, by mail when set up; a reset link an operator makes (`wallet-admin`) needs none |
 
 - **In suite mode `/sign-in` and `/sign-up` show nothing:** someone with a session goes to the front address, anyone else straight to
   `/api/auth/sign-in/sovereign`, and `/sign-up` asks core to open its sign-up page (`prompt=create`: Sovereign 0.140.0 or later; before it, core shows
@@ -1097,7 +1098,7 @@ Shopper's (its §15.1), from one image:
   every session of the account when it is used. It is the package's `resetLink` and nothing else: it runs no migration, opens no app store, prints only the link on the standard
   output and says nothing of it that holds the link or the address, and refuses in suite mode, where the passwords are Sovereign's (core has `sovereign-admin accounts
 reset-link` for those). **A reset gives back the account, not the wallet's keys:** it replaces the sign-in value but cannot open the account key, so the person unlocks with the recovery kit and chooses the new password for it (§7.5), and a lost authenticator app is not reset by it.
-- **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=1`) **starts in suite mode** and says once at start-up that its local
+- **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=true`) **starts in suite mode** and says once at start-up that its local
   sign-in is off and which settings to remove; nothing else changes. Its password accounts cannot sign in while it is in suite mode.
 - **There is no linking** of a core account and a local one: an instance has one kind. A person is their better-auth user id; a `sub` is identity; an
   email is never matched to an account at sign-in. A session through core is checked against core every hour, and signing out of one goes through core.
@@ -1368,7 +1369,7 @@ One image (Debian, for libSQL), not root, on port 3006, and three Compose setups
 
 ```bash
 docker run -v wallet:/data -e WALLET_DB_DIALECT=sqlite -e WALLET_SQLITE_URL=file:/data/wallet.db \
-  -e WALLET_URL=https://wallet.example.com -e WALLET_AUTH_LOCAL=1 -e WALLET_AUTH_SECRET=… -e WALLET_ENCRYPTION_KEY=… ghcr.io/sovereignfs/wallet
+  -e WALLET_URL=https://wallet.example.com -e WALLET_AUTH_LOCAL=true -e WALLET_AUTH_SECRET=… -e WALLET_ENCRYPTION_KEY=… ghcr.io/sovereignfs/wallet
 ```
 
 - **Settings:** the shared names of `contracts/env.md`, and Wallet's own: `WALLET_WORKER`; the limits of §29.5; `WALLET_GITHUB_APP_*`,

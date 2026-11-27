@@ -94,6 +94,21 @@ describe('sign-in settings', () => {
     expect(authOf(loadConfig(ON))?.signUp).toBe('closed');
   });
 
+  it('read invite as closed, alone and hosted, since Wallet issues no invitations', () => {
+    expect(authOf(loadConfig({ ...ON, WALLET_AUTH_SIGNUP: 'invite' }))?.signUp).toBe('closed');
+    const hosted = { WALLET_URL: ON.WALLET_URL, WALLET_AUTH_SECRET: SECRET, ...CORE };
+    expect(authOf(loadConfig({ ...hosted, WALLET_AUTH_SIGNUP: 'INVITE' }))?.signUp).toBe('closed');
+  });
+
+  it('say a switch is true or false, and still read 1 and 0', () => {
+    expect(problems(loadConfig({ ...ON, WALLET_AUTH_LOCAL: 'yes' }))).toContain(
+      'WALLET_AUTH_LOCAL is true or false.',
+    );
+    expect(authOf(loadConfig({ ...ON, WALLET_AUTH_LOCAL: '1' }))?.local).toBe(true);
+    expect(authOf(loadConfig({ ...ON, WALLET_AUTH_LOCAL: 'true' }))?.local).toBe(true);
+    expect(authOf(loadConfig({ WALLET_AUTH_LOCAL: '0' }))).toBeUndefined();
+  });
+
   it('read the proxies in front of Wallet as addresses and ranges, and name a wrong entry by its place and never by what it says', () => {
     expect(authOf(loadConfig(ON))?.trustedProxies).toEqual([]);
     expect(

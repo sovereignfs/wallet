@@ -5,7 +5,7 @@ import { isAddressOrRange } from '../limits/address';
  * How people sign in (DESIGN.md §6), checked once at start-up with the other settings (`src/config/index.ts`), which is why this reads through
  * a function it is given and not the environment. A wrong setting is a problem that stops the server, and no message carries a value.
  *
- *   WALLET_AUTH_LOCAL                 1 or true: email and password. Off means off: `/sign-in`, `/sign-up` and `/api/auth` answer 404. Never on
+ *   WALLET_AUTH_LOCAL                 true: email and password (1 is read too). Off means off: `/sign-in`, `/sign-up` and `/api/auth` answer 404. Never on
  *                                    with a core: see below.
  *   WALLET_AUTH_SECRET[_FILE]         32 characters or more, to sign sessions and tokens. Required with either way in.
  *   WALLET_AUTH_SIGNUP                `closed` (the default with local sign-in): the first account is made and then sign-up is refused, by the
@@ -107,9 +107,12 @@ export function resolveAuth(
 
   // Unset, it is closed, unless a core is the only way in: then the core already decides who may sign in, and closed would admit only the
   // first of its people (contracts/app-manifest.md §4 in sovereignfs/sovereign).
-  const rawSignUp = (read('WALLET_AUTH_SIGNUP') ?? '').toLowerCase() || (local ? 'closed' : 'open');
+  const givenSignUp =
+    (read('WALLET_AUTH_SIGNUP') ?? '').toLowerCase() || (local ? 'closed' : 'open');
+  // `invite` is the contract's mode for an app that issues invitations. Wallet issues none, so it is `closed` here (contracts/env.md §2).
+  const rawSignUp = givenSignUp === 'invite' ? 'closed' : givenSignUp;
   if (rawSignUp !== 'open' && rawSignUp !== 'closed') {
-    problems.push('WALLET_AUTH_SIGNUP is open or closed.');
+    problems.push('WALLET_AUTH_SIGNUP is open, closed or invite.');
   }
 
   const rawLength = read('WALLET_AUTH_PASSWORD_MIN_LENGTH');
@@ -205,11 +208,14 @@ function isLocalHost(hostname: string): boolean {
   );
 }
 
-/** A switch is 1 or true to be on, 0 or false (or nothing) to be off; anything else is a mistake and is not guessed at. */
+/**
+ * A switch is `true` to be on and `false` (or nothing) to be off; `1` and `0` are read as well, as Wallet's documents wrote them before. Anything else is a mistake
+ * and is not guessed at.
+ */
 function readFlag(read: Read, name: string, problems: Problem[]): boolean {
   const value = read(name)?.toLowerCase();
   if (value === undefined || value === '0' || value === 'false') return false;
   if (value === '1' || value === 'true') return true;
-  problems.push(`${name} is 1 or 0.`);
+  problems.push(`${name} is true or false.`);
   return false;
 }

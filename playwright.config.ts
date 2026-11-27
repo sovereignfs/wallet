@@ -113,7 +113,7 @@ export default defineConfig({
         ...BLANK,
         ...database,
         WALLET_URL: `http://localhost:${PORTS.app}`,
-        WALLET_AUTH_LOCAL: '1',
+        WALLET_AUTH_LOCAL: 'true',
         WALLET_AUTH_SECRET: SECRET,
         WALLET_AUTH_SIGNUP: 'open',
         WALLET_ENCRYPTION_KEY: 'e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0',
