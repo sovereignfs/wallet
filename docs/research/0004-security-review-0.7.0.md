@@ -87,7 +87,10 @@ whether it is still open.
    `e2e/account.spec.ts`, both seen to fail before). Whether the store of a frozen tab is then deleted **was not checked.**
 9. **Low. The root's bytes are not always overwritten.** Settings keeps them from the password until Done: a lock, or leaving the screen, drops them
    without overwriting; and each way of unlocking made takes a copy that is never overwritten (`SettingsScreen.tsx`, `UnlockMethods.tsx`).
-   **Checked.** §9.1 and the rules of the code say they are. _Open._
+   **Checked.** §9.1 and the rules of the code say they are. _Fixed in 0.7.1:_ every copy made for WebCrypto or for a new way to unlock is overwritten
+   (`withCopy`; `root.test.ts` and `wrappers.test.ts`, seen to fail before), and Settings overwrites what it holds when it lets it go or goes. The
+   last is **checked** only, with no test, and bytes that arrive after the screen has gone are still not overwritten.
+
 10. **Low. Tabs do not behave as written.** A new tab opened beside an unlocked one opens without asking (**reproduced**), where §9.2 says a new tab
     asks: it does only when no tab is unlocked. And each tab times its own use, so one left hidden, or unused, locks the tab being used
     (**reproduced** in the keyring: after 66 seconds and after 306). The second errs toward locking. _Open. Fix:_ say which is meant, and share the

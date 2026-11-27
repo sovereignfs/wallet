@@ -1,4 +1,4 @@
-import { concat, copy, encoder, randomBytes } from './bytes';
+import { concat, copy, encoder, randomBytes, withCopy } from './bytes';
 import type { SuiteCipher } from './cipher';
 import { MalformedError, TamperedError } from './errors';
 
@@ -38,10 +38,12 @@ export async function wrapRoot(
 ): Promise<Uint8Array<ArrayBuffer>> {
   if (root.length !== ROOT_BYTES) throw new MalformedError();
   const nonce = randomBytes(NONCE_BYTES);
-  const sealed = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce, additionalData: rootAadOf(accountId, epoch) },
-    appKey,
-    copy(root),
+  const sealed = await withCopy(root, async (bytes) =>
+    crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: nonce, additionalData: rootAadOf(accountId, epoch) },
+      appKey,
+      bytes,
+    ),
   );
   return concat(nonce, new Uint8Array(sealed));
 }
@@ -73,7 +75,9 @@ export async function unwrapRoot(
 /** The root, loaded so that it can derive and nothing else, and cannot be read back. */
 export async function importRoot(raw: Uint8Array): Promise<CryptoKey> {
   if (raw.length !== ROOT_BYTES) throw new MalformedError();
-  return crypto.subtle.importKey('raw', copy(raw), 'HKDF', false, ['deriveBits']);
+  return withCopy(raw, (bytes) =>
+    crypto.subtle.importKey('raw', bytes, 'HKDF', false, ['deriveBits']),
+  );
 }
 
 /** What the key of an entry is derived with: binding the key to the account and the entry, so that one entry's key tells nothing of another's. */

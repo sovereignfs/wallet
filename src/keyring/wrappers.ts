@@ -1,4 +1,4 @@
-import { copy, encoder, randomBytes } from '../core/vault/bytes';
+import { copy, encoder, randomBytes, withCopy } from '../core/vault/bytes';
 import { importRoot } from '../core/vault';
 import type { LocalDatabase, UnlockWrapper } from '../local/db';
 import {
@@ -41,12 +41,17 @@ const aadOf = (kind: 'passkey' | 'passcode', epoch: number) =>
   encoder.encode(`wallet/v2/unlock|${kind}|${epoch}`);
 
 async function encrypt(key: CryptoKey, iv: Uint8Array, aad: Uint8Array, plain: Uint8Array) {
-  return new Uint8Array(
-    await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: copy(iv), additionalData: copy(aad) },
-      key,
-      copy(plain),
-    ),
+  // What is encrypted here is the root, or a wrapping of it: no copy made of it is left.
+  return withCopy(
+    plain,
+    async (bytes) =>
+      new Uint8Array(
+        await crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv: copy(iv), additionalData: copy(aad) },
+          key,
+          bytes,
+        ),
+      ),
   );
 }
 

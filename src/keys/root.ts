@@ -54,8 +54,9 @@ export async function openRoot(
     // The account's first device: a root is made here, wrapped, and offered; the server keeps the first one it is given, and a device that raced answers with the
     // stored one, which is what is used.
     const root = newRoot();
-    const wrapped = await wrapRoot(appKey, accountId, FIRST_EPOCH, root);
-    root.fill(0);
+    const wrapped = await wrapRoot(appKey, accountId, FIRST_EPOCH, root).finally(() =>
+      root.fill(0),
+    );
     let kept: Response;
     try {
       kept = await fetcher('/api/keys/root', {

@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { createHmac, randomBytes } from 'node:crypto';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { deriveEntryKey, importRoot, open, seal } from '../core/vault';
 import { suiteCipher } from '../keys/cipher';
 import { type LocalDatabase, openLocal } from '../local/db';
@@ -55,6 +55,36 @@ async function worksAs(keyring: Keyring, raw: Uint8Array) {
   expect(await open(suiteCipher, mine, 'shape', 'acct', 'e1', 1, sealed)).toEqual({ ok: true });
 }
 
+/** The copies of `secret` that are handed to the browser's cryptography while `run` runs: each as it was given, to be looked at afterwards. */
+async function handedOver(secret: Uint8Array, run: () => Promise<unknown>): Promise<Uint8Array[]> {
+  const seen: Uint8Array[] = [];
+  const note = (data: unknown) => {
+    if (data instanceof Uint8Array && data.length === secret.length)
+      if (data.every((byte, i) => byte === secret[i])) seen.push(data);
+  };
+  const subtle = crypto.subtle;
+  const importKey = subtle.importKey.bind(subtle);
+  const encrypt = subtle.encrypt.bind(subtle);
+  const spies = [
+    vi.spyOn(subtle, 'importKey').mockImplementation(((...args: Parameters<typeof importKey>) => {
+      note(args[1]);
+      return importKey(...args);
+    }) as never),
+    vi.spyOn(subtle, 'encrypt').mockImplementation(((...args: Parameters<typeof encrypt>) => {
+      note(args[2]);
+      return encrypt(...args);
+    }) as never),
+  ];
+  try {
+    await run();
+  } finally {
+    for (const spy of spies) spy.mockRestore();
+  }
+  return seen;
+}
+const overwritten = (copies: Uint8Array[]) =>
+  copies.map((copy) => copy.every((byte) => byte === 0));
+
 /** Everything in the store, as bytes, to look for what must not be there. */
 async function dump(db: LocalDatabase): Promise<string> {
   const parts: string[] = [];
@@ -68,6 +98,24 @@ async function dump(db: LocalDatabase): Promise<string> {
   }
   return parts.join('\n');
 }
+
+describe('the copies of the root a wrapper makes', () => {
+  it('are overwritten, making a passcode or a passkey and unlocking with either', async () => {
+    const { db, keyring, raw, material } = await fresh();
+    const { api } = virtualAuthenticator();
+    for (const step of [
+      () => enrollPasscode(db, material, 'correct horse', 1, cheap),
+      () => unlockWithPasscode(db, keyring, 'correct horse', cheap),
+      () => enrollPasskey(db, material, 'This phone', 2, api, 'wallet.test'),
+      () => unlockWithPasskey(db, keyring, api, 'wallet.test'),
+    ]) {
+      const copies = await handedOver(raw, step);
+      expect(copies.length).toBeGreaterThan(0);
+      expect(overwritten(copies)).not.toContain(false);
+    }
+    expect(material.raw).toEqual(raw);
+  });
+});
 
 describe('unlocking with a device passcode', () => {
   it('opens with the right passcode, to the same vault key, and the store holds neither the key nor the passcode', async () => {

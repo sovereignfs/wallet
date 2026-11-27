@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
+import { withCopy } from '../core/vault/bytes';
 import { deriveInWorker } from '../keyring/derive';
 import {
   PASSCODE_MIN_LENGTH,
@@ -56,12 +57,9 @@ export function UnlockMethods({
     setError(null);
     setBusy('passkey');
     try {
-      // The root's bytes are copied, so that making a wrapper cannot spoil the ones the caller still holds.
-      await enrollPasskey(
-        db,
-        { raw: new Uint8Array(material.raw), epoch: material.epoch },
-        'This device',
-        Date.now(),
+      // A copy, so that a lock that overwrites the caller's own bytes meanwhile cannot spoil the wrapper; the copy is overwritten once it is made.
+      await withCopy(material.raw, (raw) =>
+        enrollPasskey(db, { raw, epoch: material.epoch }, 'This device', Date.now()),
       );
       setMethods(await unlockMethods(db));
     } catch (failure) {
@@ -84,12 +82,8 @@ export function UnlockMethods({
       return setError('The two passcodes are not the same.');
     setBusy('passcode');
     try {
-      await enrollPasscode(
-        db,
-        { raw: new Uint8Array(material.raw), epoch: material.epoch },
-        passcode,
-        Date.now(),
-        deriveInWorker,
+      await withCopy(material.raw, (raw) =>
+        enrollPasscode(db, { raw, epoch: material.epoch }, passcode, Date.now(), deriveInWorker),
       );
       if (passcodeBox.current) passcodeBox.current.value = '';
       if (againBox.current) againBox.current.value = '';

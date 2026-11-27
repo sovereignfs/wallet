@@ -35,6 +35,22 @@ export function copy(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
   return out;
 }
 
+/**
+ * Runs `use` on a copy of secret bytes, and **overwrites the copy** once it is done, however it ends. WebCrypto takes its own copy of what it is given before it
+ * returns, so overwriting afterwards changes nothing it does. The caller's own bytes are left as they are.
+ */
+export async function withCopy<T>(
+  bytes: Uint8Array,
+  use: (copied: Uint8Array<ArrayBuffer>) => Promise<T>,
+): Promise<T> {
+  const copied = copy(bytes);
+  try {
+    return await use(copied);
+  } finally {
+    copied.fill(0);
+  }
+}
+
 export function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }

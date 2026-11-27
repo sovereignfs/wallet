@@ -84,6 +84,8 @@ function Security() {
   const passwordBox = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [material, setMaterial] = useState<Material | null>(null);
+  // The root's bytes are overwritten when this screen lets go of them, or goes with them, as it does at a lock or when the person moves on (§9.1).
+  useEffect(() => () => void material?.raw.fill(0), [material]);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(
