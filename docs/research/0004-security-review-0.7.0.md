@@ -98,7 +98,7 @@ whether it is still open.
     time of last use between tabs.
 11. **Low. Two statements in the documents are wrong.** §9.3 and `wrappers.ts` give the passkey's PRF salt as `wallet/v1/unlock`; the code and the
     specification use `wallet/v2/unlock`. §9.2 says a hosted wallet also has core's lock, which closes the app key; Wallet's side of that lock is not
-    built (RFC 0001). _Open._
+    built (RFC 0001). _Fixed in 0.7.1:_ both are corrected.
 
 ## Known and accepted, still true
 
@@ -113,5 +113,6 @@ whether it is still open.
 
 ## Next
 
-Take `ui` 0.107.4 for finding 3 before publishing, and give findings 4 to 11 a task or a reason. Then check passkeys and the locks on real phones
-(task 3.17), try the hosted release against a real core, and have the format and the keyring reviewed by someone outside the project (task 20.8).
+Take `ui` 0.107.4 for finding 3 before publishing, and give findings 4, 5, 6 and 10 a task or a reason. Then check passkeys and the locks on real
+phones (task 3.17), try the hosted release against a real core, and have the format and the keyring reviewed by someone outside the project (task
+20.8).

@@ -15,7 +15,7 @@ import type { Keyring } from './keyring';
  * the device's store, so that unlocking works with no network and no server (the suite's own key, which needs the server, brings the root to a new device and
  * back after a wrapper is gone).
  *
- *  - **A passkey** (Face ID, a fingerprint, Windows Hello) with the WebAuthn PRF extension: the credential's PRF output for the salt `wallet/v1/unlock`,
+ *  - **A passkey** (Face ID, a fingerprint, Windows Hello) with the WebAuthn PRF extension: the credential's PRF output for the salt `wallet/v2/unlock`,
  *    through HKDF-SHA-256, is an AES-256-GCM key that wraps the root. The credential is made for unlocking and is not the sign-in passkey.
  *  - **A device passcode** (at least six characters): Argon2id (64 MiB, 3 passes, 1 lane) of it and a random salt is the key that wraps the root; that
  *    wrapper is then wrapped again under a key the browser keeps and cannot be read out (`extractable: false`), so a copy of the store alone cannot be

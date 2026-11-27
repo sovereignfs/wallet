@@ -392,7 +392,8 @@ tools, say) could open the wallet without the passkey or passcode, as in every a
 - **When Wallet is hidden** (another app, the screen off): at once, after 1 minute (the default), or never.
 - **By hand:** the lock button in the header.
 - **At sign-out,** and what the SDK keeps of the app key opens nothing once the session ends. The device's wrappers stay with its ciphertext, as they did.
-- **Hosted:** also core's lock (`sovereign`'s RFC 0006), which closes the app key.
+- **Hosted:** core's own lock (`sovereign`'s RFC 0006) is to close the app key too. **Wallet's side of it is not built,** so core's lock does not close an
+  open wallet today.
 
 Tabs share one lock (BroadcastChannel): unlocking or locking one does the same in every tab of the account. **A device with no wrapper set has nothing to come back with**: its lock needs the
 suite's key, which needs a connection, so setup asks for a passkey or a passcode and says why.
@@ -415,7 +416,7 @@ Each device keeps one or more **unlock wrappers** in its store: the root, wrappe
 
 | Way                                                 | How                                                                                                                                                                                                     |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Passkey (Face ID, a fingerprint, Windows Hello)** | A WebAuthn credential made for unlocking, with the **PRF extension**. Its output for the salt `"wallet/v1/unlock"`, through HKDF, is an AES-256-GCM key that wraps the root                             |
+| **Passkey (Face ID, a fingerprint, Windows Hello)** | A WebAuthn credential made for unlocking, with the **PRF extension**. Its output for the salt `"wallet/v2/unlock"`, through HKDF, is an AES-256-GCM key that wraps the root                             |
 | **Device passcode**                                 | At least 6 characters (digits allowed). Argon2id (64 MiB, 3 passes, `hash-wasm`) of it and a random salt is a key that wraps the root, which is then wrapped again under a device key kept in the store |
 | **The suite's key** (online)                        | Standalone, the password at sign-in; hosted, core's release. It fetches the wrapped root and opens it with the app key, so a new device, or one with no wrapper, gets the root                          |
 | **Recovery kit** (standalone, after a reset)        | The typed kit opens the account key again, and with it the app key and the root                                                                                                                         |
