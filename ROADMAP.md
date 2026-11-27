@@ -4,8 +4,9 @@ The order of work. **This file tracks progress; it does not define behaviour.** 
 with this file, this file is stale and should be corrected. The detail of every task, with its technical notes and what makes it done, is in
 [`docs/epics/`](docs/epics/). How a task is run is in [`AGENTS.md`](AGENTS.md).
 
-State as of 2026-11-15: **0.1.0 is built, as a cut of phase 1 (below), and tagged `v0.1.0`, but its checks failed on the tagged commit and it was never published; the same app goes out as 0.1.1 (see 20.4).** The developer assigns each task; the first row not done, with its
-dependencies met, is what the order recommends.
+State as of 2026-11-27: **0.1.1 is the latest published release** (0.1.0, the cut of phase 1 below, failed its checks and was never published; see 20.4).
+**0.2.0 to 0.7.0 are on `main` and not published:** they were promoted as `v0.7.0`, a title that publishes nothing. 0.7.1 is on `develop`. The developer
+assigns each task; the first row not done, with its dependencies met, is what the order recommends.
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · ⏭ Planned, after 0.1.0 · 🚧 Waits on a decision or an input · ➖ Superseded_
 
@@ -189,7 +190,7 @@ server no body, and sign-in through core works.
 
 | #   | ID                             | Task                         | Priority | Depends on               | Status |
 | --- | ------------------------------ | ---------------------------- | -------- | ------------------------ | ------ |
-| 72  | [21.5](docs/epics/upstream.md) | Port 3006                    | P2       | —                        | 📋     |
+| 72  | [21.5](docs/epics/upstream.md) | Port 3006                    | P2       | —                        | ✅     |
 | 73  | [20.1](docs/epics/release.md)  | The seed                     | P1       | 6.1, 7.1, 5.1            | ✅     |
 | 74  | [20.3](docs/epics/release.md)  | The documents                | P2       | 1.10                     | ✅     |
 | 75  | [20.2](docs/epics/release.md)  | Security review before 0.1.0 | P2       | every phase 1 task above | ✅     |

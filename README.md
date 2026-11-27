@@ -5,8 +5,8 @@ encrypted in your browser before it leaves it. The server stores bytes it has no
 basement, on a plane. It runs on its own, or on a [Sovereign](https://github.com/sovereignfs/sovereign) instance you already use, signing in the same way as
 your other apps.
 
-> **Version 0.1.0** is the foundation: sign-in (with Wallet's own accounts, or through Sovereign), the whole of the encryption design, offline sync, and QR cards. Documents,
-> family members, backups, health and more follow, in the order of [`ROADMAP.md`](ROADMAP.md). What 0.1.0 does not do is said at the end of this page.
+> **What is built is the foundation:** sign-in (with Wallet's own accounts, or through Sovereign), the encryption, offline sync, and QR cards. Documents, family
+> members, backups, health and more follow, in the order of [`ROADMAP.md`](ROADMAP.md). What Wallet does not do yet is said at the end of this page.
 
 ## What it protects, and what it does not
 
@@ -96,10 +96,11 @@ all at start-up and stops on a wrong one, naming it and never its value.** [`.en
 backup file, an encrypted git repository, a readable export) come in a later version.
 
 **If a person forgets their password and has lost their recovery kit, and no device of theirs is unlocked, Wallet has no way to give their wallet back.** An
-unlocked device can show the wallet's cards until it locks. The only way back is **Reset wallet** (a later version), which deletes the wallet's contents and starts again; today an
-account can be deleted from Settings.
+unlocked device can show the wallet's cards until it locks. The only way back is **Reset wallet** (a later version), which deletes the wallet's contents and starts
+again. **An instance that runs alone has no way to do that for such a person yet:** Settings, where an account is deleted, opens only when the wallet is unlocked, and
+the operator's tool has no command that deletes an account. Hosted, the account is Sovereign's, and is deleted there.
 
-## What 0.1.0 does not do
+## What Wallet does not do yet
 
 Documents and Due, family members, card photos, backups (file, git and readable export), devices and removing one, key changes and rotation, notices and
 mail outbox, Online only and This device only entries, fully offline mode, health, the journal, phone-wallet passes, NFC and sharing. The format has room

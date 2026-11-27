@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 21.5 and 21.6 are done in `sovereign`.
 
 ## Overview
 
@@ -50,13 +50,15 @@ side-by-side mode for forms; shared with Roam's photo viewer. It never opens a n
 
 **Accepts when:** released with a story; Wallet pins it.
 
-#### 📋 21.5 — Port 3006
+#### ✅ 21.5 — Port 3006
 
 **Goal:** the port in building-an-app's table. **Design:** §32. **Depends on:** —.
 
 **Technical:** add Wallet (3006) to `docs/building-an-app.md` §2's ports.
 
 **Accepts when:** merged in `sovereign`.
+
+**Done in `sovereign`:** the table of ports in `docs/building-an-app.md`, on `main`, has Wallet at 3006 (seen 2026-11-27).
 
 #### ✅ 21.6 — A VAPID key in `generate`
 
