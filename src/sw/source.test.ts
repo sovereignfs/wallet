@@ -270,7 +270,7 @@ describe('the worker’s cache', () => {
     await w.dispatch('sync', { tag: 'other' });
     expect(w.woken).toEqual([]);
     await w.dispatch('sync', { tag: 'wallet-sync' });
-    expect(w.woken).toEqual([{ type: 'wallet-sync' }]);
+    expect(w.woken).toEqual([{ type: 'wallet-sync', tag: 'wallet-sync' }]);
   });
 
   it('does not touch a request for another origin or a write', async () => {

@@ -15,37 +15,22 @@ import { serviceWorkerSource } from '@sovereignfs/pwa';
  * is not the wallet's says it needs a connection (`OfflineApp`). Before a shell is kept, the package's own page says the app is offline. A new version
  * waits until a page asks it to take over, which the registration does when the person chooses Reload.
  *
- * **Background Sync** wakes the open pages, which sync through their own loop. `@sovereignfs/pwa` 0.2.0 has no way to say this, so it is added after the
- * package's text, and goes to the package's `sync` option once 0.3.0 is released (Sovereign task 20.2).
+ * **Background Sync** (the package's `sync` option) wakes the open pages, which sync through their own loop (`src/local/loop.ts`, which listens for this
+ * message). The worker has none of the store's code, so with no page open the changes wait for the next time Wallet is opened.
  */
 export const CACHE_PREFIX = 'wallet-shell-';
 
-function backgroundSyncSource(): string {
-  return `
-// Background Sync: the browser wakes the worker when a connection is back after a write made without one. The worker has none of the store's code,
-// so it wakes the pages that are open, which sync through their own loop; with none open the changes wait for the next time Wallet is opened.
-self.addEventListener('sync', function (event) {
-  if (event.tag !== 'wallet-sync') return;
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (pages) {
-      for (var i = 0; i < pages.length; i += 1) pages[i].postMessage({ type: 'wallet-sync' });
-    })
-  );
-});
-`;
-}
-
 export function workerSource(version: string, files: readonly string[] = []): string {
-  return (
-    serviceWorkerSource({
-      version,
-      cachePrefix: CACHE_PREFIX,
-      precache: files,
-      shell: '/shell',
-      // The design system's grey 900 and white, as the manifest's colours are.
-      offlineColors: { light: ['#ffffff', '#18181b'], dark: ['#18181b', '#fafafa'] },
-    }) + backgroundSyncSource()
-  );
+  return serviceWorkerSource({
+    version,
+    cachePrefix: CACHE_PREFIX,
+    precache: files,
+    shell: '/shell',
+    // The tag a page registers after a write (`src/screens/WalletProvider.tsx`), and what the open pages are then told.
+    sync: { tags: ['wallet-sync'], message: 'wallet-sync' },
+    // The design system's grey 900 and white, as the manifest's colours are.
+    offlineColors: { light: ['#ffffff', '#18181b'], dark: ['#18181b', '#fafafa'] },
+  });
 }
 
 /**

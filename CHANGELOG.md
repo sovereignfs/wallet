@@ -16,6 +16,10 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 - **`WALLET_AUTH_SIGNUP=invite` no longer stops the server.** The suite's contract asks an app that issues no invitations to read it as `closed`, and Wallet
   now does. Settings that are switches are written `true` or `false` in the examples and the documents; `1` and `0` are still read.
 
+### Changed
+
+- Background Sync is the suite's, from `@sovereignfs/pwa` 0.3.0, in place of Wallet's own few lines in the service worker. It does what it did.
+
 ## [0.7.0] - 2026-11-26
 
 **Before upgrading, read this: a wallet made by an earlier version is not carried over.** The encryption changed to the suite's, and the two cannot open each other. When this version
