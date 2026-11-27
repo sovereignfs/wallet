@@ -66,6 +66,9 @@ export function SettingsScreen() {
   );
 }
 
+/** How long deleting an account waits for the device's store to go before the page leaves all the same. */
+const ERASE_WAIT_MS = 5_000;
+
 const HIDDEN_NAMES: Record<HiddenLock, string> = {
   now: 'As soon as it is hidden',
   '1m': 'After a minute hidden',
@@ -427,11 +430,16 @@ function Account({ email }: { email: string }) {
       if (!response.ok) return setError('The account could not be deleted. Try again.');
       keyring.lock('sign-out');
       forgetResume(accountId);
+      // Who was signed in goes first, so that nothing opens the store again for them.
+      forgetIdentity();
       // The store cannot be deleted while this page holds it open, and nothing is to be sent for an account that is gone.
       loop.stop();
       db.close();
-      await eraseLocal(accountId);
-      forgetIdentity();
+      // Other tabs let it go when the deletion asks (`openLocal`). One that cannot answer, such as one the browser has frozen, does not hold up leaving.
+      await Promise.race([
+        eraseLocal(accountId).catch(() => undefined),
+        new Promise((resolve) => setTimeout(resolve, ERASE_WAIT_MS)),
+      ]);
       // The session's cookie is cleared as well: the account it was for is gone, but the browser still holds the cookie.
       await authClient.signOut().catch(() => undefined);
       window.location.assign('/');

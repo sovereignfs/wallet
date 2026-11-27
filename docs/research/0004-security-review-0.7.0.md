@@ -80,10 +80,11 @@ whether it is still open.
    value (RFC 0001, amendment 2), so an earlier shape or body of the same entry opens as the current one. **Reproduced** with the format's own
    functions. The README says the encryption guards against moving or replaying a value between entries or accounts, which is true, and says nothing
    of time; §8.6 does not either. _Open. Fix:_ say it in both; binding a version is a change of format.
-8. **Low. Deleting an account stalls while another tab is open.** The other tab keeps the device's database open, so its deletion waits.
+8. **Low. Deleting an account stalls while another tab is open.** The other tab kept the device's database open, so its deletion waited.
    **Reproduced** in Chromium and WebKit: 15 seconds later the page had not left Settings, and the store and the name were still there; closing the
-   other tab finished it. The account is already gone from the server. _Open. Fix:_ close the database when another tab asks (`blocking` in `openDB`),
-   and do not hold the rest of the clean-up for it.
+   other tab finished it. The account is already gone from the server. _Fixed in 0.7.1:_ a tab lets the database go when a deletion asks, and leaves;
+   the name is forgotten before the store is deleted; and the page leaves after five seconds even if a tab cannot answer (`db.test.ts`,
+   `e2e/account.spec.ts`, both seen to fail before). Whether the store of a frozen tab is then deleted **was not checked.**
 9. **Low. The root's bytes are not always overwritten.** Settings keeps them from the password until Done: a lock, or leaving the screen, drops them
    without overwriting; and each way of unlocking made takes a copy that is never overwritten (`SettingsScreen.tsx`, `UnlockMethods.tsx`).
    **Checked.** §9.1 and the rules of the code say they are. _Open._

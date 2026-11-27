@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { randomBytes } from 'node:crypto';
 import { openDB } from 'idb';
 import { describe, expect, it } from 'vitest';
-import { LOCAL_VERSION, openLocal } from './db';
+import { LOCAL_VERSION, eraseLocal, openLocal } from './db';
 
 /** A device store as 0.1.x made it (version 1): sealed entries under a vault key, a wrapper for it, and a cursor. */
 async function version1(name: string) {
@@ -48,6 +48,17 @@ describe('the device store', () => {
     expect(await db.get('local', 'lockTimers')).toEqual({ idleMinutes: 15 });
     db.close();
   });
+
+  it('lets go when it is to be erased, so that a tab that has it open does not hold that up', async () => {
+    const name = `erase-${randomBytes(4).toString('hex')}`;
+    let told = 0;
+    const held = await openLocal('acct', name, { onErased: () => (told += 1) });
+    await held.put('meta', 'device-id', 'deviceId');
+    // With the connection held, the deletion would wait for it, and never be made.
+    await eraseLocal('acct', name);
+    expect(told).toBe(1);
+    expect((await indexedDB.databases()).map((db) => db.name)).not.toContain(name);
+  }, 5_000);
 
   it('keeps what a store of this version holds when it is opened again', async () => {
     const name = `again-${randomBytes(4).toString('hex')}`;

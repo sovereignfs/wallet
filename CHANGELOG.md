@@ -20,6 +20,7 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 - **A password or passcode filled in by a password manager is now used.** On the lock screen, in Settings (changing how this device unlocks, and deleting
   the account) and where a passcode is set, the box is read when you press the button. Before, it could look empty to Wallet: the button stayed greyed out,
   or the passcode was called too short. The sign-in, sign-up and reset forms are not changed by this.
+- **Deleting an account no longer stalls when Wallet is open in another tab.** The other tab now lets this device's copy go, and leaves.
 - **`WALLET_AUTH_SIGNUP=invite` no longer stops the server.** The suite's contract asks an app that issues no invitations to read it as `closed`, and Wallet
   now does. Settings that are switches are written `true` or `false` in the examples and the documents; `1` and `0` are still read.
 

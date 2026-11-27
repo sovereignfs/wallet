@@ -139,12 +139,19 @@ export function WalletProvider({
     let cancelled = false;
     let teardown: (() => void) | undefined;
     void (async () => {
-      const db = await openLocal(accountId);
+      // The loop is put here when it is made, for what comes before it and needs it.
+      const made: { loop?: SyncLoop } = {};
+      const db = await openLocal(accountId, undefined, {
+        // The account was deleted in another tab: this one has let the store go, and leaves.
+        onErased: () => {
+          made.loop?.stop();
+          window.location.assign('/');
+        },
+      });
       const lock = await store.localValue<LockTimers>(db, 'lockTimers', DEFAULT_TIMERS);
       const keyring = new Keyring({ accountId, timers: lock, cipher: suiteCipher });
       const transport = fetchTransport();
-      // The wallet asks the loop to sync after a write, and the loop needs the wallet: the loop is put here when it is made.
-      const made: { loop?: SyncLoop } = {};
+      // The wallet asks the loop to sync after a write, and the loop needs the wallet, so the wallet finds it in `made`.
       const wallet = new Wallet({
         accountId,
         db,

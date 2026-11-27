@@ -79,6 +79,10 @@ export const localName = (accountId: string): string => `wallet-${accountId}`;
 export async function openLocal(
   accountId: string,
   name = localName(accountId),
+  options: {
+    /** Another tab is erasing this store, with its account: it has been let go, and this tab has nothing more to do with it. */
+    onErased?: () => void;
+  } = {},
 ): Promise<LocalDatabase> {
   return openDB<LocalSchema>(name, LOCAL_VERSION, {
     async upgrade(db, oldVersion, _newVersion, transaction) {
@@ -102,6 +106,13 @@ export async function openLocal(
         const meta = transaction.objectStore('meta');
         for (const key of ['cursor', 'mode', 'vault', 'vaultVersion']) await meta.delete(key);
       }
+    },
+    // **A store held open cannot be deleted:** the deletion waits for as long as the tab is open. So it is let go as soon as a deletion asks (a transaction under
+    // way finishes first). A newer version asking is another matter, and is left as it was.
+    blocking(_current, wanted, event) {
+      if (wanted !== null) return;
+      (event.target as IDBDatabase).close();
+      options.onErased?.();
     },
   });
 }

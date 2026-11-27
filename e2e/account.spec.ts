@@ -43,6 +43,41 @@ test('the recovery kit is shown once, after sign-up, and a second device needs o
   await second.close();
 });
 
+test('deleting the account does not wait for another tab, which lets the device’s store go and leaves', async ({
+  page,
+  context,
+}) => {
+  const email = emailFor('delete-tabs');
+  await signUp(page, email);
+  await setUp(page);
+  await page.getByRole('button', { name: 'See my cards' }).click();
+  const other = await context.newPage();
+  await other.goto('/');
+  await expect(other.getByRole('button', { name: 'Lock the wallet' })).toBeEnabled({
+    timeout: 30_000,
+  });
+
+  await page.bringToFront();
+  await goTo(page, 'Settings');
+  await page.getByRole('tab', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Delete my account…' }).click();
+  const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'));
+  await dialog.getByLabel('Type delete to confirm').fill('delete');
+  await dialog.getByLabel('Your password').fill(PASSWORD);
+  await dialog.getByRole('button', { name: 'Delete everything' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Your wallet, locked in your browser' }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  const left = await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name));
+  expect(left.filter((name) => name?.startsWith('wallet-'))).toEqual([]);
+  expect(await page.evaluate(() => window.localStorage.getItem('wallet.me'))).toBeNull();
+  // The other tab is no longer in a wallet that is gone.
+  await expect(other.getByRole('button', { name: 'User menu' })).toHaveCount(0, {
+    timeout: 20_000,
+  });
+});
+
 test('deleting the account removes the wallet from the server and from this device', async ({
   page,
   request,
