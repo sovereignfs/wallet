@@ -359,6 +359,8 @@ So an operator can see how many entries someone has, roughly how large, which li
   the operator "cannot" read what it keeps. Mitigations are the suite's: a strict CSP with nonces, no third-party code, the image's provenance, and running one's own instance. A
   published-script check (the service worker comparing the shell's scripts against a pinned list) is noted in §31.4, not planned.
 - **Nor a device taken while unlocked,** or malware on it. The locks (§9.2) shorten the window.
+- **Nor an older value or a missing one:** whoever holds the server's data can give a device an earlier shape or body of an entry, or leave an entry out,
+  and nothing says so, since a value is not bound to its version (§8.2).
 - **The server still sees** §8.5's counts, sizes, tiers and times, and the network addresses it is spoken to from.
 - **Losing the password, the kit and every unlocked device loses the wallet.** Nobody can recover it, unless the instance turned escrow on, in which case its owner can open everyone's.
 - **What the person chooses to publish** (passes, public cards, Google Wallet: §19.5, §20) leaves the encryption by design, and says so first.

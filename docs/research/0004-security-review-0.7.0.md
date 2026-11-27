@@ -79,7 +79,8 @@ whether it is still open.
 7. **Low. Whoever controls the server's data can serve an older value, or drop an entry, unnoticed.** The row's version is not bound into a sealed
    value (RFC 0001, amendment 2), so an earlier shape or body of the same entry opens as the current one. **Reproduced** with the format's own
    functions. The README says the encryption guards against moving or replaying a value between entries or accounts, which is true, and says nothing
-   of time; §8.6 does not either. _Open. Fix:_ say it in both; binding a version is a change of format.
+   of time; §8.6 does not either. _Said since, in §8.6 and the README. The behaviour is unchanged:_ binding a version would be a change of format.
+
 8. **Low. Deleting an account stalls while another tab is open.** The other tab kept the device's database open, so its deletion waited.
    **Reproduced** in Chromium and WebKit: 15 seconds later the page had not left Settings, and the store and the name were still there; closing the
    other tab finished it. The account is already gone from the server. _Fixed in 0.7.1:_ a tab lets the database go when a deletion asks, and leaves;
