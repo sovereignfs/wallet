@@ -26,6 +26,8 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
   the account) and where a passcode is set, the box is read when you press the button. Before, it could look empty to Wallet: the button stayed greyed out,
   or the passcode was called too short. The sign-in, sign-up and reset forms send what a password manager filled in too (`@sovereignfs/ui` 0.107.4), where
   before they could answer that a right password was wrong.
+- **Hosted by Sovereign, Wallet can be unlocked on an iPhone or iPad.** Getting the key from Sovereign failed in every browser on iOS, so a wallet could not be
+  set up there (`@sovereignfs/sdk` 2.12.1). Not yet tried on a real device.
 - **Deleting an account no longer stalls when Wallet is open in another tab.** The other tab now lets this device's copy go, and leaves.
 - **`WALLET_AUTH_SIGNUP=invite` no longer stops the server.** The suite's contract asks an app that issues no invitations to read it as `closed`, and Wallet
   now does. Settings that are switches are written `true` or `false` in the examples and the documents; `1` and `0` are still read.

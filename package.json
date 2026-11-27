@@ -44,7 +44,7 @@
     "@sovereignfs/auth": "0.7.0",
     "@sovereignfs/config": "0.1.0",
     "@sovereignfs/pwa": "0.3.0",
-    "@sovereignfs/sdk": "2.12.0",
+    "@sovereignfs/sdk": "2.12.1",
     "@sovereignfs/ui": "0.107.4",
     "better-auth": "1.7.27",
     "bwip-js": "4.9.1",
