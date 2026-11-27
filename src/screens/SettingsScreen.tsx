@@ -5,23 +5,26 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Button,
+  ButtonLink,
   ConfirmDialog,
   FormField,
   Input,
   Select,
   Tabs,
-  Textarea,
 } from '@sovereignfs/ui';
 import { IDLE_CHOICES, type HiddenLock, type IdleMinutes } from '../keyring/keyring';
-import { authClient } from '../auth/client';
+import { forgetResume } from '../keyring/resume';
+import { authClient, signInValue } from '../auth/client';
+import { useKeys } from '../keys/keys';
+import { coreLink } from '../auth/core-links';
 import { forgetIdentity } from '../identity';
 import { type RefusedItem, eraseLocal } from '../local/db';
 import { openSealed } from '../local/open';
 import { type Material, unlockMethods } from '../keyring/wrappers';
-import { classify, openProtected } from './keyFiles';
 import screens from './Screens.module.css';
 import { useIdentity } from './SignedInArea';
 import { UnlockMethods } from './UnlockMethods';
+import { accountProblem } from './accountProblem';
 import { useWallet } from './WalletProvider';
 
 /**
@@ -70,32 +73,38 @@ const HIDDEN_NAMES: Record<HiddenLock, string> = {
 };
 
 function Security() {
-  const { keyring, timers, setTimers, vault, db, openWithKeyText } = useWallet();
+  const { keyring, timers, setTimers, db, openWithAccount } = useWallet();
+  const keys = useKeys();
   const [methods, setMethods] = useState<number | null>(null);
   const [asking, setAsking] = useState(false);
-  const [keyText, setKeyText] = useState('');
-  const [protectedText, setProtectedText] = useState<string | null>(null);
-  const [passphrase, setPassphrase] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [material, setMaterial] = useState<Material | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(
     () => void unlockMethods(db).then((found) => setMethods(found.length)),
     [db],
   );
   useEffect(refresh, [refresh]);
-  const hasRecovery = vault?.recipients.some((r) => r.label === 'recovery') ?? false;
 
-  async function check(text: string) {
+  /** Changing how this device unlocks needs the root's bytes, which only the suite's key can give back: the password, or Sovereign's release (online). */
+  async function reveal(typed?: string) {
     setError(null);
-    if (classify(text).kind === 'protected') return setProtectedText(text);
-    const result = await openWithKeyText(text);
-    if (result === 'not_a_key') return setError('That is not a key.');
-    if (result === 'wrong_key' || result === 'no_vault')
-      return setError('That key does not open this wallet.');
-    setAsking(false);
-    setKeyText('');
-    setMaterial(result);
+    setBusy(true);
+    try {
+      const result = await openWithAccount(typed);
+      if (!result.ok) {
+        // `away`: the page is leaving, for Sovereign's release or the recovery kit.
+        if (result.reason !== 'away') setError(accountProblem(result.reason));
+        return;
+      }
+      setAsking(false);
+      setPassword('');
+      setMaterial(result.material);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -105,8 +114,9 @@ function Security() {
           Locking
         </h2>
         <p className={screens.muted}>
-          These are for this device only. Locking drops the keys from memory; unlocking needs no
-          connection.
+          These are for this device only. Locking drops the keys; a passkey or passcode unlocks with
+          no connection. Until one of these times runs out, reloading the page does not lock Wallet
+          while you are online. A new tab asks again.
         </p>
         <FormField label="Lock after no use">
           {(field) => (
@@ -172,56 +182,38 @@ function Security() {
               {methods === null
                 ? ' '
                 : methods === 0
-                  ? 'This device has no quick way to unlock. You use your wallet key each time.'
+                  ? 'This device has no quick way to unlock, so it needs a connection and your account each time.'
                   : 'This device unlocks with a passkey or a passcode.'}
             </p>
             {asking ? (
               <div className={screens.stack}>
                 {error ? <Alert variant="error">{error}</Alert> : null}
-                <FormField
-                  label="Your wallet key or recovery key"
-                  hint="To change how this device unlocks, prove it is you. The key stays on this device."
-                >
-                  {(field) => (
-                    <Textarea
-                      {...field}
-                      rows={3}
-                      spellCheck={false}
-                      autoComplete="off"
-                      value={keyText}
-                      onChange={(event) => setKeyText(event.target.value)}
-                    />
-                  )}
-                </FormField>
-                {protectedText !== null ? (
-                  <div className={screens.stack}>
-                    <FormField label="Passphrase of the key file">
-                      {(field) => (
-                        <Input
-                          {...field}
-                          type="password"
-                          autoComplete="off"
-                          value={passphrase}
-                          onChange={(event) => setPassphrase(event.target.value)}
-                        />
-                      )}
-                    </FormField>
-                    <div>
-                      <Button
-                        onClick={async () => {
-                          const opened = await openProtected(protectedText, passphrase);
-                          if (!opened.ok) return setError('That passphrase is not right.');
-                          setProtectedText(null);
-                          await check(opened.text);
-                        }}
-                      >
-                        Open key file
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
+                {keys.kind === 'core' ? (
+                  <p className={screens.muted}>
+                    To change how this device unlocks, Sovereign asks you to unlock first.
+                  </p>
+                ) : (
+                  <FormField
+                    label="Your password"
+                    hint="To change how this device unlocks, prove it is you. Your password is never sent."
+                  >
+                    {(field) => (
+                      <Input
+                        {...field}
+                        type="password"
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
                 <div className={screens.row}>
-                  <Button disabled={keyText.trim() === ''} onClick={() => void check(keyText)}>
+                  <Button
+                    loading={busy}
+                    disabled={keys.kind !== 'core' && password === ''}
+                    onClick={() => void reveal(password)}
+                  >
                     Continue
                   </Button>
                   <Button variant="ghost" onClick={() => setAsking(false)}>
@@ -245,11 +237,11 @@ function Security() {
           Your keys
         </h2>
         <p className={screens.muted}>
-          Your wallet key opens everything.{' '}
-          {hasRecovery
-            ? 'You made a recovery key too: either one opens your wallet.'
-            : 'You skipped the recovery key: if you lose your wallet key, nobody can recover your wallet.'}{' '}
-          Replacing keys comes in a later version.
+          Your account password opens your wallet on a new device, and your recovery kit is the way
+          back if you forget it.{' '}
+          {keys.kind === 'core'
+            ? 'Sovereign keeps your keys: change them there.'
+            : 'Changing your password or making a new kit comes in a later version.'}
         </p>
       </section>
     </div>
@@ -275,7 +267,7 @@ function Storage() {
           const opened = await openSealed(
             accountId,
             keyring,
-            { id: last.entryId, wrappedKey: last.wrappedKey ?? '', shape: last.shape, body: null },
+            { id: last.entryId, keyEpoch: last.keyEpoch ?? 0, shape: last.shape, body: null },
             false,
           );
           if (opened.ok && opened.shape.kind === 'card') title = opened.shape.title;
@@ -397,38 +389,39 @@ function Account({ email }: { email: string }) {
   const [password, setPassword] = useState('');
   const [typed, setTyped] = useState('');
   const [needsPassword, setNeedsPassword] = useState(true);
+  // Core's address in suite mode (DESIGN.md §25.1), where the account is looked after and deleted; null alone, and until the server has said.
+  const [core, setCore] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
     void fetch('/api/account/delete', { credentials: 'same-origin' })
-      .then((r) => r.json() as Promise<{ password: boolean }>)
-      .then((r) => setNeedsPassword(r.password))
+      .then((r) => r.json() as Promise<{ password: boolean; core: string | null }>)
+      .then((r) => {
+        setNeedsPassword(r.password);
+        setCore(r.core);
+      })
       .catch(() => undefined);
-  }, [open]);
+  }, []);
 
   async function remove() {
     setError(null);
     setBusy(true);
     try {
+      // The password is never sent (auth.md §4, rule 1): what the server checks is the sign-in value the page makes from it.
+      const value = needsPassword && password ? await signInValue(password, email) : '';
       const response = await fetch('/api/account/delete', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: value }),
       });
-      if (response.status === 403) {
-        const body = (await response.json()) as { code?: string };
-        setError(
-          body.code === 'SESSION_NOT_FRESH'
-            ? 'Sign in again, and then delete the account.'
-            : 'That password is not right.',
-        );
-        return;
-      }
+      if (response.status === 403) return setError('That password is not right.');
+      if (response.status === 429)
+        return setError('That was tried too many times. Wait a few minutes.');
       if (!response.ok) return setError('The account could not be deleted. Try again.');
       keyring.lock('sign-out');
+      forgetResume(accountId);
       // The store cannot be deleted while this page holds it open, and nothing is to be sent for an account that is gone.
       loop.stop();
       db.close();
@@ -453,19 +446,42 @@ function Account({ email }: { email: string }) {
           Your name and address are the only things the server can read about you. Everything you
           keep in your wallet is locked in your browser first.
         </p>
+        {core ? (
+          <p className={screens.muted}>
+            You sign in through Sovereign, which has your password, passkeys and two-factor sign-in.{' '}
+            <a href={coreLink(core, '/profile')}>Your profile</a> and{' '}
+            <a href={coreLink(core, '/security')}>your security</a> are there.
+          </p>
+        ) : null}
       </section>
       <section className={screens.section}>
         <h2 className={screens.sectionTitle}>Delete my account</h2>
-        <p className={screens.muted}>
-          This deletes your wallet and everything in it from the server, for good, and erases it
-          from this device. Other devices erase it the next time they connect. Nobody can bring it
-          back.
-        </p>
-        <div>
-          <Button variant="destructive" onClick={() => setOpen(true)}>
-            Delete my account…
-          </Button>
-        </div>
+        {core ? (
+          <>
+            <p className={screens.muted}>
+              Your account is Sovereign’s, so deleting it is done there. Wallet is told, and deletes
+              your wallet and everything in it from the server, for good. Nobody can bring it back.
+            </p>
+            <div>
+              <ButtonLink href={coreLink(core, '/delete-account')} variant="secondary">
+                Delete it in Sovereign
+              </ButtonLink>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className={screens.muted}>
+              This deletes your wallet and everything in it from the server, for good, and erases it
+              from this device. Other devices erase it the next time they connect. Nobody can bring
+              it back.
+            </p>
+            <div>
+              <Button variant="destructive" onClick={() => setOpen(true)}>
+                Delete my account…
+              </Button>
+            </div>
+          </>
+        )}
       </section>
       <ConfirmDialog
         open={open}

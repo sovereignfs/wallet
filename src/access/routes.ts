@@ -12,7 +12,7 @@
 export type RouteAccess = { kind: 'public'; because?: string } | { kind: 'account' };
 
 export interface RouteRule {
-  /** The route as the app router spells it: `/api/vault`. */
+  /** The route as the app router spells it: `/api/sync`. */
   route: string;
   /** For an API route, each method it answers. A page has none. */
   methods?: Record<string, RouteAccess>;
@@ -30,22 +30,38 @@ export const ROUTES: RouteRule[] = [
   { route: '/reset-password', page: { kind: 'public' } },
   // The page the service worker keeps (DESIGN.md §26.6): the same for everyone, with nothing of an account in it. Who is signed in is read on the device.
   { route: '/shell', page: { kind: 'public' } },
-  // The app, for someone signed in: Home (the front address `/` shows it to someone signed in, the proxy rewriting it to `/home`, and `/home` itself is sent
-  // back to `/`), setup, the cards, a card, showing it and Settings. The layout around it (`app/(app)/layout.tsx`) finds who, and the page asks for itself as
+  // The key's return and the recovery kit (RFC 0001): core sends a person back to `/keys/return` with the app's key sealed to their browser, and the kit is shown once after
+  // an instance that runs alone makes a person's keys. Both are for someone signed in, and each redirects where the instance has no such step.
+  { route: '/keys/return', page: { kind: 'account' } },
+  { route: '/keys/kit', page: { kind: 'account' } },
+  // The app, for someone signed in: the cards, which it opens on (the front address `/` shows them to someone signed in, the proxy rewriting it to `/home`, and
+  // `/home` itself is sent back to `/`), setup, a card, showing it and Settings. The layout around it (`app/(app)/layout.tsx`) finds who, and the page asks for itself as
   // well. The server renders this one page; **the browser chooses the screen from the address** (`src/screens/AppRoutes.tsx`), so that moving about works with
-  // no connection and never reloads the page, which would lock the wallet. The server could not say whether a card is there, since it cannot read one.
+  // no connection and never reloads the page, which would drop the wallet's keys. The server could not say whether a card is there, since it cannot read one.
   { route: '/[...path]', page: { kind: 'account' } },
 
   // APIs
   // The one door every write to an entry comes through (DESIGN.md §11.3): the account is the session's, and the server applies what a device sends only to it.
   { route: '/api/sync', methods: { POST: { kind: 'account' } } },
-  // The vault header and its recipients (DESIGN.md §7.4, §8.1): read by the account's devices, made once. Only public keys and a sealed header; the account is the session's.
-  { route: '/api/vault', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
-  // Deleting the account (DESIGN.md §28): what it would do, and doing it with the password; the account is the session's.
+  // Wallet's own vault, for an instance that runs alone (DESIGN.md §7.4, sdk §9.5): the account's keys, wrapped, which the SDK's `vaultRoute` serves for the session's
+  // account and takes a change to only from this app's origin. 404 when hosted, where the keys are core's.
+  { route: '/api/keys/vault', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
+  // The account's own password again, as its sign-in value, before the page makes or opens its keys with it (DESIGN.md §9.4): counted per account, 404 when hosted.
+  { route: '/api/keys/confirm', methods: { POST: { kind: 'account' } } },
+  // The account's wrapped keyring root (DESIGN.md §7.4, §8.1), in both modes: a key wrapped under the suite's app key, made once per epoch by the first device. The account is the session's.
+  { route: '/api/keys/root', methods: { GET: { kind: 'account' }, POST: { kind: 'account' } } },
+  // Deleting the account (DESIGN.md §28): standalone, what it would do and doing it with the password; in suite mode it is core's, so the preview says where
+  // core is and a POST is not there. The account is the session's.
   {
     route: '/api/account/delete',
     methods: { GET: { kind: 'account' }, POST: { kind: 'account' } },
   },
+  // Where signing out of this session goes once the device has let go: core's sign-out for a session that came from core (auth.md §8), or
+  // none. It reads only the session's own sign-in through core.
+  { route: '/api/account/sign-out', methods: { GET: { kind: 'account' } } },
+  // The salt of the sign-in value and whether a password stored before the package can still move (auth.md §4, §8.1): no secret, the
+  // same for everyone. Absent, with a 404, without accounts of Wallet's own.
+  { route: '/api/sign-in-salt', methods: { GET: { kind: 'public' } } },
   { route: '/api/health', methods: { GET: { kind: 'public' } } },
   // The service worker's text (DESIGN.md §26.6): the same for everyone, the build's version and the names of its files, and nothing of an account.
   { route: '/sw.js', methods: { GET: { kind: 'public' } } },
@@ -63,7 +79,17 @@ export const ROUTES: RouteRule[] = [
       POST: { kind: 'public', because: 'a token signed by Sovereign, checked against its keys' },
     },
   },
-  // better-auth's own: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). Absent, with a 404, when sign-in is off.
+  // Core asks for a person's part of their export (`signIn.export`): a signed token, checked by the SDK, a replay refused from the auth store; a body over 16 KB
+  // refused unread and a caller's requests counted by its address, as core's notices are.
+  {
+    route: '/api/sovereign/export',
+    methods: {
+      POST: { kind: 'public', because: 'a token signed by Sovereign, checked against its keys' },
+    },
+  },
+  // better-auth on `@sovereignfs/auth`: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). It holds
+  // signing in through core (/sign-in/sovereign, /callback/sovereign) and the move of a password stored before the package (/sv/move-password,
+  // which opens no session). Absent, with a 404, when sign-in is off.
   {
     route: '/api/auth/[...all]',
     methods: {

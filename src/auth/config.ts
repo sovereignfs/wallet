@@ -1,18 +1,28 @@
 import type { Problem } from '../config';
+import { isAddressOrRange } from '../limits/address';
 
 /**
  * How people sign in (DESIGN.md §6), checked once at start-up with the other settings (`src/config/index.ts`), which is why this reads through
  * a function it is given and not the environment. A wrong setting is a problem that stops the server, and no message carries a value.
  *
- *   WALLET_AUTH_LOCAL                 1 or true: email and password. Off means off: `/sign-in`, `/sign-up` and `/api/auth` answer 404.
- *   WALLET_AUTH_SECRET[_FILE]         32 characters or more, to sign sessions and tokens. Required with local sign-in.
+ *   WALLET_AUTH_LOCAL                 1 or true: email and password. Off means off: `/sign-in`, `/sign-up` and `/api/auth` answer 404. Never on
+ *                                    with a core: see below.
+ *   WALLET_AUTH_SECRET[_FILE]         32 characters or more, to sign sessions and tokens. Required with either way in.
  *   WALLET_AUTH_SIGNUP                `closed` (the default with local sign-in): the first account is made and then sign-up is refused, by the
  *                                    server. `open`: anyone who can reach the page. A self-hoster who forgets is not an open registration.
- *                                    With a core as the only way in the default is `open`: the core decides who may sign in.
+ *                                    With a core it has nothing to decide: who may sign up is the core's.
  *   WALLET_AUTH_PASSWORD_MIN_LENGTH   the shortest password, 10 by default.
  *   WALLET_URL                        the address people use; required with either way (links, cookies, passkeys and the redirect are made from it).
+ *   WALLET_AUTH_TRUSTED_PROXIES       the reverse proxies in front of Wallet, as IP addresses or ranges (`10.0.0.0/8`), separated by commas. They are
+ *                                    the only hops of `X-Forwarded-For` that are believed, which is how every limit that is kept per address (sign-in, and
+ *                                    Sovereign's notices and export) tells one client from another. Unset, only a header with one address is believed,
+ *                                    which is right when the proxy replaces the header, and no proxy can be told from a client's own chain.
  *   WALLET_CORE_URL, WALLET_CORE_CLIENT_ID, WALLET_CORE_CLIENT_SECRET[_FILE]
- *                                   Sovereign sign-in, through a core (DESIGN.md §6): all three or none. Either way, or both, can be on.
+ *                                   Sovereign sign-in, through a core (DESIGN.md §25.1): all three or none.
+ *
+ * **One way in, never both** (DESIGN.md §25.1, as Shopper's §15.1): with a core it is suite mode, through the core only; without one, standalone,
+ * Wallet's own accounts. An instance that sets both starts in suite mode, with local sign-in off, and says so once at start-up (`localIgnored`),
+ * naming the settings to remove.
  *
  * With none of the ways on there is no sign-in at all, and the other settings here are not read.
  */
@@ -22,14 +32,21 @@ export interface AuthSettings {
   readonly secret: string;
   readonly signUp: 'open' | 'closed';
   readonly passwordMinLength: number;
-  /** Email and password, passkeys and an authenticator app are on. Off means off: their pages and routes answer 404. */
+  /**
+   * Email and password, passkeys and an authenticator app are on (standalone mode). Off means off: their pages and routes answer 404. **Never on
+   * with `sovereign`.**
+   */
   readonly local: boolean;
-  /** Sign-in through a core, or `undefined` when it is not set up. */
+  /** `WALLET_AUTH_LOCAL` was on beside a core, and is off: suite mode wins. The settings that do nothing now, to say once at start-up. */
+  readonly localIgnored?: readonly string[];
+  /** The reverse proxies whose `X-Forwarded-For` is believed (`WALLET_AUTH_TRUSTED_PROXIES`), checked: addresses and ranges. */
+  readonly trustedProxies: readonly string[];
+  /** Sign-in through a core (suite mode), or `undefined` when it is not set up. */
   readonly sovereign: SovereignSettings | undefined;
 }
 
 export interface SovereignSettings {
-  /** Core's address, its OIDC issuer: no trailing slash. Its discovery document is at `/.well-known/openid-configuration` under it. */
+  /** Core's address, its OIDC issuer: an origin, with no path. Its discovery document is at `/.well-known/openid-configuration` under it. */
   readonly issuer: string;
   readonly clientId: string;
   readonly clientSecret: string;
@@ -60,9 +77,17 @@ export function resolveAuth(
   url: string | undefined,
   problems: Problem[],
 ): AuthSettings | undefined {
-  const local = readFlag(read, 'WALLET_AUTH_LOCAL', problems);
+  const asked = readFlag(read, 'WALLET_AUTH_LOCAL', problems);
   const sovereign = resolveSovereign(read, problems);
-  if (!local && !sovereign) return undefined;
+  if (!asked && !sovereign) return undefined;
+  // Suite mode wins: a core is the way in, never beside Wallet's own accounts.
+  const local = asked && !sovereign;
+  const localIgnored =
+    asked && sovereign
+      ? ['WALLET_AUTH_LOCAL', 'WALLET_AUTH_SIGNUP', 'WALLET_AUTH_PASSWORD_MIN_LENGTH'].filter(
+          (name) => read(name) !== undefined,
+        )
+      : undefined;
   const why = local ? 'WALLET_AUTH_LOCAL is on' : 'Sovereign sign-in is set';
 
   if (url === undefined && read('WALLET_URL') === undefined) {
@@ -98,11 +123,33 @@ export function resolveAuth(
     } else passwordMinLength = parsed;
   }
 
+  // The entries are named by their place in the list and never by what they say.
+  const trustedProxies = (read('WALLET_AUTH_TRUSTED_PROXIES') ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== '');
+  trustedProxies.forEach((entry, index) => {
+    if (!isAddressOrRange(entry)) {
+      problems.push(
+        `WALLET_AUTH_TRUSTED_PROXIES entry ${index + 1} must be an IP address or a range such as 10.0.0.0/8.`,
+      );
+    }
+  });
+
   if (url === undefined || secret === undefined) return undefined;
   if (secret.length < MIN_SECRET_LENGTH || (rawSignUp !== 'open' && rawSignUp !== 'closed')) {
     return undefined;
   }
-  return { url, secret, signUp: rawSignUp, passwordMinLength, local, sovereign };
+  return {
+    url,
+    secret,
+    signUp: rawSignUp,
+    passwordMinLength,
+    local,
+    ...(localIgnored ? { localIgnored } : {}),
+    trustedProxies,
+    sovereign,
+  };
 }
 
 /**
@@ -135,8 +182,15 @@ function resolveSovereign(read: Read, problems: Problem[]): SovereignSettings | 
     problems.push('WALLET_CORE_URL has no user, query or fragment.');
     return undefined;
   }
+  // Core's issuer is the instance's own address (core-app §3.6), and the SDK takes no other.
+  if (parsed.pathname !== '/') {
+    problems.push(
+      'WALLET_CORE_URL is the instance’s own address, with no path: https://sovereign.example.com.',
+    );
+    return undefined;
+  }
   return {
-    issuer: `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, ''),
+    issuer: parsed.origin,
     clientId,
     clientSecret,
   };

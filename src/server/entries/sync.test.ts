@@ -1,3 +1,4 @@
+import { PROTOCOL_VERSION } from '../../core/sync/protocol';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { accountRoute } from '../../access/route';
 import { type TwoAccounts, twoAccounts } from '../../access/two-accounts';
@@ -47,7 +48,7 @@ const send = async (
   const response = await route()(
     t.request(who, '/api/sync', {
       method: 'POST',
-      body: { v: 1, deviceId: device, cursor, mutations, ...extra },
+      body: { v: PROTOCOL_VERSION, deviceId: device, cursor, mutations, ...extra },
     }),
   );
   return {
@@ -68,7 +69,6 @@ describe('POST /api/sync', () => {
     expect(first.body.cursor).toBe(2);
     expect(first.body.more).toBe(false);
     expect(first.body.mode).toBe('normal');
-    expect(first.body.vaultVersion).toBeNull();
     // A second device with a cursor of zero gets the same; one at the cursor gets nothing.
     expect((await send(t.ada, 0)).body.rows).toHaveLength(2);
     expect((await send(t.ada, 2)).body.rows).toEqual([]);
@@ -107,7 +107,7 @@ describe('POST /api/sync', () => {
     const foreign = await route()(
       t.request(t.ada, '/api/sync', {
         method: 'POST',
-        body: { v: 1, deviceId: device, cursor: 0, mutations: [] },
+        body: { v: PROTOCOL_VERSION, deviceId: device, cursor: 0, mutations: [] },
         headers: { origin: 'https://evil.example' },
       }),
     );
@@ -115,7 +115,7 @@ describe('POST /api/sync', () => {
     const none = await route()(
       t.request(t.ada, '/api/sync', {
         method: 'POST',
-        body: { v: 1, deviceId: device, cursor: 0, mutations: [] },
+        body: { v: PROTOCOL_VERSION, deviceId: device, cursor: 0, mutations: [] },
         headers: { origin: '' },
       }),
     );
@@ -124,14 +124,14 @@ describe('POST /api/sync', () => {
 
   it('refuses what is not a request with 400, a protocol it does not know with 426, and too much with 413', async () => {
     expect((await send(t.ada, 0, [], { deviceId: 'nope' })).status).toBe(400);
-    const unknown = await send(t.ada, 0, [], { v: 2 });
+    const unknown = await send(t.ada, 0, [], { v: 3 });
     expect(unknown.status).toBe(426);
     expect(unknown.body.code).toBe('UPDATE_REQUIRED');
     const huge = await route()(
       t.request(t.ada, '/api/sync', {
         method: 'POST',
         body: {
-          v: 1,
+          v: PROTOCOL_VERSION,
           deviceId: device,
           cursor: 0,
           mutations: [],
@@ -140,12 +140,5 @@ describe('POST /api/sync', () => {
       }),
     );
     expect(huge.status).toBe(413);
-  });
-
-  it('reports the vault version once there is a vault', async () => {
-    const response = await send(t.ada, 0);
-    expect(
-      response.body.vaultVersion === null || typeof response.body.vaultVersion === 'number',
-    ).toBe(true);
   });
 });

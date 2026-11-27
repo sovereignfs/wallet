@@ -1,8 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { dbAll, dbGet } from '../db/exec';
-import * as postgresAuth from '../db/schema/postgres/auth';
-import * as sqliteAuth from '../db/schema/sqlite/auth';
+import { authTable } from '../db/tables';
 import { testTarget } from '../db/test-support';
 import { type TestAuth, type TestClient, makeAuth } from './test-support';
 
@@ -28,7 +27,12 @@ async function signUp(client: TestClient, email = newEmail(), password = PASSWOR
   };
 }
 
-const tables = (t: TestAuth) => (t.database.dialect === 'postgres' ? postgresAuth : sqliteAuth);
+/** The auth store's tables, `@sovereignfs/auth`'s since the move (ADR 0001). */
+const tables = (t: TestAuth) => ({
+  user: authTable(t.database, 'users'),
+  account: authTable(t.database, 'accounts'),
+  rateLimit: authTable(t.database, 'rate_limits'),
+});
 const userCount = async (t: TestAuth) =>
   Number(
     (
@@ -80,7 +84,7 @@ describe(`local sign-in, first account only (${leg})`, () => {
       expect(JSON.stringify(reply.body)).not.toContain('password');
     });
 
-    it('is given a session cookie that scripts cannot read, that is not sent cross-site, and is ours', async () => {
+    it('is given a session cookie that scripts cannot read and that is not sent cross-site, under the package’s name', async () => {
       const client = visitor(t);
       const reply = await client.post('/api/auth/sign-in/email', {
         email: await firstEmail(t),
@@ -88,7 +92,7 @@ describe(`local sign-in, first account only (${leg})`, () => {
       });
       expect(reply.status).toBe(200);
       const cookie = found(
-        reply.setCookies.find((c) => c.startsWith('wallet.session_token=')),
+        reply.setCookies.find((c) => c.startsWith('better-auth.session_token=')),
         'session cookie',
       );
       expect(cookie).toMatch(/HttpOnly/i);
@@ -101,9 +105,22 @@ describe(`local sign-in, first account only (${leg})`, () => {
   it('then refuses every later sign-up, says why with a code, and creates nothing', async () => {
     expect(await userCount(t)).toBe(1);
     const refused = await signUp(visitor(t));
-    expect(refused.reply.status).toBe(403);
+    // The package's answer (auth.md §5): one answer whatever the address, with the code the form reads.
+    expect(refused.reply.status).toBe(422);
     expect(refused.reply.body.code).toBe('SIGNUP_CLOSED');
-    expect(refused.reply.body.message).toBe('Sign-up is closed on this instance.');
+    expect(await userCount(t)).toBe(1);
+  });
+
+  it('gives an address that has an account the same refusal as one that has none, in words, status and code', async () => {
+    const known = await signUp(visitor(t), await firstEmail(t));
+    const unknown = await signUp(visitor(t));
+    // Not "User already exists": that would tell anyone which addresses have an account.
+    expect(known.reply.status).toBe(unknown.reply.status);
+    expect(known.reply.body).toEqual(unknown.reply.body);
+    expect(known.reply.body).toMatchObject({
+      code: 'SIGNUP_CLOSED',
+      message: 'Sign-up is closed.',
+    });
     expect(await userCount(t)).toBe(1);
   });
 
@@ -183,7 +200,7 @@ describe(`local sign-in, first account only (${leg})`, () => {
         email: await firstEmail(t),
         password: PASSWORD,
       });
-      const token = found(client.jar.get('wallet.session_token'), 'session cookie');
+      const token = found(client.jar.get('better-auth.session_token'), 'session cookie');
       expect((await client.get('/api/auth/get-session')).body.user).toBeTruthy();
 
       await client.post('/api/auth/sign-out', {});
@@ -191,7 +208,7 @@ describe(`local sign-in, first account only (${leg})`, () => {
 
       // Replaying the old cookie does not bring it back: the session is deleted, not just forgotten.
       const replay = visitor(t);
-      replay.jar.set('wallet.session_token', token);
+      replay.jar.set('better-auth.session_token', token);
       expect((await replay.get('/api/auth/get-session')).body).toBeNull();
     });
   });
@@ -234,13 +251,6 @@ describe(`local sign-in, first account only (${leg})`, () => {
       expect((await client.get('/api/auth/get-session')).body.user).toBeTruthy();
     });
   });
-
-  it('must have a password as long as the instance says', async () => {
-    const before = await userCount(t);
-    const { reply } = await signUp(visitor(t), newEmail(), 'short');
-    expect([400, 403]).toContain(reply.status);
-    expect(await userCount(t)).toBe(before);
-  });
 });
 
 describe(`local sign-in, open to anyone (${leg})`, () => {
@@ -266,5 +276,64 @@ describe(`local sign-in, open to anyone (${leg})`, () => {
     const taken = await signUp(visitor(t), a.email);
     expect(taken.reply.status).toBe(422);
     expect(await userCount(t)).toBe(2);
+  });
+
+  // On an instance that takes sign-ups, since a closed one refuses before it looks at the password. The length is the page's to check (`signUpProblem`, src/auth/screens/SignUpForm.tsx): the server only ever sees the sign-in value. What
+  // it refuses is anything that is not one, a password sent as itself above all (auth.md §4, rule 1).
+  it('takes only the sign-in value the page derives, never a password as itself', async () => {
+    const before = await userCount(t);
+    const reply = await visitor(t).postRaw('/api/auth/sign-up/email', {
+      name: 'Ada',
+      email: newEmail(),
+      password: 'a password sent as itself',
+    });
+    expect(reply.status).toBe(400);
+    expect(reply.body?.code).toBe('PASSWORD_NOT_DERIVED');
+    expect(await userCount(t)).toBe(before);
+  });
+});
+
+describe(`the sign-in's limit, behind a reverse proxy (${leg})`, () => {
+  const guess = (client: TestClient, chain: string) =>
+    client.post(
+      '/api/auth/sign-in/email',
+      { email: 'nobody@example.com', password: 'guessing guessing' },
+      { 'x-forwarded-for': chain },
+    );
+
+  // A proxy that adds to the header, as the common recipes do, gives Wallet a chain: the client's own words, then the client's address, then the proxy's.
+  describe('that is named in WALLET_AUTH_TRUSTED_PROXIES', () => {
+    let t: TestAuth;
+    beforeAll(async () => {
+      t = await makeAuth({ signUp: 'closed', trustedProxies: ['10.0.0.0/8'] });
+    });
+    afterAll(async () => t.close());
+
+    it('counts each client by its own address, and nothing it writes to the left of that is a way round the limit', async () => {
+      const client = t.client();
+      // Three tries, each claiming to be somebody else on the left: still one client, so the fourth is refused.
+      for (const spoof of ['1.1.1.1', '2.2.2.2', '3.3.3.3'])
+        expect((await guess(client, `${spoof}, 203.0.113.7, 10.0.0.9`)).status).toBe(401);
+      expect((await guess(client, '4.4.4.4, 203.0.113.7, 10.0.0.9')).status).toBe(429);
+      // Another client behind the same proxy has its own count, and is not locked out by the first.
+      expect((await guess(client, '5.5.5.5, 203.0.113.8, 10.0.0.9')).status).toBe(401);
+    });
+  });
+
+  // What the setting is for. Without it a chain is not believed, so every client behind such a proxy is counted together: one person's tries are
+  // everyone's, and anyone can lock everyone out. (Here better-auth, in a test, counts them as one address; at run time it is one shared count.)
+  describe('that is not named', () => {
+    let t: TestAuth;
+    beforeAll(async () => {
+      t = await makeAuth({ signUp: 'closed' });
+    });
+    afterAll(async () => t.close());
+
+    it('counts every client behind it together, which is why the setting exists', async () => {
+      const first = t.client();
+      for (const spoof of ['1.1.1.1', '2.2.2.2', '3.3.3.3'])
+        expect((await guess(first, `${spoof}, 203.0.113.7, 10.0.0.9`)).status).toBe(401);
+      expect((await guess(t.client(), '5.5.5.5, 203.0.113.8, 10.0.0.9')).status).toBe(429);
+    });
   });
 });

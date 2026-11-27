@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { toBase64Url } from '../vault/bytes';
-import { MAX_MUTATIONS, parseSyncRequest, parseSyncResponse, sealedText } from './protocol';
+import {
+  MAX_MUTATIONS,
+  PROTOCOL_VERSION,
+  parseSyncRequest,
+  parseSyncResponse,
+  sealedText,
+} from './protocol';
 
 const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const sealed = toBase64Url(new Uint8Array(40).fill(7));
@@ -11,12 +17,18 @@ const put = (n: number, extra: object = {}) => ({
   entryId: ID(100 + n),
   baseVersion: 0,
   tier: 'synced',
-  wrappedKey: sealed,
+  keyEpoch: 1,
   shape: sealed,
   ...extra,
 });
 const request = (extra: object = {}) =>
-  JSON.stringify({ v: 1, deviceId: ID(9), cursor: 0, mutations: [put(1)], ...extra });
+  JSON.stringify({
+    v: PROTOCOL_VERSION,
+    deviceId: ID(9),
+    cursor: 0,
+    mutations: [put(1)],
+    ...extra,
+  });
 
 describe('parsing a sync request', () => {
   it('accepts a put, with and without a body, and a delete', () => {
@@ -47,7 +59,12 @@ describe('parsing a sync request', () => {
     ['an op that is not known', request({ mutations: [put(1, { op: 'move' })] })],
     ['a tier that is not known', request({ mutations: [put(1, { tier: 'cloud' })] })],
     ['a put with no shape', request({ mutations: [put(1, { shape: undefined })] })],
-    ['a put with no wrapped key', request({ mutations: [put(1, { wrappedKey: undefined })] })],
+    ['a put with no key epoch', request({ mutations: [put(1, { keyEpoch: undefined })] })],
+    [
+      'a put with an epoch that is not a whole number',
+      request({ mutations: [put(1, { keyEpoch: 1.5 })] }),
+    ],
+    ['a put with epoch 0', request({ mutations: [put(1, { keyEpoch: 0 })] })],
     ['a delete carrying a shape', request({ mutations: [put(1, { op: 'delete' })] })],
     ['a negative base version', request({ mutations: [put(1, { baseVersion: -1 })] })],
     ['the same mutation twice', request({ mutations: [put(1), put(1)] })],
@@ -60,7 +77,12 @@ describe('parsing a sync request', () => {
   });
 
   it('says a protocol version it does not know is unsupported, so that a device keeps its outbox and is told to update', () => {
-    expect(parseSyncRequest(request({ v: 2 }))).toEqual({ ok: false, code: 'unsupported' });
+    expect(parseSyncRequest(request({ v: PROTOCOL_VERSION + 1 }))).toEqual({
+      ok: false,
+      code: 'unsupported',
+    });
+    // 0.1.x's protocol: its wrapped keys mean nothing now, so the device is told to update.
+    expect(parseSyncRequest(request({ v: 1 }))).toEqual({ ok: false, code: 'unsupported' });
   });
 });
 
@@ -76,14 +98,13 @@ describe('sealed text', () => {
 
 describe('parsing an answer', () => {
   const answer = {
-    v: 1,
+    v: PROTOCOL_VERSION,
     applied: [{ mutationId: ID(1), seq: 3, version: 1 }],
     refused: [{ mutationId: ID(2), code: 'stale' }],
     rows: [],
     cursor: 3,
     more: false,
     mode: 'normal',
-    vaultVersion: 1,
   };
 
   it('accepts what the server sends', () => {
@@ -91,7 +112,7 @@ describe('parsing an answer', () => {
   });
 
   it.each([
-    ['another version', { ...answer, v: 2 }],
+    ['another version', { ...answer, v: PROTOCOL_VERSION + 1 }],
     [
       'a refusal that is not known',
       { ...answer, refused: [{ mutationId: ID(2), code: 'because' }] },

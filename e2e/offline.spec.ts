@@ -11,8 +11,8 @@ import {
 } from './helpers';
 
 /**
- * Offline (DESIGN.md §10, §11.7, §26.6): the wallet opens with no connection. A reload finds the service worker's shell, which asks for the passcode, and
- * then the cards come from the device's own copy. **The worker keeps the shell and the build's files, and nothing of a person.**
+ * Offline (DESIGN.md §10, §11.7, §26.6): the wallet opens with no connection. A reload finds the service worker's shell, which asks for the passcode (with a
+ * connection a reload would have kept the wallet open, `reload.spec.ts`; without one it cannot), and then the cards come from the device's own copy. **The worker keeps the shell and the build's files, and nothing of a person.**
  */
 test('a reload with no network opens the shell, unlocks, and shows the card', async ({
   page,
@@ -20,12 +20,14 @@ test('a reload with no network opens the shell, unlocks, and shows the card', as
 }) => {
   await signUp(page, emailFor('offline'));
   await setUp(page);
-  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await page.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(page, 'Basement shop', 'BASEMENT-0001');
   // Reload online once, so that the page is controlled by the worker that was installed.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await page.reload();
-  await unlockWithPasscode(page);
+  await expect(page.getByRole('button', { name: 'Lock the wallet' })).toBeEnabled({
+    timeout: 30_000,
+  });
   await goTo(page, 'Cards');
   await expect(page.getByRole('link', { name: /Basement shop/ })).toBeVisible();
   // Let it send, so that the server has it, and then take the network away.

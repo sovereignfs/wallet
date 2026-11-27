@@ -36,6 +36,20 @@ describe('the image', () => {
     expect(dockerfile).toContain('/usr/share/licenses/sovereignfs-ui/NOTICE');
   });
 
+  it('bundles the operator tool after the build and ships it beside the server, whose node_modules hold the drivers it leaves outside', () => {
+    expect(dockerfile).toMatch(/^RUN node scripts\/build-tools\.mjs$/m);
+    expect(dockerfile.indexOf('RUN node scripts/build-tools.mjs')).toBeGreaterThan(
+      dockerfile.indexOf('RUN pnpm build'),
+    );
+    expect(dockerfile).toContain('/app/tools ./tools');
+    // The tool is a file of the build, not of the source: it is not sent to the build, and the script that makes it is a script of the package.
+    const scripts = (JSON.parse(read('package.json')) as { scripts: Record<string, string> })
+      .scripts;
+    expect(scripts['build:tools']).toBe('node scripts/build-tools.mjs');
+    expect(read('scripts/build-tools.mjs')).toContain("'@libsql/client'");
+    expect(read('scripts/build-tools.mjs')).toContain("'pg'");
+  });
+
   it('copies pnpm-workspace.yaml before it installs, which carries the platforms the lockfile covers', () => {
     expect(dockerfile).toMatch(/COPY package\.json pnpm-lock\.yaml pnpm-workspace\.yaml/);
   });
@@ -49,6 +63,7 @@ describe('what the build is sent', () => {
     expect(ignored).toContain('**/.env');
     expect(ignored).toContain('**/.env.*');
     expect(ignored).toContain('deploy');
+    expect(ignored).toContain('tools');
   });
 });
 

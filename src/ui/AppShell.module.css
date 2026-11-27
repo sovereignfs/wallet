@@ -1,5 +1,5 @@
-/* The frame of every signed-in page: two rows, a header and the main area, which is as tall as what is left of the viewport and does not
-   scroll itself: its columns do (DESIGN.md §15.2). The header's measurements follow the design system's own `Header`. */
+/* The frame of every signed-in page: two rows, a header and the main area, which is as tall as what is left of the viewport (DESIGN.md §26.2). A page fills it
+   and scrolls in columns of its own. The header's measurements follow the design system's own `Header`. */
 .shell {
   /* Published for the design system's overlays (Dialog, Drawer, Sheet), which stop below the header. */
   --sv-shell-header-height: 56px;
@@ -96,10 +96,14 @@
   gap: var(--sv-space-1);
 }
 
+/* A column that what is in it fills: **without this a page is only as tall as what it holds,** so its columns never scroll (what is below the window is cut off) and
+   the navigation stops where the content does. What brings no scrolling column of its own (the page that is not there) scrolls here. */
 .main {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow: hidden auto;
 }
 
 /* The phone's footer (DESIGN.md §18): below the main area. The design system's footer has its own border, background and clearance of the home indicator, so

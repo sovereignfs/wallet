@@ -58,6 +58,9 @@ None is a way to read an entry. Each is recorded, and has a task or a reason.
    and the wallet key then opens it. Settings says so and asks the browser to persist. _By design (DESIGN.md §10.8)._
 10. **Requests are rate-limited per account and per address,** by `RateLimiter` in the database. Pulling is covered by the sync limit; the vault by its own.
     No limit is set on **sign-up** other than better-auth's; with `WALLET_AUTH_SIGNUP=open` anyone may make accounts. Closed is the default with local sign-in.
+    _Note, 2026-11-25:_ what the code does is a little different from "per account and per address". Sync, vault and deleting an account are limited **per account**,
+    and only sign-in and sign-up are limited **per address**, by better-auth; the routes Sovereign calls were counted together until 0.5.1, and are now counted per
+    address ([`0003`](0003-security-review-0.5.0.md)).
 
 ## What would be next
 

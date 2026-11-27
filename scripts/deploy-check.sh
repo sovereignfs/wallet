@@ -13,7 +13,7 @@
 # `run` is not compose: it is the one `docker run` of DESIGN.md §23, as written, on a volume.
 #
 # `sovereign` is how an instance hosts it (task 2.10): what `sv apply` gives an app, which is the settings under Wallet's own names, secrets as `_FILE`s, a PostgreSQL
-# it made, and a PORT that is not the image's own. It must come up, offer Sovereign and no password, answer its notices' addresses, serve its icon to a visitor with
+# it made, and a PORT that is not the image's own. It must come up, send sign-in and sign-up to core with no password asked, answer its notices' addresses, serve its icon to a visitor with
 # no session, and stop on SIGTERM. (A published board is not asked for: it needs an account, which needs a core to sign in through.)
 #
 # A setting that is wrong must stop the image with a message that names it, and no value.
@@ -83,20 +83,42 @@ stop_and_check() {
   [ "$elapsed" -le 5 ] || fail "$2: took $elapsed s to stop, which is too long"
 }
 
+# The operator tool (`tools/wallet-admin.mjs`, DESIGN.md §25.1), run in a container that is up with its database, as an operator runs it: it answers --help, and for an address
+# that has no account says so and exits 1, which means it reached the auth store, and found its drivers in the image, as the server does. $1 the container, $2 the setup.
+check_admin() {
+  local out code=0
+  docker exec "$1" node tools/wallet-admin.mjs --help >/dev/null 2>&1 || fail "$2: tools/wallet-admin.mjs does not run"
+  out="$(docker exec "$1" node tools/wallet-admin.mjs accounts reset-link nobody@example.invalid 2>&1)" || code=$?
+  [ "$code" = 1 ] || fail "$2: wallet-admin for an address with no account exits $code, not 1 ($out)"
+  grep -q 'no account with that address' <<<"$out" || fail "$2: wallet-admin does not say there is no account ($out)"
+}
+
+# With no mail, the page a reset link leads to is there (an operator makes the link), and asking for one by mail is not. $1 the setup's name.
+check_reset_pages() {
+  [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://localhost:$port/reset-password?token=x")" = 200 ] || fail "$1: the page a reset link leads to is not there"
+  [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://localhost:$port/forgot-password")" = 404 ] || fail "$1: /forgot-password is there with no mail"
+}
+
 # $1 the setup's name, $2 the compose files, $3 the database it must be on.
 check_compose() {
+  local logs
   echo "== $1"
   project="wallet-check-$1"
   files="$2"
 
   up "$1"
   [ "$(database)" = "$3" ] || fail "$1: the database is '$(database)', not '$3'"
+  check_reset_pages "$1"
+  check_admin "$(docker compose -p "$project" $files ps -q web)" "$1"
 
   # Down without the volumes and up again: the database is the same, and the migrations run a second time against it.
   docker compose -p "$project" $files down >/dev/null 2>&1 || fail "$1: could not stop"
   up "$1 (again)"
   [ "$(database)" = "$3" ] || fail "$1: after a restart the database is '$(database)', not '$3'"
-  docker compose -p "$project" $files logs web 2>&1 | grep -q 'migrations applied' || fail "$1: the migrations were not reported as applied"
+  # Read first and matched after, with no pipe: `grep -q` stops at the first match, and a `logs` still writing the line after it is killed by SIGPIPE, which `pipefail` reports
+  # as the log not saying what it does say. (The same for every `grep -q` below that is given a page or a refusal.)
+  logs="$(docker compose -p "$project" $files logs web 2>&1)" || fail "$1: could not read the logs"
+  grep -q 'migrations applied' <<<"$logs" || fail "$1: the migrations were not reported as applied"
 
   stop_and_check "$(docker compose -p "$project" $files ps -q web)" "$1"
   docker compose -p "$project" $files down -v --remove-orphans >/dev/null 2>&1 || true
@@ -122,6 +144,7 @@ check_run() {
     sleep 1
   done
   [ "$(docker exec wallet-check-run id -un)" = node ] || fail "run: the process is root"
+  check_admin wallet-check-run run
   docker exec wallet-check-run test -f /data/wallet.db || fail "run: the database file is not on the volume"
   stop_and_check wallet-check-run run
   docker rm wallet-check-run >/dev/null
@@ -171,13 +194,22 @@ check_sovereign() {
     sleep 1
   done
 
-  # Offers Sovereign and no password; sign-up and reset are not there.
-  local page
-  page="$(curl -sS --max-time 10 "$base/sign-in")"
-  echo "$page" | grep -q 'Sign in with Sovereign' || fail "sovereign: the sign-in page does not offer Sovereign"
-  if echo "$page" | grep -qi 'type="password"'; then fail "sovereign: the sign-in page asks for a password"; fi
-  [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/sign-up")" = 404 ] || fail "sovereign: /sign-up is not a 404"
+  # Suite mode (DESIGN.md §25.1): sign-in and sign-up send the browser to core at once (sign-up asks for core's sign-up page, `prompt=create`), and reset is not
+  # there. This core is not there to reach, so following the way ends on the sign-in page saying so, with no password to type.
+  local page want out code
+  for path in sign-in sign-up; do
+    want="$base/api/auth/sign-in/sovereign?returnTo=%2F"
+    [ "$path" = sign-up ] && want="$base/api/auth/sign-in/sovereign?prompt=create&returnTo=%2F"
+    [ "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 10 "$base/$path")" = "307 $want" ] || fail "sovereign: /$path does not send the browser to core"
+  done
+  page="$(curl -sSL --max-time 20 "$base/sign-in")"
+  grep -q 'could not be reached' <<<"$page" || fail "sovereign: a core that cannot be reached is not said so on the sign-in page"
+  if grep -qi 'type="password"' <<<"$page"; then fail "sovereign: the sign-in page asks for a password"; fi
   [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/forgot-password")" = 404 ] || fail "sovereign: /forgot-password is not a 404"
+  [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/reset-password?token=x")" = 404 ] || fail "sovereign: /reset-password is not a 404"
+  # The operator tool has nothing to do here: the passwords are Sovereign's, and it says so and exits 1.
+  out="$(docker exec wallet-check-sov node tools/wallet-admin.mjs accounts reset-link x@example.invalid 2>&1)" && code=0 || code=$?
+  { [ "$code" = 1 ] && grep -q 'through Sovereign' <<<"$out"; } || fail "sovereign: wallet-admin does not refuse, saying why ($out)"
 
   # Its icon, to a visitor with no session; and the addresses of its notices, which are there (a 400 for a request with no token, and not a 404).
   [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/icons/icon.svg")" = 200 ] || fail "sovereign: the icon is not served"
@@ -207,8 +239,8 @@ check_refusal() {
   status=$?
   set -e
   [ "$status" -ne 0 ] || fail "a plain-http WALLET_URL did not stop the image"
-  echo "$out" | grep -q 'WALLET_URL' || fail "the refusal does not name WALLET_URL: $out"
-  if echo "$out" | grep -q 'wallet.example.com'; then fail "the refusal repeats the value"; fi
+  grep -q 'WALLET_URL' <<<"$out" || fail "the refusal does not name WALLET_URL: $out"
+  if grep -q 'wallet.example.com' <<<"$out"; then fail "the refusal repeats the value"; fi
   echo "   ok"
 }
 

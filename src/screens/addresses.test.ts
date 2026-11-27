@@ -5,8 +5,9 @@ const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
 
 describe('the addresses of the signed-in area', () => {
   it.each([
-    ['/', { screen: 'home' }],
-    ['/home', { screen: 'home' }],
+    // Wallet opens on the cards.
+    ['/', { screen: 'cards' }],
+    ['/home', { screen: 'cards' }],
     ['/cards', { screen: 'cards' }],
     ['/cards/', { screen: 'cards' }],
     ['/cards/new', { screen: 'new-card' }],
@@ -26,7 +27,7 @@ describe('the addresses of the signed-in area', () => {
     `/cards/${ID}/show/more`,
     '/settings/security',
     '/cards/new/more',
-    '/api/vault',
+    '/api/keys/root',
     '//evil.example',
   ])('%s is not an address, so the server answers 404 and a screen says it is not here', (path) => {
     expect(addressOf(path)).toBeUndefined();

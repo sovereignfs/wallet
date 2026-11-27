@@ -3,7 +3,7 @@
  * logged and shown. Each is a class of its own, so that a screen can tell a key that is not the one this was made for from a value that was changed or
  * moved, and neither from a format it does not know.
  */
-export type VaultErrorKind = 'malformed' | 'tampered' | 'unsupported_version' | 'wrong_key';
+export type VaultErrorKind = 'malformed' | 'tampered' | 'unsupported_version';
 
 export class VaultError extends Error {
   constructor(readonly kind: VaultErrorKind) {
@@ -33,13 +33,5 @@ export class MalformedError extends VaultError {
   constructor() {
     super('malformed');
     this.name = 'MalformedError';
-  }
-}
-
-/** A wallet key or recovery key that is not one of the header's recipients. */
-export class WrongKeyError extends VaultError {
-  constructor() {
-    super('wrong_key');
-    this.name = 'WrongKeyError';
   }
 }

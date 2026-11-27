@@ -1,16 +1,18 @@
 'use client';
 
-import { usePathname, useRouter } from './nav';
 import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import type { Wallet } from '../local/wallet';
 import { Button } from '@sovereignfs/ui';
 import { AccountMenu } from '../auth/screens/AccountMenu';
 import { rememberIdentity } from '../identity';
+import { KeysProvider, useKeys } from '../keys/keys';
+import { forgetResume } from '../keyring/resume';
+import type { KeySource } from '../keys/source';
 import { site } from '../site';
 import { AppShell } from '../ui/AppShell';
 import { Frame } from './Frame';
 import { LockScreen } from './LockScreen';
-import { RegisterWorker } from './RegisterWorker';
+import { ServiceWorkerRegistration } from '@sovereignfs/pwa/client';
 import { Setup } from './Setup';
 import { UndoProvider, useUndo } from './Undo';
 import { WalletProvider, useWallet } from './WalletProvider';
@@ -18,7 +20,7 @@ import type { Merged } from '../local/wallet';
 import { restoreOther } from './merged';
 import styles from './Screens.module.css';
 
-/** Who is signed in, for the screens that say so: the name on Home, the address in Settings. */
+/** Who is signed in, for the screens that say so: the name at setup, the address in Settings. */
 export interface Identity {
   readonly id: string;
   readonly name: string;
@@ -42,21 +44,29 @@ export function SignedInArea({
   accountId,
   name,
   email,
+  keys,
   children,
 }: {
   accountId: string;
   name: string;
   email: string;
+  /** Where the suite's key comes from (`src/keys/source.ts`): the server says, and the shell has it from the device. */
+  keys: KeySource | undefined;
   children: ReactNode;
 }) {
-  useEffect(() => rememberIdentity({ id: accountId, name, email }), [accountId, name, email]);
+  useEffect(
+    () => rememberIdentity({ id: accountId, name, email, ...(keys ? { keys } : {}) }),
+    [accountId, name, email, keys],
+  );
   return (
     <WhoContext.Provider value={{ id: accountId, name, email }}>
-      <UndoProvider>
-        <WithUndo accountId={accountId} name={name} email={email}>
-          {children}
-        </WithUndo>
-      </UndoProvider>
+      <KeysProvider source={keys}>
+        <UndoProvider>
+          <WithUndo accountId={accountId} name={name} email={email}>
+            {children}
+          </WithUndo>
+        </UndoProvider>
+      </KeysProvider>
     </WhoContext.Provider>
   );
 }
@@ -79,6 +89,7 @@ function WithUndo({
   return (
     <WalletProvider
       accountId={accountId}
+      email={email}
       fallback={<Shell name={name} email={email} />}
       onMerged={(merged: Merged) =>
         undo({
@@ -98,7 +109,8 @@ function WithUndo({
 function Shell({ name, email, children }: { name: string; email: string; children?: ReactNode }) {
   return (
     <AppShell name={site.name} account={<AccountMenu name={name} email={email} />}>
-      <RegisterWorker />
+      {/* Registers the service worker in production, and says when a new version is ready (`@sovereignfs/pwa`). */}
+      <ServiceWorkerRegistration appName={site.name} />
       {children}
     </AppShell>
   );
@@ -116,17 +128,8 @@ function Gate({
   registerWallet: (wallet: Wallet) => void;
 }) {
   const { stand, keyring, wallet, settingUp } = useWallet();
+  const keys = useKeys();
   registerWallet(wallet);
-  const router = useRouter();
-  const path = usePathname();
-
-  // Setup is where a person with no wallet goes, and no one else.
-  useEffect(() => {
-    if (stand === 'no-vault' && path !== '/setup') router.replace('/setup');
-    if (stand !== 'no-vault' && stand !== 'starting' && path === '/setup' && stand === 'locked')
-      router.replace('/');
-  }, [stand, path, router, settingUp]);
-
   const lock = (
     <Button
       size="sm"
@@ -142,20 +145,32 @@ function Gate({
     <AppShell
       name={site.name}
       bell={stand === 'unlocked' ? lock : null}
-      account={<AccountMenu name={name} email={email} onLeave={() => keyring.lock('sign-out')} />}
+      account={
+        <AccountMenu
+          name={name}
+          email={email}
+          onLeave={() => {
+            keyring.lock('sign-out');
+            // Signing out from the lock screen locks nothing, so what a reload would go by is let go here too.
+            forgetResume(wallet.accountId);
+            // The suite's key goes with the session: what this browser kept of it opens nothing once it ends.
+            void keys.forget();
+          }}
+        />
+      }
     >
-      <RegisterWorker />
+      <ServiceWorkerRegistration appName={site.name} />
       {stand === 'starting' ? null : stand === 'needs-connection' ? (
         <main className={styles.page}>
           <div className={`${styles.column} ${styles.narrow}`}>
             <h1 className={styles.heading}>Connect to open your wallet</h1>
             <p className={styles.lead}>
-              This device has not opened your wallet before, and signing in the first time needs a
-              connection. Once it has, it works with none.
+              This device has not opened your wallet before, and the first time needs a connection.
+              Once it has, it works with none.
             </p>
           </div>
         </main>
-      ) : stand === 'no-vault' || settingUp ? (
+      ) : settingUp ? (
         <Setup name={name} />
       ) : stand === 'locked' ? (
         <LockScreen />

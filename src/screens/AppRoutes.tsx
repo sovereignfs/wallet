@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { Button, EmptyState } from '@sovereignfs/ui';
 import { CardScreen } from './CardScreen';
 import { CardsScreen } from './CardsScreen';
-import { HomeScreen } from './HomeScreen';
 import { addressOf, titleOf } from './addresses';
 import { Link, usePathname } from './nav';
 import { NewCard } from './NewCard';
@@ -23,8 +22,6 @@ export function AppRoutes() {
   }, [address]);
 
   switch (address?.screen) {
-    case 'home':
-      return <HomeScreen />;
     case 'cards':
       return <CardsScreen />;
     case 'new-card':

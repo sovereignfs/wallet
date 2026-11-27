@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { hasSessionCookie } from './src/auth/cookie';
 import { edgeSettings } from './src/config/edge';
+import { toCore } from './src/auth/suite';
 import { HSTS, contentSecurityPolicy, newNonce } from './src/security/csp';
 
 /**
@@ -17,8 +18,8 @@ import { HSTS, contentSecurityPolicy, newNonce } from './src/security/csp';
  * policy of its own, which allows no script.
  */
 const SIGN_IN_PAGES = new Set(['/sign-in', '/sign-up', '/forgot-password', '/reset-password']);
-/** What a Sovereign-only instance has of them: the page that takes a person away to sign in there. Sign-up, and resetting a password, are local. */
-const SOVEREIGN_PAGES = new Set(['/sign-in']);
+/** What an instance in suite mode has of them: sign-in and sign-up, which send a person to core (DESIGN.md §25.1). Resetting a password is local. */
+const SOVEREIGN_PAGES = new Set(['/sign-in', '/sign-up']);
 
 /** Set on the request the proxy rewrites `/` into, so that the page it is rewritten to is not sent back to `/` (which would be a loop). */
 const HOME_MARK = 'x-wallet-home';
@@ -45,9 +46,23 @@ export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const absent =
     !authLocal && SIGN_IN_PAGES.has(path) && !(authSovereign && SOVEREIGN_PAGES.has(path));
-  // The front address is Home for someone with a session cookie, and the address stays `/` (DESIGN.md §26.5). Only the cookie is looked at: it cannot be
+  // The front address is the app for someone with a session cookie, and the address stays `/` (DESIGN.md §26.5). Only the cookie is looked at: it cannot be
   // checked here, and the page checks it and sends a forged one to sign in. The page's own address (`/home`) goes to `/`, so that there is one address for it.
   const cookie = hasSessionCookie(request.cookies);
+  // Suite mode (DESIGN.md §25.1): sign-in and sign-up are core's, so a visitor with no session cookie is sent there at once, by a redirect the server
+  // makes (a page's own would come after the loading state's 200). A session, or a return from core with `?error=`, is the page's to answer.
+  if (
+    authSovereign &&
+    !cookie &&
+    SOVEREIGN_PAGES.has(path) &&
+    !request.nextUrl.searchParams.has('error')
+  ) {
+    // `/sign-up` opens core's sign-up (Create an account); `/sign-in` its sign-in.
+    return NextResponse.redirect(
+      new URL(toCore(path === '/sign-up' ? 'create' : undefined), request.url),
+      307,
+    );
+  }
   if (cookie && path === '/home' && !request.headers.has(HOME_MARK))
     return NextResponse.redirect(new URL('/', request.url), 308);
   const signedIn = path === '/' && cookie;

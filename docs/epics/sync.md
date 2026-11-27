@@ -36,7 +36,7 @@ sealed columns but their length.
 
 **Technical:** `src/core/sync/` types and validators (shared); the route with session, `Origin`, device id, protocol version; push in order then pull
 past the cursor, paged (bodies for `synced`, shapes only otherwise, tombstones); the answer carries applied, refused (with a reason code), `mode`, the
-vault header's version; a device too old is told to update. **`docs/specs/sync-protocol.md`** written alongside with example exchanges.
+newest key epoch; a device too old is told to update. **`docs/specs/sync-protocol.md`** written alongside with example exchanges.
 
 **Accepts when:** two simulated devices converge; a refused mutation carries its reason; a removed device is refused; the spec's examples are tests.
 
@@ -60,13 +60,15 @@ plaintext in the store.
 **Goal:** writes never wait, and reach the server. **Design:** §11.1, §11.3. **Depends on:** 4.2, 4.3.
 
 **Technical:** `writeEntry(kind, model, tier)` validates, seals, and writes store and outbox in one IndexedDB transaction; the loop from Tusk
-(debounce, load, focus, online, 30 seconds while visible, Background Sync where available, Web Locks for one tab, BroadcastChannel to others), running
+(debounce, load, focus, online, a retry after a failure, Background Sync where available, Web Locks for one tab, BroadcastChannel to others), running
 while locked; refusals other than `stale` go to a **Couldn't sync** list (Settings > Storage) with the reason in a sentence and Retry or Discard.
 
 **Accepts when:** an entry written offline appears on a second context after going online; a refused write appears in Couldn't sync and is not lost;
 the loop keeps running while locked.
 
 **Done as:** `Wallet.create/update/remove` (validate, seal, write the outbox in one transaction), `src/local/loop.ts` (debounce, load, focus, online, 30 seconds while visible, one tab at a time through a Web Lock, Background Sync registered where there is one), and Couldn't sync in Settings, Storage with Retry and Discard. The loop keeps running while locked.
+
+**Since 2026-11-26 the loop differs from Tusk's** (the owner's decision): there is no 30-second timer. It tries again only after an attempt that did not get through (30 seconds doubling to 5 minutes, while visible) or when another tab was busy; a return to a tab makes one request, an unlock syncs if the last one is not recent, and an answer with nothing new writes nothing. Background Sync had registered and woken the pages since 0.1.0 with **no page listening**; the loop listens now.
 
 #### ✅ 4.5 — Merging a stale edit
 
@@ -133,12 +135,12 @@ sees shapes only; a body sent by an old client is refused.
 **Goal:** persistence requested and the risk said. **Design:** §10.8. **Depends on:** 4.3.
 
 **Technical:** `navigator.storage.persist()` at setup and after install; Settings > Storage shows granted or not, `estimate()` usage and quota,
-entries held here and their size; the Safari-not-installed message on Home while device-only entries are held (detecting standalone display mode and
+entries held here and their size; the Safari-not-installed message on the first screen while device-only entries are held (detecting standalone display mode and
 the browser).
 
-**Accepts when:** in WebKit not installed, with a device-only entry, Home shows the message; usage in Settings grows after adding a large file.
+**Accepts when:** in WebKit not installed, with a device-only entry, the first screen shows the message; usage in Settings grows after adding a large file.
 
-**Done as:** Settings, Storage asks the browser to persist and says what it holds and whether it promised to keep it, with the Safari warning; setup asks too. The message on Home for device-only entries is for 4.7.
+**Done as:** Settings, Storage asks the browser to persist and says what it holds and whether it promised to keep it, with the Safari warning; setup asks too. The message on the first screen for device-only entries is for 4.7.
 
 #### 📋 4.11 — Pruning
 

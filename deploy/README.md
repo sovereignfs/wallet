@@ -22,6 +22,23 @@ docker compose -f compose.yaml -f compose.postgres.yaml up -d --build          #
 Only the machine itself can reach the port (`127.0.0.1:3006`): put a reverse proxy with TLS in front of it, and set `WALLET_URL` to the address people use.
 Passkeys, emailed links and the sign-in redirect are made from it, and the server refuses to start on an address that is not https (localhost aside).
 
+**The proxy must tell Wallet who is calling.** Sign-in, and Sovereign's notices and export, are limited per address, and Wallet learns the address from the
+`X-Forwarded-For` header, which a client can write for itself. So Wallet believes a header with **one** address only, unless you name your proxies in
+`WALLET_AUTH_TRUSTED_PROXIES` (addresses or ranges, such as `10.0.0.0/8,172.16.0.0/12`), when it reads the chain from the right, past each of them, and
+the first address that is not one is the client. What goes wrong without telling it right depends on the proxy:
+
+| What your proxy does with `X-Forwarded-For`                                                                 | Do this                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Replaces** it with the client's address (in nginx, `proxy_set_header X-Forwarded-For $remote_addr;`)      | Nothing: leave the setting out                                                                                                                                  |
+| **Adds** to what the client sent (in nginx, `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`) | Set `WALLET_AUTH_TRUSTED_PROXIES` to the proxy's address. Left out, a client that sends its own header is counted with every other client in the same one place |
+| **Passes the client's header through** untouched, or sends none                                             | Make it replace the header. Otherwise a client can write a new address for each try and is never limited, or everyone is counted as one                         |
+
+Which of these your proxy does depends on how it is configured, and on its version: read its documentation, and test it, by sending a request with a header you
+made up (`curl -H 'X-Forwarded-For: 198.51.100.9' …`) and looking at what reaches Wallet.
+
+Wallet reached with no proxy at all (not the way to run it) has no one to believe: every request is counted together, and anyone can use up the sign-in's tries
+for everyone.
+
 The smallest setup of all is one `docker run`, with no Compose:
 
 ```bash
@@ -54,28 +71,47 @@ WALLET_POSTGRES_URL=postgres://user:password@host:5432/wallet
 
 (or `WALLET_POSTGRES_URL_FILE`, a file holding it). The app makes its own schemas, `wallet` and `wallet_auth`, in that database.
 
+## Giving someone their account back
+
+A person who forgot their password asks for a link on the sign-in page, **if the instance sends mail** (`WALLET_SMTP_*`). One who cannot, because there is no mail, or
+because their password was stored before 0.4.0 and did not move in time, gets one from you:
+
+```bash
+docker compose exec web node tools/wallet-admin.mjs accounts reset-link person@example.com
+```
+
+(Or `docker exec <container> node tools/wallet-admin.mjs …` for the one `docker run`.) It prints a link and nothing else to the standard output: **hand it to the person
+privately, since whoever holds it can choose that account's password.** It works once, for an hour, and ends every session of the account when it is used. The person
+chooses the new password themselves, in their browser, and Wallet never sees it. It says there is no account if there is none, and that it has nothing to do on an instance that
+signs people in through Sovereign, whose passwords they are (there, Sovereign's own `sovereign-admin accounts reset-link` does it).
+
+**It gives back the account, not what is in the wallet.** The password that was forgotten opened the person's keys: at their next sign-in Wallet asks for their **recovery kit**, and
+the new password opens the wallet from then on. A device of theirs that unlocks with a passkey or a passcode still opens it. With none of these nobody can open it, you included. A lost authenticator app is not reset by this either; backup codes are the way.
+
 ## On a Sovereign instance
 
 `sv app add` hosts Wallet from `sovereign.manifest.json`, which is also the image's label: the instance builds nothing of its own, gives the app a database, and
 tells it where it is. What it sets is the settings above under Wallet's own names: `WALLET_URL`, `WALLET_CORE_URL`, `WALLET_CORE_CLIENT_ID` and
 `WALLET_CORE_CLIENT_SECRET` (or `_FILE`), the database (`WALLET_DB_DIALECT` and its address) and `PORT`, and it makes `WALLET_AUTH_SECRET` and `WALLET_ENCRYPTION_KEY`
-once and keeps them. With `WALLET_AUTH_LOCAL` unset, people sign in through the instance only: there is no password, sign-up or reset to find.
+once and keeps them. An instance signs people in one way: with the instance's `WALLET_CORE_*` set, people sign in through it only, whatever `WALLET_AUTH_LOCAL` says,
+and there is no password, sign-up or reset to find; `/sign-in` and `/sign-up` send the browser to the instance (`/sign-up` asking for its sign-up page, which needs
+Sovereign 0.140.0 or later; before it, the instance shows its sign-in). Set both, and Wallet starts that way and says once which settings to remove.
 
 Sign-up is open there without being set: with the instance as the only way in, it already decides who may sign in, so Wallet gives an account to
-anyone it signs in (`WALLET_AUTH_SIGNUP=closed` turns that off). Mail (`WALLET_SMTP_*`) is not used when there is no password. The instance can end a person's sessions here, and delete their account, by
+anyone it signs in (`WALLET_AUTH_SIGNUP` has nothing to decide there). Mail (`WALLET_SMTP_*`) is not used when there is no password. The instance can end a person's sessions here, and delete their account, by
 signed notices to `/api/sovereign/backchannel-logout` and `/api/sovereign/account-deleted`; both are answered only when they carry a token the instance
 signed.
 
 ## What the server keeps, and what only you do
 
-Everything a person keeps in Wallet is **sealed in their browser** under a key they hold, and the server stores ciphertext it cannot open
-(`docs/specs/vault-format.md`). So:
+Everything a person keeps in Wallet is **encrypted in their browser** before it leaves it, and the server stores ciphertext and no key that opens it
+(`docs/specs/vault-format.md`). It is not yet independently audited. So:
 
 - **`WALLET_ENCRYPTION_KEY` is the server's own** (`openssl rand -base64 32`, once). It seals the server's own secrets at rest and **never an entry**.
   Keep it with your other secrets, apart from the database backups. To change it, give the new one and put the old one in `WALLET_ENCRYPTION_KEY_PREVIOUS`
   until the server has started once with both.
-- **Nobody can recover a wallet whose key is lost.** Not you, as the operator, and not the people who wrote Wallet. A person's wallet key (and recovery key,
-  if they made one) is theirs, and is in no file on the server. Say so to the people you run this for.
+- **A forgotten password and a lost recovery kit cannot be undone** by you or by the people who wrote Wallet: the server keeps a person's keys only wrapped under
+  those. Say so to the people you run this for. **A weak password can be guessed at against a copy of the database** (at Argon2id's cost), so ask for long ones.
 - **What an operator can see** is the number of entries an account has, their sizes (in buckets), which tier and when they changed, the account's name and
   address, and the network addresses of requests. Not the kind of an entry, its title, or anything in it (`DESIGN.md` §8.5).
 - **What an operator can do to a person** is limited to what the browser lets them: **a server that serves altered JavaScript could take a key once it is

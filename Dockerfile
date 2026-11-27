@@ -24,6 +24,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
 RUN pnpm build
+# The operator tool (`tools/wallet-admin.mjs`, DESIGN.md §25.1) as a single file: the standalone server carries no TypeScript.
+RUN node scripts/build-tools.mjs
 
 # --- What runs -----------------------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -34,7 +36,7 @@ ARG PORT
 RUN test -n "${PORT}" || { echo 'Build with: eval "docker build $(pnpm exec sovereign-manifest docker-args) ."' >&2; exit 1; }
 
 LABEL org.opencontainers.image.title="Wallet" \
-      org.opencontainers.image.description="The private things you carry, readable only by you" \
+      org.opencontainers.image.description="The private things you carry, encrypted in your browser" \
       org.opencontainers.image.source="https://github.com/sovereignfs/wallet" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
@@ -50,6 +52,8 @@ COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
 # The migrations are read from disk when the server starts, and Next does not trace them.
 COPY --from=build --chown=node:node /app/migrations ./migrations
+# What an operator runs in the container (`docker compose exec web node tools/wallet-admin.mjs accounts reset-link EMAIL`): the file finds the database drivers in `/app/node_modules`.
+COPY --from=build --chown=node:node /app/tools ./tools
 
 # Licences travel with the image: ours, and the design system's NOTICE, which carries Lucide's ISC licence and asks that it accompany copies (a
 # standalone build prunes it), and the scanner's and the hash's licences, whose WebAssembly the image serves.
@@ -58,7 +62,6 @@ COPY --from=build /app/node_modules/@sovereignfs/ui/LICENSE /usr/share/licenses/
 COPY --from=build /app/node_modules/@sovereignfs/ui/NOTICE /usr/share/licenses/sovereignfs-ui/NOTICE
 COPY --from=build /app/node_modules/zxing-wasm/LICENSE /usr/share/licenses/zxing-wasm/LICENSE
 COPY --from=build /app/node_modules/hash-wasm/LICENSE /usr/share/licenses/hash-wasm/LICENSE
-COPY --from=build /app/node_modules/age-encryption/LICENSE /usr/share/licenses/age-encryption/LICENSE
 COPY --from=build /app/node_modules/bwip-js/LICENSE /usr/share/licenses/bwip-js/LICENSE
 
 # The database file, when the instance keeps one (WALLET_SQLITE_URL=file:/data/wallet.db), and nothing else, is written. The directory is the

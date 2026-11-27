@@ -1,20 +1,14 @@
 import { toBase64Url } from '../../core/encoding';
 import type { MutationWire } from '../../core/sync/protocol';
-import {
-  createEntryKey,
-  importVaultKey,
-  seal,
-  type EntryKeys,
-  type VaultKey,
-} from '../../core/vault';
+import { FIRST_EPOCH, deriveEntryKey, importRoot, newRoot, seal } from '../../core/vault';
+import { suiteCipher } from '../../keys/cipher';
 
 /**
- * What the server's tests send: real sealed values, made with the vault format, since what the server checks is their sizes and shape. (Tests may import
- * the vault format; server code may not.)
+ * What the server's tests send: real sealed values, made with Wallet's format and the SDK's cipher, since what the server checks is their sizes and shape.
+ * (Tests may import the vault format; server code may not.)
  */
-let vaultKey: Promise<VaultKey> | undefined;
-export const testVault = (): Promise<VaultKey> =>
-  (vaultKey ??= importVaultKey(crypto.getRandomValues(new Uint8Array(32)), 'AAAAAAAAAAAAAAAA'));
+let root: Promise<CryptoKey> | undefined;
+export const testRoot = (): Promise<CryptoKey> => (root ??= importRoot(newRoot()));
 
 let counter = 0;
 export const uuid = (): string =>
@@ -22,13 +16,16 @@ export const uuid = (): string =>
 
 export interface MadeEntry {
   readonly entryId: string;
-  readonly keys: EntryKeys;
-  readonly wrapped: Uint8Array<ArrayBuffer>;
+  readonly key: CryptoKey;
+  readonly accountId: string;
 }
 
 export async function makeEntry(accountId: string, entryId = uuid()): Promise<MadeEntry> {
-  const { keys, wrapped } = await createEntryKey(await testVault(), accountId, entryId);
-  return { entryId, keys, wrapped };
+  return {
+    entryId,
+    accountId,
+    key: await deriveEntryKey(suiteCipher, await testRoot(), accountId, entryId),
+  };
 }
 
 /** A `put` of an entry made by `makeEntry`, with a card-like shape and body. */
@@ -41,10 +38,12 @@ export async function put(
     body?: unknown | null;
     tier?: MutationWire['tier'];
     id?: string;
+    keyEpoch?: number;
   } = {},
 ): Promise<MutationWire> {
   const { baseVersion = 0, title = 'Gym', tier = 'synced', id = uuid() } = options;
-  const shape = await seal(made.keys.aes, 'shape', accountId, made.entryId, {
+  const keyEpoch = options.keyEpoch ?? FIRST_EPOCH;
+  const shape = await seal(suiteCipher, made.key, 'shape', accountId, made.entryId, FIRST_EPOCH, {
     v: 1,
     kind: 'card',
     title,
@@ -53,14 +52,14 @@ export async function put(
   const body =
     bodyValue === null
       ? undefined
-      : await seal(made.keys.aes, 'body', accountId, made.entryId, bodyValue);
+      : await seal(suiteCipher, made.key, 'body', accountId, made.entryId, FIRST_EPOCH, bodyValue);
   return {
     id,
     op: 'put',
     entryId: made.entryId,
     baseVersion,
     tier,
-    wrappedKey: toBase64Url(made.wrapped),
+    keyEpoch,
     shape: toBase64Url(shape),
     ...(body ? { body: toBase64Url(body) } : {}),
   };

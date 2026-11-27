@@ -17,20 +17,23 @@ import styles from './Screens.module.css';
 import { useWallet } from './WalletProvider';
 
 /**
- * Ways to unlock this device (DESIGN.md §9.3), made at setup, on a new device after the wallet key, and from Settings. **A passkey is offered first where the
- * device has one that can do it** (Face ID, a fingerprint, Windows Hello with the PRF extension), and a passcode otherwise or as well. Each keeps the vault key
- * encrypted on this device; the wallet key still opens everything.
+ * Ways to unlock this device (DESIGN.md §9.3), made at setup, on a new device once the suite's key has brought the root, and from Settings. **A passkey is
+ * offered first where the device has one that can do it** (Face ID, a fingerprint, Windows Hello with the PRF extension), and a passcode otherwise or as well.
+ * Each keeps the keyring root encrypted on this device, so that the wallet opens with no connection; the suite's key still opens everything online.
  *
- * The vault key's bytes are in `material` only for as long as this screen is: the caller zeroes them when it is done.
+ * The root's bytes are in `material` only for as long as this screen is: the caller zeroes them when it is done.
  */
 export function UnlockMethods({
   material,
   onDone,
   doneLabel = 'Continue',
+  required = false,
 }: {
   material: Material;
   onDone: () => void;
   doneLabel?: string;
+  /** At least one way is needed to go on: without one, a restart with no signal could not open the wallet. */
+  required?: boolean;
 }) {
   const { db } = useWallet();
   const [methods, setMethods] = useState<UnlockWrapper[]>([]);
@@ -52,10 +55,10 @@ export function UnlockMethods({
     setError(null);
     setBusy('passkey');
     try {
-      // The vault key's bytes are copied, so that making a wrapper cannot spoil the ones the caller still holds.
+      // The root's bytes are copied, so that making a wrapper cannot spoil the ones the caller still holds.
       await enrollPasskey(
         db,
-        { raw: new Uint8Array(material.raw), id: material.id },
+        { raw: new Uint8Array(material.raw), epoch: material.epoch },
         'This device',
         Date.now(),
       );
@@ -80,7 +83,7 @@ export function UnlockMethods({
     try {
       await enrollPasscode(
         db,
-        { raw: new Uint8Array(material.raw), id: material.id },
+        { raw: new Uint8Array(material.raw), epoch: material.epoch },
         passcode,
         Date.now(),
         deriveInWorker,
@@ -182,7 +185,15 @@ export function UnlockMethods({
         </ul>
       ) : null}
       <div>
-        <Button onClick={onDone}>{methods.length > 0 ? doneLabel : 'Not now'}</Button>
+        {required && methods.length === 0 ? (
+          <p className={styles.muted}>
+            Add a passkey or a passcode to go on: without one, this device could not open your
+            wallet with no connection.
+          </p>
+        ) : null}
+        <Button disabled={required && methods.length === 0} onClick={onDone}>
+          {methods.length > 0 ? doneLabel : 'Not now'}
+        </Button>
       </div>
     </div>
   );

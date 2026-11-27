@@ -7,44 +7,38 @@ import {
   setUp,
   signIn,
   signUp,
-  unlockNewDevice,
+  setUpNewDevice,
   waitForCard,
 } from './helpers';
 
 /**
- * The recovery key and deleting an account (DESIGN.md §7.3, §28): the key on the printed sheet opens the wallet as the wallet key does, and deleting the
- * account removes everything of it, on the server and on this device.
+ * The recovery kit and deleting an account (DESIGN.md §7.2, §28): an instance that runs alone shows the kit once, right after sign-up and before anything else,
+ * and does not show it again; and deleting the account removes everything of it, on the server and on this device.
  */
 test.setTimeout(120_000);
 
-test('the recovery key opens a wallet on a new device, as the wallet key does', async ({
+test('the recovery kit is shown once, after sign-up, and a second device needs only the password', async ({
   browser,
 }) => {
-  const email = emailFor('recovery');
+  const email = emailFor('kit');
   const first = await browser.newContext();
   const a = await first.newPage();
   await signUp(a, email);
-  const keys = await setUp(a, { recovery: 'make' });
-  expect(keys.recovery).toMatch(/^AGE-SECRET-KEY-1/);
-  expect(keys.recovery).not.toBe(keys.identity);
-  await a.getByRole('button', { name: 'Go to Home' }).click();
-  await addCardByTyping(a, 'Kept for recovery', 'REC-1');
+  // Before anything else, and the file it saves holds a kit.
+  const { kit } = await setUp(a);
+  expect(kit).toMatch(/^[0-9A-Z]{4}(-[0-9A-Z]{4})+$/);
+  await a.getByRole('button', { name: 'See my cards' }).click();
+  await addCardByTyping(a, 'Kept for later', 'KIT-1');
 
+  // A second device signs in with the password and is not shown the kit again: the keys exist, and it brings the wallet's root.
   const second = await browser.newContext();
   const b = await second.newPage();
   await signIn(b, email);
-  // A key that is not one of the wallet's is refused, and the recovery key opens it.
-  await expect(b.getByRole('heading', { name: 'Your wallet is locked' })).toBeVisible({
-    timeout: 20_000,
-  });
-  await b
-    .getByLabel('Wallet key or recovery key')
-    .fill('AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ');
-  await b.getByRole('button', { name: 'Unlock with key' }).click();
-  await expect(b.getByText(/not a key|does not open this wallet/)).toBeVisible();
-  await unlockNewDevice(b, keys.recovery ?? '');
+  await expect(b.getByRole('heading', { name: 'Save your recovery kit' })).toHaveCount(0);
+  await setUpNewDevice(b);
+  await b.getByRole('button', { name: 'See my cards' }).click();
   await goTo(b, 'Cards');
-  await waitForCard(b, /Kept for recovery/);
+  await waitForCard(b, /Kept for later/);
   await first.close();
   await second.close();
 });
@@ -56,7 +50,7 @@ test('deleting the account removes the wallet from the server and from this devi
   const email = emailFor('delete');
   await signUp(page, email);
   await setUp(page);
-  await page.getByRole('button', { name: 'Go to Home' }).click();
+  await page.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(page, 'Soon gone', 'GONE-1');
   await page.waitForTimeout(2500);
   const databases = await page.evaluate(async () =>
@@ -74,7 +68,9 @@ test('deleting the account removes the wallet from the server and from this devi
   await expect(dialog.getByText('That password is not right.')).toBeVisible();
   await dialog.getByLabel('Your password').fill(PASSWORD);
   await dialog.getByRole('button', { name: 'Delete everything' }).click();
-  await expect(page.getByRole('heading', { name: 'Only you can read your wallet' })).toBeVisible({
+  await expect(
+    page.getByRole('heading', { name: 'Your wallet, locked in your browser' }),
+  ).toBeVisible({
     timeout: 20_000,
   });
 

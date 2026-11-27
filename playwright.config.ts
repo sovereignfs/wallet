@@ -28,7 +28,7 @@ const cameraVideo = join(directory, 'qr.y4m');
 writeCameraVideo(cameraVideo);
 
 const CORE = {
-  WALLET_CORE_URL: `http://localhost:${PORTS.coreAuth}/api/auth`,
+  WALLET_CORE_URL: `http://localhost:${PORTS.coreAuth}`,
   WALLET_CORE_CLIENT_ID: 'wallet-e2e-client',
   WALLET_CORE_CLIENT_SECRET: 'wallet-e2e-secret',
 };

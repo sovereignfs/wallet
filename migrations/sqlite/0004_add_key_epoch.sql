@@ -1,0 +1,1 @@
+ALTER TABLE `entry` ADD `key_epoch` integer DEFAULT 1 NOT NULL;

@@ -58,7 +58,7 @@ side-by-side mode for forms; shared with Roam's photo viewer. It never opens a n
 
 **Accepts when:** merged in `sovereign`.
 
-#### 📋 21.6 — A VAPID key in `generate`
+#### ✅ 21.6 — A VAPID key in `generate`
 
 **Goal:** a push key an instance makes. **Design:** §15.2, §32. **Depends on:** —.
 
@@ -66,6 +66,10 @@ side-by-side mode for forms; shared with Roam's photo viewer. It never opens a n
 raised in `sovereign` and settled once.
 
 **Accepts when:** the contract says how, and Wallet's 10.4 follows it.
+
+**Done in `sovereign` (2026-11-22):** settled by RFC 0009: `<PREFIX>_VAPID_PRIVATE_KEY` is 32 random bytes in URL-safe base64, which a manifest's
+`generate` makes as `{ "name": "<PREFIX>_VAPID_PRIVATE_KEY", "bytes": 32 }`, and `@sovereignfs/push` derives the public key from it; `contracts/env.md`
+names it. 10.4 follows that, on `@sovereignfs/push`.
 
 #### 📋 21.7 — Barcode display and scanner (candidate)
 

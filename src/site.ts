@@ -3,5 +3,5 @@ export const site = {
   name: 'Wallet',
   title: 'Wallet',
   description:
-    'The private things you carry, readable only by you. Runs on its own or on a Sovereign instance.',
+    'The private things you carry, encrypted in your browser. Runs on its own or on a Sovereign instance.',
 } as const;

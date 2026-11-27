@@ -1,5 +1,6 @@
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { TAKE_OVER_MESSAGE } from '@sovereignfs/pwa';
 import { CACHE_PREFIX, workerSource } from './source';
 
 /**
@@ -25,9 +26,12 @@ interface Listener {
 function load(version = 'v1', files: readonly string[] = FILES) {
   const stores = new Map<string, Map<string, Response>>();
   const requested: string[] = [];
-  const state = { online: true };
+  const state = { online: true, tookOver: false };
   /** What the network says: a page of a person, the shell for `/shell`, and a body for anything else. */
-  const network = async (input: Request | string): Promise<Response> => {
+  /** What a browser's fetch gives for a same-origin request: a response of type `basic`, which is the only kind the worker keeps. */
+  const network = async (input: Request | string): Promise<Response> =>
+    Object.defineProperty(await answer(input), 'type', { value: 'basic' });
+  const answer = async (input: Request | string): Promise<Response> => {
     const request = typeof input === 'string' ? new Request(`${ORIGIN}${input}`) : input;
     requested.push(new URL(request.url).pathname);
     if (!state.online) throw new TypeError('no network');
@@ -49,8 +53,9 @@ function load(version = 'v1', files: readonly string[] = FILES) {
   const cacheOf = (name: string) => {
     let store = stores.get(name);
     if (!store) stores.set(name, (store = new Map()));
+    // The worker names what it keeps by its whole address (`self.location.origin + path`) or by its request.
     const keyOf = (r: Request | string) =>
-      (typeof r === 'string' ? new Request(`${ORIGIN}${r}`) : r).url;
+      typeof r === 'string' ? new URL(r, ORIGIN).href : r.url;
     return {
       match: async (r: Request | string) => store.get(keyOf(r))?.clone(),
       put: async (r: Request | string, response: Response) => void store.set(keyOf(r), response),
@@ -83,6 +88,7 @@ function load(version = 'v1', files: readonly string[] = FILES) {
       })),
     ],
     openWindow: async (to: string) => void opened.push(to),
+    claim: async () => undefined,
   };
   const self = {
     location: { origin: ORIGIN },
@@ -91,6 +97,7 @@ function load(version = 'v1', files: readonly string[] = FILES) {
         void shown.push({ title, options }),
     },
     clients,
+    skipWaiting: () => void (state.tookOver = true),
     addEventListener: (type: string, fn: Listener) => void (listeners[type] = fn),
   };
   const context = vm.createContext({
@@ -104,7 +111,11 @@ function load(version = 'v1', files: readonly string[] = FILES) {
     clients,
     Request,
     Response,
+    Headers,
     URL,
+    AbortController,
+    setTimeout,
+    clearTimeout,
     TypeError,
     Promise,
     JSON,
@@ -186,7 +197,7 @@ describe('the worker’s cache', () => {
       ['/settings', { mode: 'navigate' }],
       ['/cards?_rsc=abc', {}],
       ['/api/sync', {}],
-      ['/api/vault', {}],
+      ['/api/keys/root', {}],
       ['/api/auth/get-session', {}],
       ['/_next/static/chunks/a.js', {}],
       ['/icons/icon-192.png', {}],
@@ -216,14 +227,33 @@ describe('the worker’s cache', () => {
     }
   });
 
-  it('answers any other address with its own page, with no network, and never the shell', async () => {
+  it('answers any other address with the shell too, which says it needs a connection (`OfflineApp`), and nothing of a person', async () => {
     const w = load();
     await w.dispatch('install');
     w.state.online = false;
     for (const path of ['/api/sync', '/cards/not-an-id', '/elsewhere']) {
       const answer = await w.fetchEvent(path, { mode: 'navigate' });
-      expect(await answer?.text(), path).toContain('needs a connection');
+      expect(await answer?.text(), path).toBe('<html>the shell, for everyone</html>');
     }
+  });
+
+  it('answers with the suite’s offline page, with no script, when there is no shell yet', async () => {
+    const w = load();
+    w.state.online = false;
+    const answer = await w.fetchEvent('/cards', { mode: 'navigate' });
+    const body = (await answer?.text()) ?? '';
+    expect(answer?.status).toBe(503);
+    expect(body).toContain('You’re offline');
+    expect(body).not.toMatch(/<script/i);
+  });
+
+  it('does not take over the pages that are open until one asks, which the registration does when the person chooses Reload', async () => {
+    const w = load('v2');
+    await w.dispatch('install');
+    await w.dispatch('message', { data: 'something else' });
+    expect(w.state.tookOver).toBe(false);
+    await w.dispatch('message', { data: TAKE_OVER_MESSAGE });
+    expect(w.state.tookOver).toBe(true);
   });
 
   it('removes the caches of older versions when it activates, and no other', async () => {

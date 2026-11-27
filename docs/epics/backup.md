@@ -17,14 +17,13 @@ the ciphertext it holds, with files committed once by hash. A **readable export*
 
 #### 📋 8.1 — The backup format
 
-**Goal:** building and reading snapshots, specified. **Design:** §23.1. **Depends on:** 3.1, 3.2.
+**Goal:** building and reading snapshots, specified. **Design:** §23.1. **Depends on:** 3.15.
 
-**Technical:** `src/core/backup/`: `buildSnapshot({ manifest, vaultHeader, entries, files? })` → a stored ZIP (`fflate` or a minimal writer), wrapped
-in age to recipients; `readSnapshot(ageIdentity, bytes)` → validated parts; format version checks; runs in Node (the server builds git snapshots) and
-the browser. **`docs/specs/backup-format.md`** with a sample snapshot made from fixed keys.
+**Technical:** `src/core/backup/`: `buildSnapshot({ manifest, keyring, entries, files? })` → a stored ZIP (`fflate` or a minimal writer), not encrypted again (§23.1);
+`readSnapshot(bytes)` → validated parts, still ciphertext; format version checks; runs in Node (the server builds git snapshots) and the browser. **`docs/specs/backup-format.md`** with a sample snapshot made from fixed keys.
 
-**Accepts when:** a snapshot built in Node opens in the browser and the reverse; either recipient opens it; the outer layer opens with the `age` CLI;
-a newer version is refused with a sentence.
+**Accepts when:** a snapshot built in Node opens in the browser and the reverse; its entries open with the account's key and no other; a snapshot
+holds no plaintext (the marker test); a newer version is refused with a sentence.
 
 #### 📋 8.2 — Backup files
 
@@ -61,13 +60,12 @@ Settings > Backup's connection panel saying what is sent and that nothing is eve
 
 **Goal:** encrypted snapshots and files committed on schedule. **Design:** §23.3. **Depends on:** 8.4, 8.1, 1.6.
 
-**Technical:** a job claiming due connections; reads the account's rows in a short transaction; builds the snapshot without file contents in Node and
-wraps it to the vault's recipients; commits `wallet/snapshots/<time>.age` and any `wallet/files/<sha256>` not yet in `backup_file` in **one commit**
+**Technical:** a job claiming due connections; reads the account's rows in a short transaction; builds the snapshot without file contents in Node; commits `wallet/snapshots/<time>.zip` and any `wallet/files/<sha256>` not yet in `backup_file` in **one commit**
 (blobs, a tree on the head's, a commit, a fast-forward), never forced; nothing changed (same `seq`), nothing committed; Back up now at most once a
 minute; failures kept; stops on a dead token, missing or public repository, raising `backup_stopped` and a Due item; **paused** in fully offline mode.
 
 **Accepts when:** against the in-memory provider, two backups with one new photo between commit the photo's file once; a backup with no change commits
-nothing; the snapshot opens with the recovery key in the browser; offline mode pauses it.
+nothing; the snapshot's entries open with the account's key in the browser; offline mode pauses it.
 
 #### 📋 8.6 — Restoring from git
 
@@ -82,7 +80,7 @@ browser, which restores as from a file (8.2's path); Device only entries arrive 
 
 **Goal:** fully offline wallets get backed up. **Design:** §10.7, §23.2. **Depends on:** 8.2, 7.4.
 
-**Technical:** the interval in the `settings` entry (14 days default); Due's item when this device's last backup file is older; Home's line "Last
+**Technical:** the interval in the `settings` entry (14 days default); Due's item when this device's last backup file is older; the first screen's line "Last
 backup file: 9 days ago" in fully offline mode.
 
 **Accepts when:** on a mocked clock the Due item appears at the interval and clears after making a backup file.

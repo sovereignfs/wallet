@@ -157,8 +157,36 @@ const namesIn = (module: Record<string, unknown>): string[] =>
 /** What the app store holds once it is migrated. */
 export const APP_TABLES: readonly string[] = [...namesIn(sqliteApp)].sort();
 
-/** What the auth store holds once it is migrated. */
-export const AUTH_TABLES: readonly string[] = namesIn(sqliteAuth);
+/** What Wallet's own auth migrations make: the store as 0.1.0 to 0.3.0 left it, which the package then moves (ADR 0001). */
+export const LEGACY_AUTH_TABLES: readonly string[] = namesIn(sqliteAuth);
+
+/**
+ * What the auth store holds once the server has started: `@sovereignfs/auth`'s tables, the core sign-in's, the SDK's store, the vault id
+ * that salts the sign-in value, the record of the move, and each one's migration history (`src/auth/migrate.ts`).
+ */
+export const AUTH_TABLES: readonly string[] = [
+  'accounts',
+  'passkeys',
+  'rate_limits',
+  'sessions',
+  'sv_auth_adoption',
+  'sv_auth_migrations',
+  'sv_core_notices',
+  'sv_core_sign_in_migrations',
+  'sv_core_sign_ins',
+  'sv_key_accounts',
+  'sv_key_apps',
+  'sv_key_migrations',
+  'sv_key_secrets',
+  'sv_key_settings',
+  'sv_key_wraps',
+  'sv_legacy_passwords',
+  'sv_sessions',
+  'two_factors',
+  'users',
+  'verifications',
+  'wallet_sdk_store_migrations',
+];
 
 /** A migrated app store, started from empty. */
 export async function makeStore(): Promise<{ database: Database; close(): Promise<void> }> {

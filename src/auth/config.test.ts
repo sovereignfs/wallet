@@ -40,6 +40,7 @@ describe('sign-in settings', () => {
       signUp: 'closed',
       passwordMinLength: 10,
       local: true,
+      trustedProxies: [],
       sovereign: undefined,
     });
     expect(
@@ -88,8 +89,38 @@ describe('sign-in settings', () => {
     expect(authOf(loadConfig({ ...coreOnly, WALLET_AUTH_SIGNUP: 'closed' }))?.signUp).toBe(
       'closed',
     );
-    expect(authOf(loadConfig({ ...coreOnly, WALLET_AUTH_LOCAL: '1' }))?.signUp).toBe('closed');
+    // Set both ways, it runs in suite mode, where who may sign up is the core's: open, not Wallet's own `closed`.
+    expect(authOf(loadConfig({ ...coreOnly, WALLET_AUTH_LOCAL: '1' }))?.signUp).toBe('open');
     expect(authOf(loadConfig(ON))?.signUp).toBe('closed');
+  });
+
+  it('read the proxies in front of Wallet as addresses and ranges, and name a wrong entry by its place and never by what it says', () => {
+    expect(authOf(loadConfig(ON))?.trustedProxies).toEqual([]);
+    expect(
+      authOf(
+        loadConfig({
+          ...ON,
+          WALLET_AUTH_TRUSTED_PROXIES: ' 10.0.0.0/8 , 192.168.1.5,fd00::/8,,::1 ',
+        }),
+      )?.trustedProxies,
+    ).toEqual(['10.0.0.0/8', '192.168.1.5', 'fd00::/8', '::1']);
+    // Suite mode has them too: its notices and its export are counted per address.
+    expect(
+      authOf(loadConfig({ ...ON, ...CORE, WALLET_AUTH_TRUSTED_PROXIES: '172.16.0.0/12' }))
+        ?.trustedProxies,
+    ).toEqual(['172.16.0.0/12']);
+    const wrong = problems(
+      loadConfig({ ...ON, WALLET_AUTH_TRUSTED_PROXIES: '10.0.0.1, secret-proxy.example.com' }),
+    );
+    expect(wrong).toEqual([
+      'WALLET_AUTH_TRUSTED_PROXIES entry 2 must be an IP address or a range such as 10.0.0.0/8.',
+    ]);
+    expect(wrong.join()).not.toContain('secret-proxy');
+    for (const bad of ['10.0.0.0/33', '10.0.0.0/', 'fd00::/129', '10.0.0/8', '*', 'unknown'])
+      expect(
+        problems(loadConfig({ ...ON, WALLET_AUTH_TRUSTED_PROXIES: bad })).join(),
+        bad,
+      ).toContain('WALLET_AUTH_TRUSTED_PROXIES entry 1');
   });
 
   it('say about a wrong address only once: the address check already reported it', () => {
@@ -106,23 +137,40 @@ describe('sign-in settings', () => {
       signUp: 'open',
       passwordMinLength: 10,
       local: false,
+      trustedProxies: [],
       sovereign: {
         issuer: 'https://sovereign.example.com',
         clientId: 'wallet-client',
         clientSecret: 'wallet-client-secret',
       },
     });
-    expect(authOf(loadConfig({ ...only, WALLET_AUTH_LOCAL: '1' }))).toMatchObject({
-      local: true,
-      sovereign: { clientId: 'wallet-client' },
-    });
     expect(authOf(loadConfig(ON))).toMatchObject({ local: true, sovereign: undefined });
+    expect(authOf(loadConfig(ON))?.localIgnored).toBeUndefined();
     expect(problems(loadConfig({ ...CORE, WALLET_AUTH_SECRET: SECRET })).join(' ')).toContain(
       'Sovereign sign-in is set, so WALLET_URL',
     );
     expect(problems(loadConfig({ ...CORE, WALLET_URL: ON.WALLET_URL })).join(' ')).toContain(
       'WALLET_AUTH_SECRET',
     );
+  });
+
+  it('start in suite mode when both ways in are set: local sign-in off, and the settings to remove named', () => {
+    const both = {
+      ...ON,
+      WALLET_AUTH_SIGNUP: 'closed',
+      WALLET_AUTH_PASSWORD_MIN_LENGTH: '12',
+      ...CORE,
+    };
+    expect(authOf(loadConfig(both))).toMatchObject({
+      local: false,
+      localIgnored: ['WALLET_AUTH_LOCAL', 'WALLET_AUTH_SIGNUP', 'WALLET_AUTH_PASSWORD_MIN_LENGTH'],
+      sovereign: { issuer: 'https://sovereign.example.com' },
+    });
+    // Only what was given is named, and a core alone, or local alone, has nothing to say.
+    expect(authOf(loadConfig({ ...ON, ...CORE }))?.localIgnored).toEqual(['WALLET_AUTH_LOCAL']);
+    const { WALLET_AUTH_LOCAL: _local, ...coreOnly } = { ...ON, ...CORE };
+    expect(authOf(loadConfig(coreOnly))?.localIgnored).toBeUndefined();
+    expect(authOf(loadConfig(ON))?.localIgnored).toBeUndefined();
   });
 
   it('read the client secret from a file, and keep it out of what they report', () => {
@@ -148,15 +196,17 @@ describe('sign-in settings', () => {
     ).join(' ');
     expect(insecure).toContain('WALLET_CORE_URL must be https');
     expect(insecure).not.toContain('wallet-client-secret');
-    // Plain http is for this machine alone, and a path is kept (an issuer may have one) but not a trailing slash.
+    // Plain http is for this machine alone, and the address is the instance's own: core's issuer, with no path, which the SDK requires.
     expect(
       authOf(loadConfig({ ...ON, ...CORE, WALLET_CORE_URL: 'http://localhost:4000/' })),
     ).toMatchObject({
       sovereign: { issuer: 'http://localhost:4000' },
     });
     expect(
-      authOf(loadConfig({ ...ON, ...CORE, WALLET_CORE_URL: 'https://core.example.com/api/auth/' })),
-    ).toMatchObject({ sovereign: { issuer: 'https://core.example.com/api/auth' } });
+      problems(
+        loadConfig({ ...ON, ...CORE, WALLET_CORE_URL: 'https://core.example.com/api/auth/' }),
+      ).join(' '),
+    ).toContain('WALLET_CORE_URL is the instance’s own address, with no path');
     for (const bad of [
       'not an address',
       'https://core.example.com/?x=1',

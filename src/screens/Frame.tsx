@@ -7,8 +7,13 @@ import { Icon, type IconName } from '@sovereignfs/ui';
 import styles from './Frame.module.css';
 
 const LINKS: { href: string; label: string; icon: IconName; match: (path: string) => boolean }[] = [
-  { href: '/', label: 'Home', icon: 'house', match: (p) => p === '/' || p === '/home' },
-  { href: '/cards', label: 'Cards', icon: 'credit-card', match: (p) => p.startsWith('/cards') },
+  {
+    href: '/cards',
+    label: 'Cards',
+    icon: 'credit-card',
+    // `/` is where Wallet opens, on the cards.
+    match: (p) => p === '/' || p === '/home' || p.startsWith('/cards'),
+  },
   {
     href: '/settings',
     label: 'Settings',
@@ -17,7 +22,7 @@ const LINKS: { href: string; label: string; icon: IconName; match: (path: string
   },
 ];
 
-/** Where a person goes (DESIGN.md §26.2): Home, Cards and Settings; documents and health arrive with their releases. */
+/** Where a person goes (DESIGN.md §26.2): Cards, which Wallet opens on, and Settings; documents and health arrive with their releases. */
 export function Frame({ children }: { children: ReactNode }) {
   const path = usePathname() ?? '/';
   return (

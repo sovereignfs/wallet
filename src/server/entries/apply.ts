@@ -2,10 +2,11 @@ import { sql } from 'drizzle-orm';
 import { fromBase64Url, toBase64Url } from '../../core/encoding';
 import {
   BODY_BUCKET,
-  SEALED_VERSION,
+  FIRST_EPOCH,
   SHAPE_BUCKET,
   SHAPE_MAX_PADDED,
-  WRAPPED_KEY_BYTES,
+  documentIdBytes,
+  maxEnvelopeBytes,
   paddedLengthOk,
 } from '../../core/sync/limits';
 import { AVAILABLE_TIERS } from '../../core/entries/types';
@@ -15,7 +16,7 @@ import type { Database } from '../../db/client';
 import { dbAll, dbGet, transaction } from '../../db/exec';
 import * as postgresSchema from '../../db/schema/postgres';
 import * as sqliteSchema from '../../db/schema/sqlite';
-import { bytesOf } from '../vault';
+import { bytesOf } from '../../db/binary';
 
 /**
  * Applying a mutation (DESIGN.md §11.4), the one door every write to an entry comes through. **The server stores ciphertext and reads nothing of it but
@@ -40,7 +41,7 @@ interface EntryRow {
   tier: string;
   version: number | string;
   seq: number | string;
-  wrappedKey: unknown;
+  keyEpoch: number | string;
   shape: unknown;
   body: unknown;
   deletedAt: number | string | null;
@@ -50,7 +51,7 @@ interface EntryRow {
 }
 
 const COLUMNS = sql.raw(
-  `id, account_id AS "accountId", tier, version, seq, wrapped_key AS "wrappedKey", shape, body, deleted_at AS "deletedAt", bytes, created_at AS "createdAt", updated_at AS "updatedAt"`,
+  `id, account_id AS "accountId", tier, version, seq, key_epoch AS "keyEpoch", shape, body, deleted_at AS "deletedAt", bytes, created_at AS "createdAt", updated_at AS "updatedAt"`,
 );
 
 const tables = (database: Database) =>
@@ -75,7 +76,7 @@ export function wireOfRow(row: EntryRow): RowWire {
     tier: row.tier as RowWire['tier'],
     version: Number(row.version),
     seq: Number(row.seq),
-    wrappedKey: toBase64Url(bytesOf(row.wrappedKey) ?? Buffer.alloc(0)),
+    keyEpoch: Number(row.keyEpoch),
     shape: shape ? toBase64Url(shape) : null,
     body: body && row.tier === 'synced' ? toBase64Url(body) : null,
     deletedAt: row.deletedAt === null ? null : Number(row.deletedAt),
@@ -96,29 +97,36 @@ const refused = (code: Refusal, current?: RowWire): ApplyResult => ({
 /** What can be refused without the database: the sizes of what was sent, which are all the server may look at. */
 function checkSizes(
   m: MutationWire,
+  accountId: string,
   limits: Limits,
 ):
-  | { ok: true; wrappedKey: Buffer; shape: Buffer; body: Buffer | null }
+  | { ok: true; keyEpoch: number; shape: Buffer; body: Buffer | null }
   | { ok: false; code: Refusal } {
-  const wrapped = fromBase64Url(m.wrappedKey ?? '');
   const shape = fromBase64Url(m.shape ?? '');
   const body = m.body === undefined ? null : fromBase64Url(m.body);
-  if (!wrapped || !shape || (m.body !== undefined && !body)) return { ok: false, code: 'invalid' };
-  if (wrapped.length !== WRAPPED_KEY_BYTES || wrapped[0] !== SEALED_VERSION)
-    return { ok: false, code: 'invalid' };
-  if (shape[0] !== SEALED_VERSION || (body && body[0] !== SEALED_VERSION))
-    return { ok: false, code: 'invalid' };
-  // A value that padding did not make is refused: it would show the length of what it holds.
-  if (!paddedLengthOk(shape.length, SHAPE_BUCKET, SHAPE_MAX_PADDED))
-    return { ok: false, code: shape.length > SHAPE_MAX_PADDED + 29 ? 'too_large' : 'invalid' };
+  if (!shape || (m.body !== undefined && !body)) return { ok: false, code: 'invalid' };
+  // Only the first epoch of the keyring root exists until rotating everything is built (task 3.10).
+  if (m.keyEpoch !== FIRST_EPOCH) return { ok: false, code: 'invalid' };
+  // A value that padding did not make is refused: it would show the length of what it holds. The envelope's own size is the suite's, and the document id in it
+  // is `<account id>/<entry id>/<part>`, which the server knows.
+  const shapeId = documentIdBytes(accountId, m.entryId, 'shape');
+  if (!paddedLengthOk(shape.length, SHAPE_BUCKET, SHAPE_MAX_PADDED, shapeId))
+    return {
+      ok: false,
+      code: shape.length > maxEnvelopeBytes(shapeId, SHAPE_MAX_PADDED) ? 'too_large' : 'invalid',
+    };
   if (body) {
     const max = Math.ceil(limits.entryBodyBytes / BODY_BUCKET) * BODY_BUCKET;
-    if (!paddedLengthOk(body.length, BODY_BUCKET, max))
-      return { ok: false, code: body.length > max + 29 ? 'too_large' : 'invalid' };
+    const bodyId = documentIdBytes(accountId, m.entryId, 'body');
+    if (!paddedLengthOk(body.length, BODY_BUCKET, max, bodyId))
+      return {
+        ok: false,
+        code: body.length > maxEnvelopeBytes(bodyId, max) ? 'too_large' : 'invalid',
+      };
   }
   return {
     ok: true,
-    wrappedKey: Buffer.from(wrapped),
+    keyEpoch: m.keyEpoch,
     shape: Buffer.from(shape),
     body: body ? Buffer.from(body) : null,
   };
@@ -134,7 +142,7 @@ export async function applyMutation(
   if (!AVAILABLE_TIERS.includes(m.tier)) return refused('tier_unavailable');
   let sized: ReturnType<typeof checkSizes> | undefined;
   if (m.op === 'put') {
-    sized = checkSizes(m, deps.limits);
+    sized = checkSizes(m, accountId, deps.limits);
     if (!sized.ok) return refused(sized.code);
   }
   try {
@@ -228,7 +236,7 @@ async function apply(
     if (existing) {
       const written = await dbAll(
         tx,
-        sql`UPDATE ${t.entry} SET wrapped_key = ${sized.wrappedKey}, shape = ${sized.shape}, body = ${sized.body}, bytes = ${bytes}, deleted_at = NULL,
+        sql`UPDATE ${t.entry} SET key_epoch = ${sized.keyEpoch}, shape = ${sized.shape}, body = ${sized.body}, bytes = ${bytes}, deleted_at = NULL,
             version = ${version}, seq = ${seq}, updated_at = ${now}
             WHERE id = ${m.entryId} AND account_id = ${accountId} AND version = ${m.baseVersion} RETURNING id`,
       );
@@ -236,8 +244,8 @@ async function apply(
     } else {
       const written = await dbAll(
         tx,
-        sql`INSERT INTO ${t.entry} (id, account_id, tier, holder_device_id, version, seq, wrapped_key, shape, body, file_count, bytes, deleted_at, created_at, updated_at)
-            VALUES (${m.entryId}, ${accountId}, ${m.tier}, NULL, ${version}, ${seq}, ${sized.wrappedKey}, ${sized.shape}, ${sized.body}, 0, ${bytes}, NULL, ${now}, ${now})
+        sql`INSERT INTO ${t.entry} (id, account_id, tier, holder_device_id, version, seq, key_epoch, shape, body, file_count, bytes, deleted_at, created_at, updated_at)
+            VALUES (${m.entryId}, ${accountId}, ${m.tier}, NULL, ${version}, ${seq}, ${sized.keyEpoch}, ${sized.shape}, ${sized.body}, 0, ${bytes}, NULL, ${now}, ${now})
             ON CONFLICT (id) DO NOTHING RETURNING id`,
       );
       if (written.length === 0) throw new Undo();

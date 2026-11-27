@@ -52,11 +52,42 @@ describe('the proxy', () => {
     expect(rewrite(proxy(request('/sign-up')))).toBeNull();
   });
 
+  it('sends sign-in and sign-up to core at once in suite mode, and keeps the reset pages away, even with local sign-in also set', () => {
+    const rewrite = (response: Response) => response.headers.get('x-middleware-rewrite');
+    vi.stubEnv('WALLET_CORE_URL', 'https://sovereign.example.com');
+    for (const local of ['', '1']) {
+      vi.stubEnv('WALLET_AUTH_LOCAL', local);
+      // A visitor goes to core by a redirect the server makes; sign-up asks for core's sign-up page.
+      const signIn = proxy(request('/sign-in'));
+      expect(signIn.status, local).toBe(307);
+      expect(signIn.headers.get('location'), local).toBe(
+        'https://wallet.example.com/api/auth/sign-in/sovereign?returnTo=%2F',
+      );
+      const signUp = proxy(request('/sign-up'));
+      expect(signUp.status, local).toBe(307);
+      expect(signUp.headers.get('location'), local).toBe(
+        'https://wallet.example.com/api/auth/sign-in/sovereign?prompt=create&returnTo=%2F',
+      );
+      // A return from core with a failure is the page's to answer, and so is someone who has a session.
+      for (const path of ['/sign-in?error=sovereign', '/sign-up?error=sovereign_unreachable']) {
+        expect(proxy(request(path)).status, path).toBe(200);
+        expect(rewrite(proxy(request(path))), path).toBeNull();
+      }
+      const withSession = new NextRequest('https://wallet.example.com/sign-in', {
+        headers: { cookie: 'better-auth.session_token=x' },
+      });
+      expect(proxy(withSession).status, local).toBe(200);
+      // Resetting a password is local: not there.
+      for (const path of ['/forgot-password', '/reset-password'])
+        expect(rewrite(proxy(request(path))), path).toMatch(/\/not-found$/);
+    }
+  });
+
   it('sends the other addresses of Home to the front one for someone with a cookie, and leaves them to the page for anyone else', () => {
     for (const path of ['/home']) {
       const reply = proxy(
         new NextRequest(`https://wallet.example.com${path}`, {
-          headers: { cookie: 'wallet.session_token=x' },
+          headers: { cookie: 'better-auth.session_token=x' },
         }),
       );
       expect(reply.status, path).toBe(308);
@@ -70,7 +101,7 @@ describe('the proxy', () => {
 
   it('shows Home at the front address for a request with a session cookie, and keeps the address', () => {
     const rewrite = (response: Response) => response.headers.get('x-middleware-rewrite');
-    for (const name of ['wallet.session_token', '__Secure-wallet.session_token']) {
+    for (const name of ['better-auth.session_token', '__Secure-better-auth.session_token']) {
       const signedIn = new NextRequest('https://wallet.example.com/', {
         headers: { cookie: `${name}=anything` },
       });
@@ -83,7 +114,7 @@ describe('the proxy', () => {
       rewrite(
         proxy(
           new NextRequest('https://wallet.example.com/', {
-            headers: { cookie: 'wallet.session_token=' },
+            headers: { cookie: 'better-auth.session_token=' },
           }),
         ),
       ),
@@ -101,14 +132,14 @@ describe('the proxy', () => {
       rewrite(
         proxy(
           new NextRequest('https://wallet.example.com/sign-in', {
-            headers: { cookie: 'wallet.session_token=x' },
+            headers: { cookie: 'better-auth.session_token=x' },
           }),
         ),
       ),
     ).toBeNull();
     // A policy and a nonce are on it all the same.
     const signedIn = new NextRequest('https://wallet.example.com/', {
-      headers: { cookie: 'wallet.session_token=x' },
+      headers: { cookie: 'better-auth.session_token=x' },
     });
     expect(proxy(signedIn).headers.get('content-security-policy')).toContain('nonce-');
   });

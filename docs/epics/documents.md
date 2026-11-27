@@ -44,11 +44,11 @@ URLs and decrypted PDF streams (pdf.js in memory, never a new tab); object URLs 
 
 #### 📋 7.4 — Due
 
-**Goal:** what needs attention, on Home and on the icon. **Design:** §14.3, §15.1. **Depends on:** 6.1, 7.1.
+**Goal:** what needs attention, on the first screen and on the icon. **Design:** §14.3, §15.1. **Depends on:** 6.1, 7.1.
 
 **Technical:** `src/core/due/` pure: `due(entries, settings, today, tz)` returning items with kind, entry, date, severity; phase 1 sources (documents
 and cards expiring or expired by the per-type windows, lost entries, overdue backup file in offline mode, stopped git backup); snooze and dismiss in
-the `settings` entry; the Home panel; `navigator.setAppBadge(count)` while open; Settings > Due for windows.
+the `settings` entry; the panel on the first screen; `navigator.setAppBadge(count)` while open; Settings > Due for windows.
 
 **Accepts when:** the pure function's cases at each window's edge pass (time zones included); snoozing hides an item on every device; the badge shows
 the count where the API exists.

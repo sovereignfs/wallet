@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createEntryKey, importVaultKey } from '../core/vault';
+import { deriveEntryBytes, importRoot, newRoot } from '../core/vault';
+import { suiteCipher } from '../keys/cipher';
 import { type Channel, type Clock, Keyring, type LockReason } from './keyring';
 
 /** A clock the test sets, and tabs that talk to each other through channels of the test's own. */
@@ -56,32 +57,49 @@ async function keyring(
   channel: Channel | null = null,
   timers?: ConstructorParameters<typeof Keyring>[0]['timers'],
 ) {
-  const k = new Keyring({ accountId: 'acct', clock, channel, ...(timers ? { timers } : {}) });
+  const k = new Keyring({
+    accountId: 'acct',
+    clock,
+    channel,
+    cipher: suiteCipher,
+    ...(timers ? { timers } : {}),
+  });
   open.push(k);
   return k;
 }
-const vault = () => importVaultKey(crypto.getRandomValues(new Uint8Array(32)), 'vk');
+/** A root as the keyring is given one: a key that can only derive, and the epoch it is of. */
+const vault = async () => ({ key: await importRoot(newRoot()), epoch: 1 });
 
 describe('the keyring', () => {
-  it('is locked until it is given a vault key, and then holds it as a key that cannot be read', async () => {
+  it('is locked until it is given a root, and then holds it as a key that cannot be read', async () => {
     const k = await keyring(fakeClock());
     expect(k.state).toBe('locked');
-    expect(() => k.vaultKey).toThrow();
-    k.unlock(await vault());
+    expect(() => k.epoch).toThrow();
+    const root = await vault();
+    k.unlock(root);
     expect(k.state).toBe('unlocked');
-    expect(k.vaultKey.key.extractable).toBe(false);
+    expect(k.epoch).toBe(1);
+    expect(root.key.extractable).toBe(false);
   });
 
-  it('unwraps an entry’s keys once, keeps them until it locks, and refuses to while locked', async () => {
+  it('derives an entry’s key once, keeps it until it locks, and refuses to while locked', async () => {
     const k = await keyring(fakeClock());
-    const v = await vault();
-    k.unlock(v);
-    const { keys, wrapped } = await createEntryKey(v, 'acct', 'e1');
-    const a = await k.entryKeys('e1', wrapped);
-    expect(await k.entryKeys('e1', wrapped)).toBe(a);
-    expect(keys.aes.extractable).toBe(false);
+    const root = await vault();
+    k.unlock(root);
+    const a = await k.entryKey('e1', 1);
+    expect(await k.entryKey('e1', 1)).toBe(a);
+    expect(a.extractable).toBe(false);
+    // Another entry's key is another key, and the same entry's is the same bytes every time.
+    expect(await k.entryKey('e2', 1)).not.toBe(a);
+    expect((await deriveEntryBytes(root.key, 'acct', 'e1')).length).toBe(32);
     k.lock();
-    await expect(k.entryKeys('e1', wrapped)).rejects.toThrow('locked');
+    await expect(k.entryKey('e1', 1)).rejects.toThrow('locked');
+  });
+
+  it('opens only the epoch it holds the root of', async () => {
+    const k = await keyring(fakeClock());
+    k.unlock(await vault());
+    await expect(k.entryKey('e1', 2)).rejects.toThrow('epoch');
   });
 
   it('locks after the idle time, at 5 minutes by default, and any use starts the time again', async () => {
@@ -152,7 +170,7 @@ describe('the keyring', () => {
     k.lock('manual');
     k.lock('manual');
     expect(seen).toEqual(['unlocked', 'locked:manual']);
-    expect(() => k.vaultKey).toThrow();
+    expect(() => k.epoch).toThrow();
   });
 
   it('locks and unlocks every tab of the account together', async () => {
@@ -163,7 +181,7 @@ describe('the keyring', () => {
     expect([one.state, two.state]).toEqual(['locked', 'locked']);
     one.unlock(await vault());
     expect([one.state, two.state]).toEqual(['unlocked', 'unlocked']);
-    expect(two.vaultKey.key.extractable).toBe(false);
+    expect(two.epoch).toBe(1);
     two.lock();
     expect([one.state, two.state]).toEqual(['locked', 'locked']);
   });

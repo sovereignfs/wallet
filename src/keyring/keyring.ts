@@ -1,8 +1,9 @@
-import { type EntryKeys, type VaultKey, unwrapEntryKey } from '../core/vault';
+import { type SuiteCipher, deriveEntryKey } from '../core/vault';
 
 /**
- * The keyring (DESIGN.md §9.1, §9.2): the keys the browser holds while the wallet is unlocked, and nothing else. **The wallet key is never kept:** it opens the
- * vault header and is forgotten. What is held is the vault key and, as they are used, entry keys, all non-extractable `CryptoKey`s, in memory only.
+ * The keyring (DESIGN.md §9.1, §9.2): the keys the browser holds while the wallet is unlocked, and nothing else. **The suite's key is not kept here:** it opens the
+ * wrapped root and is forgotten (or the device's wrapper opens it). What is held is the root and, as they are used, entry keys derived from it, all
+ * non-extractable `CryptoKey`s, in memory only.
  * Locking drops them and tells everything that holds something opened (the in-memory index, decrypted object URLs, the screens) to drop it too.
  *
  * It locks after a time without use, when the app is hidden, by hand, at sign-out, and in every tab at once (a `BroadcastChannel`: unlocking in one tab
@@ -41,10 +42,16 @@ export const realClock: Clock = {
   clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
-/** What crosses between tabs. The vault key is a non-extractable `CryptoKey`, which structured clone carries without making it readable. */
+/** The keyring root as a device holds it while unlocked: a non-extractable key that can only derive, and the epoch it is of. */
+export interface Root {
+  readonly key: CryptoKey;
+  readonly epoch: number;
+}
+
+/** What crosses between tabs. The root is a non-extractable `CryptoKey`, which structured clone carries without making it readable. */
 type Message =
   | { readonly type: 'lock' }
-  | { readonly type: 'unlock'; readonly key: CryptoKey; readonly id: string }
+  | { readonly type: 'unlock'; readonly key: CryptoKey; readonly epoch: number }
   | { readonly type: 'hello' };
 
 /** The part of `BroadcastChannel` the keyring uses. */
@@ -59,6 +66,8 @@ export interface KeyringOptions {
   readonly clock?: Clock;
   readonly timers?: LockTimers;
   readonly channel?: Channel | null;
+  /** The suite's cipher an entry's key is imported with (`src/keys/cipher.ts`). */
+  readonly cipher: SuiteCipher;
 }
 
 export class Keyring {
@@ -66,14 +75,16 @@ export class Keyring {
   private readonly clock: Clock;
   private readonly channel: Channel | null;
   private timers: LockTimers;
-  private vault: VaultKey | undefined;
-  private cache = new Map<string, Promise<EntryKeys>>();
+  private readonly cipher: SuiteCipher;
+  private root: Root | undefined;
+  private cache = new Map<string, Promise<CryptoKey>>();
   private readonly listeners = new Set<(state: KeyringState, reason?: LockReason) => void>();
   private idle: unknown;
   private away: unknown;
 
   constructor(options: KeyringOptions) {
     this.accountId = options.accountId;
+    this.cipher = options.cipher;
     this.clock = options.clock ?? realClock;
     this.timers = options.timers ?? DEFAULT_TIMERS;
     this.channel =
@@ -85,16 +96,16 @@ export class Keyring {
     this.channel?.addEventListener('message', (event) => {
       const message = event.data;
       if (message.type === 'lock') this.lockLocally('other-tab');
-      else if (message.type === 'unlock') this.hold({ key: message.key, id: message.id });
-      else if (message.type === 'hello' && this.vault)
-        this.channel?.postMessage({ type: 'unlock', key: this.vault.key, id: this.vault.id });
+      else if (message.type === 'unlock') this.hold({ key: message.key, epoch: message.epoch });
+      else if (message.type === 'hello' && this.root)
+        this.channel?.postMessage({ type: 'unlock', key: this.root.key, epoch: this.root.epoch });
     });
     // A tab that opens while another is unlocked asks to be let in.
     this.channel?.postMessage({ type: 'hello' });
   }
 
   get state(): KeyringState {
-    return this.vault ? 'unlocked' : 'locked';
+    return this.root ? 'unlocked' : 'locked';
   }
 
   /** Called when the wallet locks or unlocks, in this tab or another. The reason is given for a lock. */
@@ -105,55 +116,53 @@ export class Keyring {
 
   setTimers(timers: LockTimers): void {
     this.timers = timers;
-    if (this.vault) this.restartIdle();
+    if (this.root) this.restartIdle();
   }
 
-  /** Unlocks with a vault key the caller opened (from the header, or an unlock wrapper), and tells the other tabs. */
-  unlock(vault: VaultKey): void {
-    this.hold(vault);
-    this.channel?.postMessage({ type: 'unlock', key: vault.key, id: vault.id });
+  /** Unlocks with a root the caller opened (from the suite's key, or an unlock wrapper), and tells the other tabs. */
+  unlock(root: Root): void {
+    this.hold(root);
+    this.channel?.postMessage({ type: 'unlock', key: root.key, epoch: root.epoch });
   }
 
-  private hold(vault: VaultKey): void {
+  private hold(root: Root): void {
     const was = this.state;
-    this.vault = vault;
+    this.root = root;
     this.restartIdle();
     if (was === 'locked') for (const listener of [...this.listeners]) listener('unlocked');
   }
 
-  /** The vault key. Only for what needs it (`entryKeys`, the unlock wrappers); a locked keyring has none. */
-  get vaultKey(): VaultKey {
-    if (!this.vault) throw new Error('the wallet is locked');
-    return this.vault;
+  /** The epoch of the root held, which a new entry's key is derived from. A locked keyring has none. */
+  get epoch(): number {
+    if (!this.root) throw new Error('the wallet is locked');
+    return this.root.epoch;
   }
 
-  /** The keys of an entry, unwrapped once and kept until the wallet locks. */
-  async entryKeys(entryId: string, wrappedKey: Uint8Array): Promise<EntryKeys> {
-    const vault = this.vaultKey;
+  /** The key of an entry, derived from the root once and kept until the wallet locks. */
+  entryKey(entryId: string, epoch: number): Promise<CryptoKey> {
+    const root = this.root;
+    if (!root) return Promise.reject(new Error('the wallet is locked'));
+    // Only the epoch held is open: another epoch's root is not on this device (rotating everything, task 3.10).
+    if (epoch !== root.epoch) return Promise.reject(new Error('that epoch is not open'));
     const held = this.cache.get(entryId);
     if (held) return held;
-    const made = unwrapEntryKey(vault, this.accountId, entryId, wrappedKey);
+    const made = deriveEntryKey(this.cipher, root.key, this.accountId, entryId);
     this.cache.set(entryId, made);
-    // A key that could not be unwrapped is not kept, so that a repaired row is tried again.
+    // A key that could not be derived is not kept, so that it is tried again.
     made.catch(() => this.cache.delete(entryId));
     return made;
   }
 
-  /** Remembers keys that were made here, for an entry just created. */
-  rememberEntryKeys(entryId: string, keys: EntryKeys): void {
-    this.cache.set(entryId, Promise.resolve(keys));
-  }
-
   /** The person used the app: the idle timer starts again. */
   touch(): void {
-    if (this.vault) this.restartIdle();
+    if (this.root) this.restartIdle();
   }
 
   /** The app was hidden or shown (another app, the screen off): the hidden timer runs while it is hidden. */
   setHidden(hidden: boolean): void {
     this.clock.clearTimeout(this.away);
     this.away = undefined;
-    if (!hidden || !this.vault) {
+    if (!hidden || !this.root) {
       if (!hidden) this.touch();
       return;
     }
@@ -169,7 +178,7 @@ export class Keyring {
 
   /** Locks, here and in every tab. */
   lock(reason: LockReason = 'manual'): void {
-    const wasUnlocked = this.vault !== undefined;
+    const wasUnlocked = this.root !== undefined;
     this.lockLocally(reason);
     if (wasUnlocked) this.channel?.postMessage({ type: 'lock' });
   }
@@ -179,8 +188,8 @@ export class Keyring {
     this.clock.clearTimeout(this.away);
     this.idle = undefined;
     this.away = undefined;
-    if (!this.vault) return;
-    this.vault = undefined;
+    if (!this.root) return;
+    this.root = undefined;
     this.cache = new Map();
     for (const listener of [...this.listeners]) listener('locked', reason);
   }

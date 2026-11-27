@@ -8,6 +8,34 @@
       "when": 1794597154772,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795645538187,
+      "tag": "0001_add_keyring",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795646225222,
+      "tag": "0002_drop_vault_and_wrapped_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795646233600,
+      "tag": "0003_start_clean",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795646241731,
+      "tag": "0004_add_key_epoch",
+      "breakpoints": true
     }
   ]
 }

@@ -7,14 +7,14 @@ import { isUuid } from '../core/entries/types';
 export const CARD = /^\/cards\/([0-9a-f-]{36})(\/show)?$/;
 
 export type Address =
-  | { readonly screen: 'home' | 'cards' | 'new-card' | 'settings' | 'setup' }
+  | { readonly screen: 'cards' | 'new-card' | 'settings' | 'setup' }
   | { readonly screen: 'card' | 'show'; readonly id: string };
 
 /** What an address is, or `undefined` for one that is not an address of the area. A trailing slash is the same address. */
 export function addressOf(raw: string): Address | undefined {
   const path = raw.replace(/\/+$/, '') || '/';
-  if (path === '/' || path === '/home') return { screen: 'home' };
-  if (path === '/cards') return { screen: 'cards' };
+  // Wallet opens on the cards: there is no home screen. `/` is the address a person sees, and `/home` the one the proxy shows it from.
+  if (path === '/' || path === '/home' || path === '/cards') return { screen: 'cards' };
   if (path === '/cards/new') return { screen: 'new-card' };
   if (path === '/settings') return { screen: 'settings' };
   if (path === '/setup') return { screen: 'setup' };
@@ -25,8 +25,6 @@ export function addressOf(raw: string): Address | undefined {
 
 export function titleOf(address: Address | undefined): string {
   switch (address?.screen) {
-    case 'home':
-      return 'Home';
     case 'cards':
       return 'Cards';
     case 'new-card':

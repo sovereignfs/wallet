@@ -13,12 +13,12 @@ notices from `sovereignfs/tally`. Where this file is silent, do what Tusk does; 
 
 **Wallet**, an app of the Sovereign suite exactly as Tusk, Fjord, Ledger, Tally and Roam are: the private things a person carries — cards with
 scannable codes, identity documents, and (phase 2) health data, a journal and printable medical summaries; (phase 3) a business card, phone wallet
-passes, NFC tags and one-off share links. **Everything is end to end encrypted** under an age key the person creates or imports: the server stores
-ciphertext and never holds a key that opens an entry. **Offline first**, with each entry living on this device only, synced, or online only, and a
+passes, NFC tags and one-off share links. **Everything is encrypted in the browser** under the suite's keys (the account's app key, from core when hosted and from the app's own vault when alone,
+`docs/rfcs/0001-wallet-on-the-suites-encryption.md`; not yet audited): the server stores ciphertext and never holds a key that opens an entry. **Offline first**, with each entry living on this device only, synced, or online only, and a
 fully offline mode. A Sovereign instance can host it, and **it runs fully on its own, with every feature, needing no instance**. It replaces the
 legacy plugin `sovereignfs/sovereign-plugin-wallet`, none of whose code, data or interface is carried over (its finance track is Ledger's). It is a
-full PWA on Next.js, with its own database (sqld, a SQLite file or PostgreSQL) and files under `/data`, signing people in locally, through a Sovereign
-core, or both, from one image. Four phases: cards and documents (the MVP), health, out into the world, sharing and native.
+full PWA on Next.js, with its own database (sqld, a SQLite file or PostgreSQL) and files under `/data`, signing people in with its own accounts when it runs
+alone and through a Sovereign core when it is hosted (one way per instance, never both), from one image. Four phases: cards and documents (the MVP), health, out into the world, sharing and native.
 
 **0.1.0 is built** as a cut of phase 1 (`ROADMAP.md`, "The 0.1.0 cut"): the foundation, sign-in locally and through Sovereign, the whole encryption design (the
 vault, keys, unlocking, the `synced` tier's sync) and QR cards. `DESIGN.md` is the design of the whole, `ROADMAP.md` the order, and what is not built yet is
@@ -54,32 +54,76 @@ Directories are created when they are needed. Research (`docs/research/`), RFCs 
 - **`DESIGN.md` §33 lists what still waits on an input** (the medical review, Apple and Google accounts, PRF on real devices, the independent review);
   the task it blocks says so.
 
-## Working conventions
+<!-- sovereign:shared:begin -->
 
-- **One task, one branch, one draft PR.** Branch from an up-to-date `main`, named `feat/<slug>`, `fix/<slug>`, `docs/<slug>` or `chore/<slug>`. Do not
-  start a second task on a branch whose PR is not merged.
-- **Nothing goes to `main` directly,** except the owner's bypass, which is theirs to use.
-- **Never commit or push without being asked.** Prepare changes in the working tree and stop.
-- **Commits explain why.** `type(scope): summary` under 72 characters, body wrapped at 100, a `Verified:` line naming what was run, one logical change
-  per commit. Every commit an agent makes ends with `Co-Authored-By: Claude Code <noreply@anthropic.com>`: model-agnostic, never a specific model
-  name.
-- **PRs target `main`, are opened as drafts** (`gh pr create --draft --base main`), and are marked ready only on instruction. The body says what
-  changed and why, cites the `DESIGN.md` section, carries no task numbers, and ends with
-  `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
-- **Merge with rebase and merge,** never squash and never a merge commit. **Never merge a PR automatically.**
-- **Verify before claiming done.** Run the commands under Commands and show the output. A regression test is trusted only after it has been seen to
-  fail against the code it guards.
-- **Docs are part of the change.** A statement a change makes false is fixed in the same PR; a change to behaviour adds a line under `## [Unreleased]`
-  in `CHANGELOG.md`.
-- **Releases are their own PR,** as Tusk's: `scripts/release.sh`, a `vX.Y.Z` tag publishes the image. A patch has no migration and no setting change.
-- **Flag Docker-config impact immediately:** a new setting, port, path or WebAssembly asset updates the `Dockerfile` and `.dockerignore` in the same
-  change.
+## Working conventions (shared by every app of the suite)
+
+- **Two branches.** Work lands on `develop`, committed directly or through a feature branch (`feat/`, `fix/`, `docs/`, `chore/` and a
+  slug) cut from an up-to-date `develop` and merged into it by draft pull request with rebase and merge. `main` is what is released: it
+  is protected and changes only by a promotion pull request from `develop`, merged with a merge commit (`CONTRIBUTING.md`).
+- **Never commit or push without being asked.** Prepare changes in the working tree and stop. **Never merge a pull request
+  automatically.**
+- **Commits explain why, not just what:** `type(scope): summary` (`feat`, `fix`, `docs`, `chore`) under 72 characters, a body wrapped at
+  100, a `Verified:` line naming what was run, one logical change each. An agent's commits end with its own model-agnostic trailer:
+  `Co-Authored-By: Claude Code <noreply@anthropic.com>` or `Co-Authored-By: Codex <noreply@openai.com>`, never one naming a model (the
+  promotion check refuses it).
+- **Pull requests into `develop` are drafts,** marked ready only on instruction; the body says what changed and why and ends with the
+  agent's footer.
+- **A version is set with its changelog section,** in the same change: `version` in `package.json` (or, in a repository of several
+  components, the file `sovereign.json` names for it) and `## [X.Y.Z] - date` in its changelog, in plain words for someone upgrading. A
+  promotion titled `Release` with that version's tag publishes it on merge (`RELEASING.md`).
+- **The version follows the change, by semver:** a `fix/` is a patch, a `feat/` a minor, a breaking change a major with a note for whoever
+  upgrades; `chore/` and `docs/` change no version unless they change what the app offers. Its tag is `vX.Y.Z`, with the `tagPrefix`
+  `package.json` names in front, made on the promotion's merge commit, never by hand.
+- **One task, one branch, one pull request,** reviewed before the next begins. `develop` and `main` are never rewritten: fix a commit
+  message before it reaches `develop`.
+- **CI runs only for `main`:** on pull requests into it that are not drafts, before a release and by hand; never for `develop` or a
+  feature branch, which the pre-push hook (`pnpm run verify`) checks locally.
+- **Verify before claiming done,** and show the output. A regression test is trusted only after it has been seen to fail against the code
+  it guards.
+- **Docs are part of the change:** a statement a change makes false is fixed in the same change.
+- **Flag Docker-config impact immediately:** a new or renamed environment variable, port, on-disk path or native dependency may need the
+  `Dockerfile`, `.dockerignore` or `compose.yml` changed. Those are shared files, the same in every app: change them in the template, or
+  list the one this app must keep as its own under `sovereign.unmanaged` and change it here, in the same change.
+- **Shared files are written, not edited:** the files `npm create @sovereignfs app sync` writes (this section among them) are changed
+  in the template, in sovereignfs/sovereign, and taken with the next sync; a file this app keeps as its own is listed in `package.json`
+  under `sovereign.unmanaged`.
+- **Commands are this app's package manager's:** `pnpm install`, `pnpm run dev`, `pnpm run build`, `pnpm run verify`. Never add a second
+  lockfile.
+
+## Rules every app of the suite keeps
+
+- **Naming:** user-facing text says "app"; "client" is the protocol term, for code and the settings that register one. Every environment
+  variable carries the app's prefix (`WALLET_`), and every one the code reads is declared in `.env.example`, a secret also as
+  `NAME_FILE`.
+- **No secret has a default:** a required setting the app cannot start without stops it at start-up, saying which; it is never filled in.
+- **Every server action and route decides for itself:** it asks who is calling (the session) before it reads or changes anything, and
+  one that changes something checks the request came from the app's own origin. A page's guard protects nothing, since a `'use server'`
+  function is a public endpoint.
+- **A person's data is theirs alone:** every statement that reads, changes or deletes it names the owner, from the session, never from
+  the request; their data and files are deleted with the notice that they deleted their account.
+- **People's files go only through `@sovereignfs/storage`,** in the app's own folder; a type is judged by the bytes, and only an image is
+  shown inline.
+- **Tokens and keys are compared in constant time,** never logged, and the refresh token is the SDK's to send; nothing from a request is
+  put into a shell command.
+- **Every outbound `fetch` has a timeout,** and a server render never waits on another service without one.
+- **The data layer is async and migrations only move forward:** a migration in `migrations/` is applied once, in name order, at start;
+  one that has been released is never edited, and a change is a new file.
+- **Configuration is read at run time:** never `NEXT_PUBLIC_*` for a value that differs between instances, since it is fixed at build;
+  the image bakes in no environment and no `.env` file.
+- **The interface is `@sovereignfs/ui`'s:** its components, and its semantic `--sv-*` tokens for colour; no hard-coded colour, no
+  Tailwind, no CSS-in-JS. The content security policy is a nonce, never `'unsafe-inline'` for scripts.
+- **Read the Next.js docs that come with the installed version** (`node_modules/next/dist/docs/`) before writing Next.js code; it
+  changes faster than anything remembered.
+
+<!-- sovereign:shared:end -->
 
 ## Rules of an app
 
 Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DESIGN.md` designs it.
 
-- **Every feature works with no Sovereign instance.** Core adds a way in, a bell, email and activity; a feature that only works with core is not done.
+- **Every feature works with no Sovereign instance.** In a suite, core is the way in (never beside Wallet's own accounts, `DESIGN.md` §25.1) and adds a bell,
+  email and activity; a feature that only works with core is not done.
   A call to core that fails, is refused or is not supported changes nothing but that call (`DESIGN.md` §25.4). **Files and backups are always Wallet's
   own.**
 - **The server never reads an entry.** Every entry's shape, body and files are sealed in the browser through `src/core/vault/` (`DESIGN.md` §8) before
@@ -87,14 +131,16 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
   accepts an entry field in plain text. The server's own key (`src/crypto/`) seals only the server's secrets (§8.7), never an entry.
 - **The kind of an entry is in its sealed shape,** never a column. The server sees only `DESIGN.md` §8.5's list; a new column on `entry` is a design
   change.
-- **Keys stay in memory, non-extractable, and go at lock.** The wallet key and recovery key are never stored by Wallet; the vault key and entry keys
-  are `CryptoKey`s with `extractable: false` once loaded; locking clears them, the in-memory index, decrypted object URLs and screen state (§9.1).
+- **Keys stay in memory, non-extractable, and go at lock.** The suite's app key is the SDK's and Wallet never stores it; the keyring root and entry keys
+  are `CryptoKey`s with `extractable: false` once loaded, the root's bytes exist only while a wrapper is made for it and are overwritten; locking clears them,
+  the in-memory index, decrypted object URLs and screen state (§9.1). **A reload may open the wallet again only as §9.2 says** (the suite's key, the same tab,
+  inside the lock times, `src/keyring/resume.ts`): never from a key Wallet stored, and never after a lock.
 - **The device's store holds ciphertext only:** IndexedDB, Cache Storage and the service worker cache never hold a plaintext entry, and **never
   anything of an Online only entry** (§10.2). The raw-dump test (3.6) guards this and is extended with every new kind.
 - **Tier and mode rules are in the statement:** a body only for `synced` and `server` entries, a `device` tier change only from its holder, no body in
   fully offline mode (§5.2).
-- **The format has one implementation and a specification:** the vault (§8), sync (§11) and backup (§23) formats live in `src/core/` and in
-  `docs/specs/` with test vectors; a change bumps the version byte and updates both. **Never invent a format beside them.**
+- **The format has one implementation and a specification:** what Wallet adds to the suite's cipher (§8), sync (§11) and backup (§23) live in `src/core/` and in
+  `docs/specs/` with test vectors; a change updates both and bumps the version it names. **Never invent a format beside them.**
 - **`src/core/` is portable:** no React, Next.js, `src/server/` or DOM beyond WebCrypto, `TextEncoder`/`TextDecoder` and `fetch` (a lint rule), so a
   native app can take it (§31.2).
 - **A pure figure has one implementation,** in `src/core/`: Due, BMI, units, the test catalogue and conversions, trends, flags, journal aggregates,
@@ -102,7 +148,8 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
 - **Entries are written only through the one path:** `writeEntry` validates, seals, writes the store and the outbox in one transaction; `/api/sync`
   applies it in one short transaction that increments the account's `seq`. A replayed mutation writes nothing. **Conflicts are merged on the device**
   (§11.5). Nothing anyone typed is thrown away: a refused change goes to Couldn't sync.
-- **The vault header, devices, the backup connection, publishing and share links are online operations,** decided by the server at once.
+- **The keyring root's first record, the suite's key records, devices, the backup connection, publishing and share links are online operations,** decided by
+  the server at once.
 - **A person's rows carry `account_id`; the permission is in the statement.** A refusal reads as not found. A route, operation or mutation finds the
   session first, checks `Origin` on a write, is listed in `src/access/routes.ts`, and has a test calling it as a second person. Phase 3's `/c/<slug>`
   and `/s/<id>` are the only routes without a session.
@@ -121,7 +168,7 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
 - **The browser talks only to its own server.** No third-party load or request; WebAssembly modules, the pdf.js worker and fonts are served by Wallet.
   The only navigation elsewhere is the person opening a Google Wallet link (§20.2). What people write is rendered as text, never HTML.
 - **The database has three forms and two dialects:** a schema and migrations per dialect, generated with `pnpm db:generate`, never written by hand or
-  `push`ed; standard SQL, values bound; no `LISTEN/NOTIFY`, trigger, extension or foreign key; every deletion names what it deletes, in a transaction;
+  `push`ed (a change of data only, which no diff of the schema makes, is a `--custom` one, whose statements are written once); standard SQL, values bound; no `LISTEN/NOTIFY`, trigger, extension or foreign key; every deletion names what it deletes, in a transaction;
   short transactions, nothing held across a call to core, SMTP or GitHub. A data-layer test runs on sqld, a `file:` database and PostgreSQL. **Tests
   read `WALLET_TEST_*` and never the app's variables, and never reach the internet.**
 - **A released migration is never edited:** a fix is a new migration.
@@ -133,7 +180,7 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
   by design); Hanken Grotesk served by the app. **Reusable UI is built in `@sovereignfs/ui` in `sovereign`, released, then used** (epic 21), never
   forked here.
 - **Never fork a navigation decision by viewport;** fork only what is rendered. Every chart has a list of the same.
-- **User-facing words are "wallet", "entry", "card", "document", "family member", "Me", "wallet key", "recovery key", "lock", "unlock", "This device
+- **User-facing words are "wallet", "entry", "card", "document", "family member", "Me", "recovery kit", "lock", "unlock", "This device
   only", "Synced", "Online only", "Fully offline", "Due", "backup file", "app"** (`DESIGN.md` §4), never "vault", "tier", "stub", "blob", "DEK",
   "plugin", "tenant", "client", "E2EE" or "dependant".
 - **Next.js tracks the latest stable release.** Read the guide bundled with the installed version (`node_modules/next/dist/docs/`) before writing Next
@@ -146,7 +193,7 @@ Tusk's rules, as they apply here, and Wallet's own. They describe the app as `DE
 As Tusk's: `pnpm install --frozen-lockfile` for every routine install; `pnpm-workspace.yaml` carries pnpm's settings and the Dockerfile copies it;
 pnpm refuses a release less than a day old and an install script nobody decided on (each in `allowBuilds` is decided in its task); an exception in
 `minimumReleaseAgeExclude` only for a package of ours, exact-pinned. Never accept pnpm's offer to add one. **Cryptographic dependencies**
-(`age-encryption`, `hash-wasm`) are pinned exactly and updated only in a PR of their own that reruns the format's test vectors.
+(`hash-wasm`, and `@sovereignfs/sdk`, whose cipher is the suite's) are pinned exactly and updated only in a PR of their own that reruns the format's test vectors.
 
 ## Commands
 
@@ -155,18 +202,20 @@ pnpm refuses a release less than a day old and an install script nobody decided 
 | `pnpm install --frozen-lockfile`                                | Install, from the lockfile                                                                                                           |
 | `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` | Format, lint (including the two import rules), types, unit and data-layer tests (a file; `WALLET_TEST_*` select sqld and PostgreSQL) |
 | `pnpm build`                                                    | The standalone build (it copies the scanner's `.wasm` into `public/zxing/` first)                                                    |
+| `pnpm build:tools`                                              | The operator tool, `tools/wallet-admin.mjs`, as one file (the Dockerfile runs it after `pnpm build`)                                 |
 | `pnpm e2e`                                                      | Playwright, against a build: Chromium, a phone, WebKit, and Chromium with a fake camera and authenticator                            |
 | `pnpm boot-check`                                               | A built server against the database the environment names                                                                            |
 | `pnpm db:generate <name>`, `pnpm db:dev`                        | Generate a migration for both dialects and both stores; start sqld or PostgreSQL in Docker                                           |
 | `pnpm manifest:check`                                           | `sovereign.manifest.json` is valid                                                                                                   |
-| `pnpm seed`, `pnpm seed -- --reset`, `--remove`                 | A development wallet with its key in `seed/` (never in production)                                                                   |
-| `scripts/deploy-check.sh`, `scripts/test-release.sh`            | Bring the image up in every documented setup; test the release script                                                                |
+| `pnpm seed`, `pnpm seed -- --reset`, `--remove`                 | A development wallet with its recovery kit in `seed/` (never in production)                                                          |
+| `scripts/deploy-check.sh`                                       | Bring the image up in every documented setup                                                                                         |
 
 ## Layout
 
 `app/` routes (one signed-in page for every address of the area, `app/(app)/[...path]`, which the browser turns into a screen from the address), `src/core/`
-(portable: `vault/`, `entries/`, `sync/`; no React, Next.js, Node or DOM), `src/keyring/` (keys in memory, locking, unlock wrappers), `src/local/` (the device's
-store, the wallet, the sync loop), `src/server/` (entries and the vault header: stores ciphertext, never imports `src/core/vault`), `src/barcode/` (drawing and
+(portable: `vault/`, `entries/`, `sync/`; no React, Next.js, Node, DOM or `@sovereignfs/*`), `src/keys/` (the suite's key in the page, over both modes, and the SDK's
+cipher), `src/keyring/` (keys in memory, locking, unlock wrappers), `src/local/` (the device's store, the wallet, the sync loop), `src/server/` (entries and the wrapped
+keyring root: stores ciphertext, never imports `src/core/vault`), `src/barcode/` (drawing and
 scanning codes), `src/screens/` and `src/ui/` (the screens), `src/db/`, `src/auth/`, `src/crypto/` (the server's own key), `src/sovereign/` (core's notices and
-`People.deletePerson`), `src/config/`, `src/security/`, `src/sw/`, `src/jobs/`, `src/limits/`, `src/access/` (the table of routes), `docs/specs/` (the
+`People.deletePerson`), `src/admin/` (the operator's tool, bundled into `tools/`), `src/config/`, `src/security/`, `src/sw/`, `src/jobs/`, `src/limits/`, `src/access/` (the table of routes), `docs/specs/` (the
 formats), `docs/research/`, `docs/epics/`, `migrations/`, `deploy/`, `e2e/`, `scripts/`.

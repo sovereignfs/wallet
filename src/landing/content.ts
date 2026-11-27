@@ -1,17 +1,18 @@
 /**
- * What the landing page says (DESIGN.md §26.5). Plain sentences, in the words of DESIGN.md §4: "wallet", "entry", "card", "wallet key", "only you
- * can read it". Never "vault", "E2EE", "client" or "tenant". No third-party content, and nothing here is loaded from elsewhere.
+ * What the landing page says (DESIGN.md §26.5). Plain sentences, in the words of DESIGN.md §4: "wallet", "entry", "card", "recovery kit". Never "vault",
+ * "E2EE", "client" or "tenant", and never a promise that nobody can read what is kept (DESIGN.md §8.6): it is encrypted in the browser, and not yet audited. No third-party content, and nothing here is loaded from elsewhere.
  */
 export const landing = {
-  heading: 'Only you can read your wallet',
-  lead: 'The cards in your pocket, in one place, locked with a key only you hold. Not us, not the server, not whoever runs it.',
+  heading: 'Your wallet, locked in your browser',
+  lead: 'The cards in your pocket, in one place, encrypted on your device before they go anywhere. The server stores bytes it has no key for. Not yet independently audited.',
   signIn: 'Sign in',
+  signInSuite: 'Sign in with Sovereign',
   signUp: 'Create an account',
   noSignIn: 'Signing in is not set up on this server.',
   features: [
     {
       title: 'Locked in your browser',
-      body: 'Everything is encrypted on your device before it leaves it. The server keeps scrambled bytes it cannot open, and nobody can recover your wallet if you lose your key.',
+      body: 'Everything is encrypted on your device before it leaves it, with keys that stay in your browser. Keep your recovery kit: it is the way back if you forget your password.',
     },
     {
       title: 'Open at the till, offline',

@@ -6,7 +6,7 @@
 
 ## Overview
 
-Family members with their own Wallet accounts receive entries end to end: an entry's key is wrapped with age to their recipient. Finding people
+Family members with their own Wallet accounts receive entries end to end: an entry's derived key is sealed to their public key by the SDK's `share`. Finding people
 follows Tally's invitations and directory.
 
 ## Related
@@ -19,8 +19,8 @@ follows Tally's invitations and directory.
 
 **Goal:** know another account's public key, safely. **Design:** §31.1. **Depends on:** phase 3 released.
 
-**Technical:** each account's wallet recipient published for sharing; finding people by the app's own directory and email invitations (Tally's), and
-core's directory when hosted (`directory`, `offline_access` added to the manifest); **verifying a recipient** out of band (a short fingerprint both
+**Technical:** each account's public key from the suite (the SDK's `checkPerson`); finding people by the app's own directory and email invitations (Tally's), and
+core's directory when hosted (`directory`, `offline_access` added to the manifest); **verifying a person** out of band (a short fingerprint both
 people compare, or scanning each other's QR) before the first share.
 
 **Accepts when:** detailed when phase 4 starts.
@@ -29,7 +29,7 @@ people compare, or scanning each other's QR) before the first share.
 
 **Goal:** read or edit access to one entry. **Design:** §31.1. **Depends on:** 18.1.
 
-**Technical:** `share` rows (entry, grantee, wrapped key by age, `read` or `edit`); a second stream for shared entries on the grantee's devices; the
+**Technical:** `share` rows (entry, grantee, sealed key, `read` or `edit`); a second stream for shared entries on the grantee's devices; the
 access rule extended to grants; Device only entries not shareable.
 
 **Accepts when:** detailed when phase 4 starts.

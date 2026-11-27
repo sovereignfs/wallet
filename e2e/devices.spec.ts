@@ -7,12 +7,12 @@ import {
   signIn,
   signUp,
   syncNow,
-  unlockNewDevice,
+  setUpNewDevice,
   waitForCard,
 } from './helpers';
 
 /**
- * Two devices (DESIGN.md §11): a card written on one appears on the other, opened with the wallet key; each works with no connection, and what was written
+ * Two devices (DESIGN.md §11): a card written on one appears on the other, opened with the account's keys; each works with no connection, and what was written
  * offline goes when the connection comes back; and an edit on each of the same card merges without losing either.
  */
 test.setTimeout(180_000);
@@ -24,15 +24,16 @@ test('a card written on one device appears on another, and offline work is sent 
   const first = await browser.newContext();
   const a = await first.newPage();
   await signUp(a, email);
-  const keys = await setUp(a);
-  await a.getByRole('button', { name: 'Go to Home' }).click();
+  await setUp(a);
+  await a.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(a, 'Library card', 'LIB-0001');
 
-  // A second browser, with a store of its own: signed in, locked, and opened with the key file.
+  // A second browser, with a store of its own: signed in with the password, which brings the wallet's root, and set up as a device of its own.
   const second = await browser.newContext();
   const b = await second.newPage();
   await signIn(b, email);
-  await unlockNewDevice(b, keys.file);
+  await setUpNewDevice(b);
+  await b.getByRole('button', { name: 'See my cards' }).click();
   await goTo(b, 'Cards');
   await waitForCard(b, /Library card/);
   await b.getByRole('link', { name: /Library card/ }).click();
@@ -71,8 +72,8 @@ test('an edit on each device of one card is merged, field by field', async ({ br
   const first = await browser.newContext();
   const a = await first.newPage();
   await signUp(a, email);
-  const keys = await setUp(a);
-  await a.getByRole('button', { name: 'Go to Home' }).click();
+  await setUp(a);
+  await a.getByRole('button', { name: 'See my cards' }).click();
   await addCardByTyping(a, 'Transit', 'TRN-77');
   await goTo(a, 'Cards');
   await a.getByRole('link', { name: /Transit/ }).click();
@@ -80,7 +81,8 @@ test('an edit on each device of one card is merged, field by field', async ({ br
   const second = await browser.newContext();
   const b = await second.newPage();
   await signIn(b, email);
-  await unlockNewDevice(b, keys.file);
+  await setUpNewDevice(b);
+  await b.getByRole('button', { name: 'See my cards' }).click();
   await goTo(b, 'Cards');
   await waitForCard(b, /Transit/);
   await b.getByRole('link', { name: /Transit/ }).click();
@@ -97,7 +99,7 @@ test('an edit on each device of one card is merged, field by field', async ({ br
       async () => {
         const raw = await a.request.post('/api/sync', {
           headers: { origin: new URL(a.url()).origin },
-          data: { v: 1, deviceId: crypto.randomUUID(), cursor: 0, mutations: [] },
+          data: { v: 2, deviceId: crypto.randomUUID(), cursor: 0, mutations: [] },
         });
         return ((await raw.json()) as { rows: { version: number }[] }).rows[0]?.version;
       },

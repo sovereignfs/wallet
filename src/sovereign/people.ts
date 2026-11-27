@@ -1,7 +1,9 @@
 import { sql } from 'drizzle-orm';
 import { deleteCredentialsOf } from '../crypto/store';
+import type { Database as AuthStore } from '@sovereignfs/auth/database';
 import type { Database } from '../db/client';
-import { dbAll, dbGet, transaction } from '../db/exec';
+import { vaultOf } from '../keys/server/vault';
+import { dbAll, transaction } from '../db/exec';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
 
@@ -12,10 +14,11 @@ import * as sqliteSchema from '../db/schema/sqlite';
  * still find it.
  *
  *  1. The wallet: every entry, deleted ones included (they are ciphertext, and what is deleted is deleted), the record of applied mutations, the
- *     vault and the account's change counter. **Files under `/data/blobs/<account id>` go here too once files exist (4.6).**
+ *     wrapped keyring roots and the account's change counter. **Files under `/data/blobs/<account id>` go here too once files exist (4.6).**
  *  2. What was kept for them: sealed credentials, the rate counters.
- *  3. The sign-in store: sessions, sign-ins (password, passkeys, second factors and a Sovereign identity), pending verifications, and then the
- *     account.
+ *  3. The sign-in store: sessions and what the package keeps with them, the suite's key records of the person (the vault's `deleteAccount`: with them
+ *     gone, nothing encrypted for them opens for anyone, backups included), sign-ins (password, passkeys, second factors and a Sovereign
+ *     identity), a password still to move, pending verifications, and then the account.
  *
  * `people.test.ts` seeds a row in every table for the person and for a second person, finds nothing of the first after, and the second intact, and
  * fails for a table of the app's store that is in neither list in it: **a new table that holds something of a person is deleted here, in the
@@ -24,8 +27,8 @@ import * as sqliteSchema from '../db/schema/sqlite';
 export interface PeopleDeps {
   /** The app's store. */
   readonly database: Database;
-  /** The sign-in store (the same database as the app's, or another). */
-  readonly authDatabase: Database;
+  /** The sign-in store, as `@sovereignfs/auth` takes it (`src/auth/store.ts`). */
+  readonly authDatabase: AuthStore;
   readonly now: () => number;
 }
 
@@ -55,7 +58,7 @@ export async function deletePerson(deps: PeopleDeps, accountId: string): Promise
     );
     await dbAll(
       tx,
-      sql`DELETE FROM ${app.vault} WHERE account_id = ${accountId} RETURNING account_id`,
+      sql`DELETE FROM ${app.keyring} WHERE account_id = ${accountId} RETURNING account_id`,
     );
     await dbAll(
       tx,
@@ -69,35 +72,26 @@ export async function deletePerson(deps: PeopleDeps, accountId: string): Promise
   });
   await deleteCredentialsOf(database, accountId);
 
-  // 3. The sign-in store. The address is read first, for the verifications that are named by it; the account goes last.
-  const auth = authDatabase.dialect === 'postgres' ? postgresSchema : sqliteSchema;
-  const user = await dbGet<{ email: string }>(
-    authDatabase,
-    sql`SELECT email FROM ${auth.user} WHERE id = ${accountId}`,
-  );
-  await dbAll(
-    authDatabase,
-    sql`DELETE FROM ${auth.session} WHERE user_id = ${accountId} RETURNING id`,
-  );
-  await dbAll(
-    authDatabase,
-    sql`DELETE FROM ${auth.account} WHERE user_id = ${accountId} RETURNING id`,
-  );
-  // Second factors and passkeys, before the account they belong to, by name and not by what the store cascades.
-  await dbAll(
-    authDatabase,
-    sql`DELETE FROM ${auth.twoFactor} WHERE user_id = ${accountId} RETURNING id`,
-  );
-  await dbAll(
-    authDatabase,
-    sql`DELETE FROM ${auth.passkey} WHERE user_id = ${accountId} RETURNING id`,
-  );
-  if (user)
-    await dbAll(
-      authDatabase,
-      sql`DELETE FROM ${auth.verification} WHERE LOWER(identifier) = ${user.email.toLowerCase()} RETURNING id`,
+  // 3. The sign-in store, `@sovereignfs/auth`'s tables. The address is read first, for the verifications that are named by it; the account goes
+  // last. Each table is deleted by name rather than left to a cascade, which sqld does not promise to enforce.
+  const user = (await authDatabase.run('SELECT email FROM users WHERE id = ?', [accountId]))
+    .rows[0];
+  for (const table of ['sv_key_secrets', 'sv_core_sign_ins'])
+    await authDatabase.run(
+      `DELETE FROM ${table} WHERE session_id IN (SELECT id FROM sessions WHERE user_id = ?)`,
+      [accountId],
     );
-  await dbAll(authDatabase, sql`DELETE FROM ${auth.user} WHERE id = ${accountId} RETURNING id`);
+  await authDatabase.run('DELETE FROM sessions WHERE user_id = ?', [accountId]);
+  // The suite's key records (`sv_key_*`) of the person: their keys, wrapped, and the ways in. Safe to run again, and before the account, which names them.
+  await vaultOf(authDatabase).deleteAccount(accountId);
+  // Sign-ins (a password, a Sovereign identity), second factors and passkeys, and a password still to move, before the account.
+  for (const table of ['accounts', 'two_factors', 'passkeys', 'sv_legacy_passwords'])
+    await authDatabase.run(`DELETE FROM ${table} WHERE user_id = ?`, [accountId]);
+  if (user)
+    await authDatabase.run('DELETE FROM verifications WHERE LOWER(identifier) = ?', [
+      String(user.email).toLowerCase(),
+    ]);
+  await authDatabase.run('DELETE FROM users WHERE id = ?', [accountId]);
 
   return { entries };
 }

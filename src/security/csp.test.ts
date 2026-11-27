@@ -80,10 +80,11 @@ describe('a nonce', () => {
 describe('the headers every response has', () => {
   const headers = Object.fromEntries(SECURITY_HEADERS.map((h) => [h.key, h.value]));
 
-  it('forbids sniffing, framing and a referrer, and the device', () => {
+  it('forbids sniffing and framing, tells another site only the origin, and forbids the device', () => {
     expect(headers['X-Content-Type-Options']).toBe('nosniff');
     expect(headers['X-Frame-Options']).toBe('DENY');
-    expect(headers['Referrer-Policy']).toBe('no-referrer');
+    // The origin, and no more, to another site: core releases an app's key silently only when the browser says whose page asked (RFC 0001).
+    expect(headers['Referrer-Policy']).toBe('strict-origin-when-cross-origin');
     // The device is off but for what the app uses, for its own address.
     const permissions = headers['Permissions-Policy'] ?? '';
     for (const allowed of [
