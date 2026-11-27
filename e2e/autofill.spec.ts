@@ -3,8 +3,8 @@ import { PASSCODE, PASSWORD, emailFor, goTo, setUp, signUp } from './helpers';
 
 /**
  * A password manager can fill a box without telling the page (AutoFill on iOS, until a box is focused). **Wallet's own boxes send what is in them,** not a copy
- * of it kept by the page, and no button waits for a box the page never heard of. The forms of sign-in, sign-up and reset are `@sovereignfs/ui`'s, and are its
- * to test.
+ * of it kept by the page, and no button waits for a box the page never heard of. The forms of sign-in, sign-up and reset are `@sovereignfs/ui`'s; what Wallet
+ * relies on of them is held here and in `password-forms.test.ts`.
  */
 test.setTimeout(120_000);
 
@@ -124,3 +124,46 @@ test('a filled password deletes the account, and an empty box sends nothing', as
   ).toBeVisible({ timeout: 20_000 });
   expect(sent()).toBe(1);
 });
+
+test('a filled password signs in', async ({ page, browser, baseURL }) => {
+  const email = emailFor('fill-sign-in');
+  await signUp(page, email);
+  const context = await browser.newContext({ baseURL });
+  const fresh = await context.newPage();
+  await fresh.goto('/sign-in');
+  const button = fresh.getByRole('button', { name: 'Sign in', exact: true });
+  // Off until the page runs, so that waiting for it is waiting for the page.
+  await expect(button).toBeEnabled();
+  await fillUnannounced(fresh.getByLabel('Email'), email);
+  await fillUnannounced(fresh.getByLabel('Password'), PASSWORD);
+  await button.click();
+  // Signing in is limited per address, and every test comes from one: told to wait, it waits, as a person would.
+  // Signed in, with a recovery kit still to keep, which is shown first.
+  const arrived = fresh.getByRole('heading', { name: 'Save your recovery kit' });
+  const limited = fresh.getByText(/Too many (tries|attempts)/);
+  await expect(limited.or(arrived)).toBeVisible({ timeout: 30_000 });
+  if (await limited.isVisible()) {
+    await fresh.waitForTimeout(10_500);
+    await button.click();
+  }
+  await expect(arrived).toBeVisible({ timeout: 30_000 });
+  await context.close();
+});
+
+for (const path of ['/sign-in', '/sign-up']) {
+  test(`before the page runs, ${path} cannot be sent, and no password reaches the address`, async ({
+    browser,
+    baseURL,
+  }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
+    const page = await context.newPage();
+    await page.goto(path);
+    const password = page.getByLabel('Password', { exact: true });
+    await expect(page.locator('form button[type="submit"]')).toBeDisabled();
+    await password.fill('typed before the page ran');
+    await password.press('Enter');
+    await page.waitForTimeout(1_000);
+    expect(new URL(page.url()).search).toBe('');
+    await context.close();
+  });
+}

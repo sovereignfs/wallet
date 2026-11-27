@@ -10,6 +10,9 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
 ### Security
 
+- **A password can no longer end up in the address.** Sign-in, sign-up or the new-password button pressed before the page had loaded sent the form as an
+  address with the password in it, which a browser's history and a proxy's log can keep. Those buttons now wait for the page. **An instance that ran an
+  earlier build may have such lines in its proxy's logs:** search them for `password=`, and change what you find.
 - **Copies of the key your entries' keys come from are overwritten** once Wallet is done with them, where some were left in memory, and Settings
   overwrites the one it holds when you lock or leave the screen.
 - **A wallet on a device that slept now locks when it comes back.** The lock times were timers, which a suspended page does not run, so a phone taken out of a
@@ -21,7 +24,8 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
 - **A password or passcode filled in by a password manager is now used.** On the lock screen, in Settings (changing how this device unlocks, and deleting
   the account) and where a passcode is set, the box is read when you press the button. Before, it could look empty to Wallet: the button stayed greyed out,
-  or the passcode was called too short. The sign-in, sign-up and reset forms are not changed by this.
+  or the passcode was called too short. The sign-in, sign-up and reset forms send what a password manager filled in too (`@sovereignfs/ui` 0.107.4), where
+  before they could answer that a right password was wrong.
 - **Deleting an account no longer stalls when Wallet is open in another tab.** The other tab now lets this device's copy go, and leaves.
 - **`WALLET_AUTH_SIGNUP=invite` no longer stops the server.** The suite's contract asks an app that issues no invitations to read it as `closed`, and Wallet
   now does. Settings that are switches are written `true` or `false` in the examples and the documents; `1` and `0` are still read.

@@ -52,9 +52,10 @@ whether it is still open.
    core's answer (`KeyReturn`). Tested that leaving for core and coming back unanswered leaves no mark (`e2e/sovereign.spec.ts`, seen to fail before).
    **A real core's release is still not tried.** **Apart from this, and by design (§9.4):** hosted, the lock screen is one press from open while
    core's session is unlocked, since core answers without asking.
-3. **High. A password can end up in the address.** Sign-in, sign-up and reset, pressed before the page's scripts run, send a GET with the password in
-   it (`@sovereignfs/ui` 0.105.0). **Reproduced** in Chromium and WebKit. It breaks "the password is never sent", and the password is what opens the
-   wallet on a new device. _Open, upstream:_ fixed in `ui` 0.107.4, not published when this was written.
+3. **High. A password can end up in the address.** Sign-in, sign-up and reset, pressed before the page's scripts ran, sent a GET with the password in
+   it (`@sovereignfs/ui` 0.105.0). **Reproduced** in Chromium and WebKit. It broke "the password is never sent", and the password is what opens the
+   wallet on a new device. _Fixed in 0.7.1:_ `ui` 0.107.4 (`password-forms.test.ts`, `e2e/autofill.spec.ts`, both seen to fail before). Lines already
+   in a proxy's log are for its operator to find.
 4. **Medium. A session alone, with no password, can destroy the ways in, or the wallet.** `/api/keys/vault` takes `confirm-kit` and `put-way-in` from
    any session of the account. **Reproduced:** both replaced with junk; a new device with the right password is then asked for the recovery kit, and
    the right kit does not open the wallet. A device with a passkey or passcode still opens, and nothing offers to make the ways in again. The same
@@ -113,6 +114,5 @@ whether it is still open.
 
 ## Next
 
-Take `ui` 0.107.4 for finding 3 before publishing, and give findings 4, 5, 6 and 10 a task or a reason. Then check passkeys and the locks on real
-phones (task 3.17), try the hosted release against a real core, and have the format and the keyring reviewed by someone outside the project (task
-20.8).
+Give findings 4, 5, 6 and 10 a task or a reason. Then check passkeys and the locks on real phones (task 3.17), try the hosted release against a real
+core, and have the format and the keyring reviewed by someone outside the project (task 20.8).
