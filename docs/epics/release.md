@@ -40,6 +40,8 @@ the git backup's contents, logs, what the server can read (§8.5) checked agains
 
 **Done as:** `docs/research/0002-security-review-0.1.0.md`: every claim of §8 and §30 matched to its code and its test, what the server can read, and ten findings, none a way to read an entry. **Not independent**; that is 20.8.
 
+**Since:** 0.7.0 replaced the encryption this review read; [`0004`](../research/0004-security-review-0.7.0.md) reviews what replaced it, with its findings open.
+
 #### ✅ 20.3 — The documents
 
 **Goal:** a README a person and an operator can follow. **Design:** §30 Deployment, §8.6. **Depends on:** 1.10.

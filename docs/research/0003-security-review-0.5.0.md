@@ -4,7 +4,8 @@
 §33 holds that for before 1.0). **What it covers:** sign-in in both modes (§25.1), sessions and cookies, the route guards (`src/access/`), the Content-Security-Policy, the
 rate limits, the routes Sovereign calls, and account deletion, as of 0.5.0. **What it does not:** the vault format, the keyring, the passcode wrapper, the service worker
 and the jobs, which stand on [`0002-security-review-0.1.0.md`](0002-security-review-0.1.0.md) and their tests; a real proxy or a real core (only the SDK's fake one);
-dependency advisories (`pnpm audit` sends the dependency list to the registry, and was not run).
+dependency advisories (`pnpm audit` sends the dependency list to the registry, and was not run). _Note, 2026-11-27:_ 0.7.0 replaced the vault and re-rooted
+the keyring and the wrappers; they are reviewed as they are now in [`0004`](0004-security-review-0.7.0.md).
 
 ## What held up
 

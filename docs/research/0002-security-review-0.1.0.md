@@ -1,5 +1,8 @@
 # Security review before 0.1.0
 
+_Note, 2026-11-27:_ the vault format reviewed here is gone since 0.7.0. [`0004`](0004-security-review-0.7.0.md) reviews what replaced it, and corrects what is
+said below of the passcode wrapper and a copy of the store (finding 5 there).
+
 **Date:** 2026-11-14. **By:** the author of the code, with the code and tests open, which is **not an independent review** ([`DESIGN.md`](../../DESIGN.md) §33
 holds that for before 1.0). **What it covers:** everything 0.1.0 builds: the vault format and keyring, sign-in, the server's rules for entries, the sync loop,
 the policy, the service worker, logs, and what the server can read (§8.5), checked against a real database. **How:** each claim of §8 and §30 was matched to
