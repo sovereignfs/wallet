@@ -8,6 +8,11 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
 ## [0.7.1] - 2026-11-27
 
+### Security
+
+- **A wallet on a device that slept now locks when it comes back.** The lock times were timers, which a suspended page does not run, so a phone taken out of a
+  pocket or a laptop opened again could show an unlocked wallet. Wallet now goes by the clock as well.
+
 ### Fixed
 
 - **A password or passcode filled in by a password manager is now used.** On the lock screen, in Settings (changing how this device unlocks, and deleting

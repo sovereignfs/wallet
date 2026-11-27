@@ -243,10 +243,14 @@ export function WalletProvider({
         }
       };
       const leaving = () => note(Date.now());
+      // A page that comes back, from sleep or from the browser's back and forward cache, is asked what the clock says (§9.2).
+      const back = () => void keyring.expire();
       for (const event of ['pointerdown', 'keydown', 'touchstart', 'scroll'])
         window.addEventListener(event, touch, { passive: true });
       document.addEventListener('visibilitychange', hidden);
       window.addEventListener('pagehide', leaving);
+      window.addEventListener('pageshow', back);
+      window.addEventListener('focus', back);
       teardown = () => {
         clearTimeout(giveUp);
         unsubscribe();
@@ -254,6 +258,8 @@ export function WalletProvider({
           window.removeEventListener(event, touch);
         document.removeEventListener('visibilitychange', hidden);
         window.removeEventListener('pagehide', leaving);
+        window.removeEventListener('pageshow', back);
+        window.removeEventListener('focus', back);
         loop.stop();
         keyring.close();
         db.close();

@@ -395,6 +395,10 @@ tools, say) could open the wallet without the passkey or passcode, as in every a
 Tabs share one lock (BroadcastChannel): unlocking or locking one does the same in every tab of the account. **A device with no wrapper set has nothing to come back with**: its lock needs the
 suite's key, which needs a connection, so setup asks for a passkey or a passcode and says why.
 
+**The two times are kept by the clock as well as by timers.** A page the system suspends (a phone in a pocket, a closed laptop) runs no timer, so while it is
+unlocked Wallet reads the clock when the page comes back, at every touch, once a second, and before it lets a new tab in, and locks if a time has run out
+or the clock has been set back.
+
 **A reload is not a lock** (the owner's decision, 2026-11-26). The keys still live only in the page's memory, so a reloaded page has none; but it opens again **by the suite's key, without
 asking, when all of this holds**: it is the same tab; the server can be asked; the SDK still keeps the key for the session; the wallet was not locked; and neither lock time has run out, counting
 the idle time from the last use and the hidden time from when the page was left. **However the wallet had been opened** (password, passkey or passcode), a reload keeps it open. For that the tab

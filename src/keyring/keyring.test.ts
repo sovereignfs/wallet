@@ -4,7 +4,7 @@ import { suiteCipher } from '../keys/cipher';
 import { type Channel, type Clock, Keyring, type LockReason } from './keyring';
 
 /** A clock the test sets, and tabs that talk to each other through channels of the test's own. */
-function fakeClock(): Clock & { advance(ms: number): void } {
+function fakeClock(): Clock & { advance(ms: number): void; sleep(ms: number): void } {
   let now = 0;
   let next = 1;
   const timers = new Map<number, { at: number; callback: () => void }>();
@@ -15,6 +15,11 @@ function fakeClock(): Clock & { advance(ms: number): void } {
       return next++;
     },
     clearTimeout: (handle) => void timers.delete(handle as number),
+    // Time passes and no timer runs, as for a page the system suspended: what was due stays due, as far ahead as it was.
+    sleep(ms) {
+      now += ms;
+      for (const timer of timers.values()) timer.at += ms;
+    },
     advance(ms) {
       const until = now + ms;
       for (;;) {
@@ -202,5 +207,90 @@ describe('the keyring', () => {
     k.setTimers({ idleMinutes: 1, hidden: 'never' });
     clock.advance(60_000);
     expect(k.state).toBe('locked');
+  });
+
+  /** An unlocked keyring on a clock, and the reasons it was locked for. */
+  async function watched(timers?: ConstructorParameters<typeof Keyring>[0]['timers']) {
+    const clock = fakeClock();
+    const k = await keyring(clock, null, timers);
+    const reasons: (LockReason | undefined)[] = [];
+    k.subscribe((state, reason) => state === 'locked' && reasons.push(reason));
+    k.unlock(await vault());
+    return { clock, k, reasons };
+  }
+
+  it('locks a page that slept while hidden, as soon as it is shown', async () => {
+    const { clock, k, reasons } = await watched();
+    k.setHidden(true);
+    clock.sleep(60 * 60_000);
+    k.setHidden(false);
+    expect(k.state).toBe('locked');
+    expect(reasons).toEqual(['hidden']);
+  });
+
+  it('locks a page that slept past its idle time, at the first touch', async () => {
+    const { clock, k, reasons } = await watched();
+    clock.sleep(5 * 60_000);
+    k.touch();
+    expect(k.state).toBe('locked');
+    expect(reasons).toEqual(['idle']);
+  });
+
+  it('locks a page that slept in view and is told nothing, within a second of running again', async () => {
+    const { clock, k, reasons } = await watched();
+    clock.sleep(60 * 60_000);
+    clock.advance(1_000);
+    expect(k.state).toBe('locked');
+    expect(reasons).toEqual(['idle']);
+  });
+
+  it('keeps a page open that slept for less than its times', async () => {
+    const hidden = await watched();
+    hidden.k.setHidden(true);
+    hidden.clock.sleep(59_000);
+    hidden.k.setHidden(false);
+    expect(hidden.k.state).toBe('unlocked');
+    const idle = await watched();
+    idle.clock.sleep(4 * 60_000);
+    idle.k.touch();
+    idle.clock.advance(4 * 60_000);
+    expect(idle.k.state).toBe('unlocked');
+  });
+
+  it('does not count time hidden against a page whose person chose never to lock for it', async () => {
+    const { clock, k } = await watched({ idleMinutes: 60, hidden: 'never' });
+    k.setHidden(true);
+    clock.sleep(30 * 60_000);
+    k.setHidden(false);
+    expect(k.state).toBe('unlocked');
+  });
+
+  it('does not count time hidden before it was unlocked, by another tab, against a hidden page', async () => {
+    const make = bus();
+    const clock = fakeClock();
+    const front = await keyring(clock, make());
+    const back = await keyring(clock, make());
+    back.setHidden(true);
+    clock.advance(10 * 60_000);
+    front.unlock(await vault());
+    clock.advance(2_000);
+    expect([front.state, back.state]).toEqual(['unlocked', 'unlocked']);
+  });
+
+  it('locks when the clock was set back, since it cannot say how long has passed', async () => {
+    const { clock, k } = await watched();
+    clock.sleep(-60_000);
+    k.touch();
+    expect(k.state).toBe('locked');
+  });
+
+  it('gives no root to a new tab from a page that slept past its times', async () => {
+    const make = bus();
+    const clock = fakeClock();
+    const slept = await keyring(clock, make());
+    slept.unlock(await vault());
+    clock.sleep(60 * 60_000);
+    const late = await keyring(clock, make());
+    expect([late.state, slept.state]).toEqual(['locked', 'locked']);
   });
 });
