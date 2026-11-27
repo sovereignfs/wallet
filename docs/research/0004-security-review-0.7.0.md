@@ -14,21 +14,21 @@ cryptographer's judgment (task 20.8).
 Run for this review, at 0.7.1 on a Mac: the unit tests (683 passed, 3 skipped, on a SQLite file) and the browser tests (116 of 117 passed; the camera scan
 fails there on the code before 0.7.1 too, and was not looked into). sqld and PostgreSQL were not run here.
 
-| Claim                                                                      | Where it is true                                                | Checked by                                                                                     |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| A wrapped root opens only for its account and epoch                        | the additional data of `wrapRoot`, `unwrapRoot`                 | `root.test.ts`; with the data emptied, its test fails                                          |
-| A sealed value does not open for another account, entry, part or key epoch | `documentIdOf`, and the epoch as the SDK's version (`entry.ts`) | `entry.test.ts`, `vectors.test.ts`; with the part or the epoch left out, they fail             |
-| Each entry has its own key, bound to account and entry                     | `entryInfoOf` (`root.ts`)                                       | `root.test.ts`, `vectors.test.ts`; with the entry left out, four tests fail                    |
-| The root and entry keys cannot be exported once loaded                     | `importRoot`, `deriveEntryKey`                                  | `root.test.ts`, `keyring.test.ts`                                                              |
-| The server keeps one wrapped root an epoch, the first given, per account   | `keepRoot`, `/api/keys/root`                                    | `server/keyring/keyring.test.ts` (a race, a second account, another origin, the limit)         |
-| The server never opens an entry                                            | an ESLint rule on imports of `src/core/vault`                   | an import added to `src/server/` fails the lint                                                |
-| The server and the device's stores hold nothing readable of an entry       | the kind and every field are sealed                             | `wallet.test.ts`, `e2e/wallet.spec.ts` and `e2e/offline.spec.ts` (planted values, dumped)      |
-| One account cannot read or change another's entries                        | `account_id` in the statements of `apply.ts`                    | `apply.test.ts`, `sync.test.ts` as a second person                                             |
-| Locking drops the root, the keys and the opened entries                    | `Keyring.lockLocally`, `Wallet.clear`                           | `keyring.test.ts`, `wallet.test.ts` — **when a lock happens** (findings 1, fixed since, and 2) |
-| A reload opens the wallet only within the lock times                       | `resume.ts`                                                     | `resume.test.ts`, `e2e/reload.spec.ts` — standalone (finding 2 is the hosted way round it)     |
-| Five wrong passcodes delete the wrapper; each try is counted first         | `wrappers.ts`                                                   | `wrappers.test.ts` (against someone at the lock screen; see finding 5 for a copied profile)    |
-| Deleting an account leaves no key record of it                             | `People.deletePerson`, the vault's `deleteAccount`              | `people.test.ts`                                                                               |
-| The service worker keeps the shell and the build, nothing of a person      | `src/sw/source.ts`                                              | `source.test.ts`, `e2e/offline.spec.ts`                                                        |
+| Claim                                                                      | Where it is true                                                | Checked by                                                                                              |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| A wrapped root opens only for its account and epoch                        | the additional data of `wrapRoot`, `unwrapRoot`                 | `root.test.ts`; with the data emptied, its test fails                                                   |
+| A sealed value does not open for another account, entry, part or key epoch | `documentIdOf`, and the epoch as the SDK's version (`entry.ts`) | `entry.test.ts`, `vectors.test.ts`; with the part or the epoch left out, they fail                      |
+| Each entry has its own key, bound to account and entry                     | `entryInfoOf` (`root.ts`)                                       | `root.test.ts`, `vectors.test.ts`; with the entry left out, four tests fail                             |
+| The root and entry keys cannot be exported once loaded                     | `importRoot`, `deriveEntryKey`                                  | `root.test.ts`, `keyring.test.ts`                                                                       |
+| The server keeps one wrapped root an epoch, the first given, per account   | `keepRoot`, `/api/keys/root`                                    | `server/keyring/keyring.test.ts` (a race, a second account, another origin, the limit)                  |
+| The server never opens an entry                                            | an ESLint rule on imports of `src/core/vault`                   | an import added to `src/server/` fails the lint                                                         |
+| The server and the device's stores hold nothing readable of an entry       | the kind and every field are sealed                             | `wallet.test.ts`, `e2e/wallet.spec.ts` and `e2e/offline.spec.ts` (planted values, dumped)               |
+| One account cannot read or change another's entries                        | `account_id` in the statements of `apply.ts`                    | `apply.test.ts`, `sync.test.ts` as a second person                                                      |
+| Locking drops the root, the keys and the opened entries                    | `Keyring.lockLocally`, `Wallet.clear`                           | `keyring.test.ts`, `wallet.test.ts` — **when a lock happens** (findings 1 and 2, fixed since)           |
+| A reload opens the wallet only within the lock times                       | `resume.ts`                                                     | `resume.test.ts`, `e2e/reload.spec.ts` — standalone (finding 2, fixed since, was a hosted way round it) |
+| Five wrong passcodes delete the wrapper; each try is counted first         | `wrappers.ts`                                                   | `wrappers.test.ts` (against someone at the lock screen; see finding 5 for a copied profile)             |
+| Deleting an account leaves no key record of it                             | `People.deletePerson`, the vault's `deleteAccount`              | `people.test.ts`                                                                                        |
+| The service worker keeps the shell and the build, nothing of a person      | `src/sw/source.ts`                                              | `source.test.ts`, `e2e/offline.spec.ts`                                                                 |
 
 ## Findings
 
@@ -44,13 +44,14 @@ whether it is still open.
    keyring keeps the times of the last use and of hiding by the clock, and locks when either has run out, or the clock was set back: when the page
    comes back or is focused, at a touch, once a second, and before it gives a new tab the root. Tested with a clock that sleeps (`keyring.test.ts`,
    `e2e/lock.spec.ts`, both seen to fail before). **Still not tried on a phone or a sleeping laptop.**
-2. **High, hosted. Starting Sovereign's unlock and coming back opens a locked wallet.** `openWithAccount` marks the person as arrived (`arrive()`)
-   **before** leaving for core. A lock keeps the suite's key (RFC 0001, amendment 3), so a page that comes back within 15 minutes, with its session
-   and a connection, opens with it, whether core answered or not, and core's own sign-in or lock is never asked. **Reproduced** in Chromium and WebKit
-   against the fake core, with the app's key placed in the browser as core's release leaves it (the fake releases none): locked and reloaded, it stays
-   locked; locked, off to core and straight back, it is open. _Open. Fix:_ mark the arrival only when core's answer is received (`KeyReturn`, after
-   `receive()` succeeds). **Apart from this, and by design (§9.4):** hosted, the lock screen is one press from open while core's session is unlocked,
-   since core answers without asking.
+2. **High, hosted. Starting Sovereign's unlock and coming back opens a locked wallet.** `openWithAccount` marked the person as arrived (`arrive()`)
+   **before** leaving for core. A lock keeps the suite's key (RFC 0001, amendment 3), so a page that came back within 15 minutes, with its session and
+   a connection, opened with it, whether core answered or not, and core's own sign-in or lock was never asked. **Reproduced** in Chromium and WebKit
+   against the fake core, with the app's key placed in the browser as core's release leaves it (the fake releases none): locked and reloaded, it
+   stayed locked; locked, off to core and straight back, it was open. _Fixed in 0.7.1:_ the arrival is marked only when `/keys/return` has taken
+   core's answer (`KeyReturn`). Tested that leaving for core and coming back unanswered leaves no mark (`e2e/sovereign.spec.ts`, seen to fail before).
+   **A real core's release is still not tried.** **Apart from this, and by design (§9.4):** hosted, the lock screen is one press from open while
+   core's session is unlocked, since core answers without asking.
 3. **High. A password can end up in the address.** Sign-in, sign-up and reset, pressed before the page's scripts run, send a GET with the password in
    it (`@sovereignfs/ui` 0.105.0). **Reproduced** in Chromium and WebKit. It breaks "the password is never sent", and the password is what opens the
    wallet on a new device. _Open, upstream:_ fixed in `ui` 0.107.4, not published when this was written.
@@ -99,7 +100,7 @@ whether it is still open.
 - A server that serves altered JavaScript can take a key once the wallet is open (§8.6; 0002, 3).
 - A weak password can be guessed offline by whoever copies the database (RFC 0001).
 - A lock keeps the suite's key until sign-out, so script in the signed-in browser, or a copy of its profile with the session (finding 5), could open
-  the wallet (RFC 0001, amendment 3; §9.1). Finding 2 is a way to the same key that the decision did not name.
+  the wallet (RFC 0001, amendment 3; §9.1). Finding 2 was a way to the same key that the decision did not name.
 - The upgrade to 0.7.0 deletes every entry made before it, and 0.1.1 has no export (the changelog says so).
 - A tombstone no longer keeps any key (0002, 4); tombstones and applied mutations are still not pruned (task 4.11).
 - Not built: changing the password in the app, rotating the root (3.10) and resetting a wallet (3.11), so an account with neither kit nor open device
@@ -107,6 +108,5 @@ whether it is still open.
 
 ## Next
 
-Fix finding 2, and take `ui` 0.107.4 for finding 3, before publishing; give the others a task or a reason. Then check passkeys and the locks on real
-phones (task 3.17), try the hosted release against a real core, and have the format and the keyring reviewed by someone outside the project (task
-20.8).
+Take `ui` 0.107.4 for finding 3 before publishing, and give findings 4 to 11 a task or a reason. Then check passkeys and the locks on real phones
+(task 3.17), try the hosted release against a real core, and have the format and the keyring reviewed by someone outside the project (task 20.8).

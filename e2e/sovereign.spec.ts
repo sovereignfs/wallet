@@ -53,6 +53,27 @@ test('signing in through Sovereign makes an account, whose wallet waits for core
   await expect(page.getByText(/^sov-.*@example\.com$/)).toBeVisible();
 });
 
+test('leaving for core’s unlock proves nothing: coming back unanswered is not an arrival', async ({
+  page,
+  request,
+}) => {
+  await request.post(`${control}/sign-in-as`, {
+    data: {
+      sub: person('core-away'),
+      email: `${person('away')}@example.com`,
+      name: 'Ana Away',
+      emailVerified: true,
+    },
+  });
+  await throughSovereign(page);
+  await page.getByRole('button', { name: 'Unlock through Sovereign' }).click();
+  // The fake core releases no key, so it never answers. The person comes straight back, to an address of the app that opens no wallet and so clears nothing.
+  await page.waitForURL(/\/keys\/release/);
+  await page.goto('/api/health');
+  // The mark that lets a page open without asking is made by core's answer alone (DESIGN.md §9.4).
+  expect(await page.evaluate(() => window.sessionStorage.getItem('wallet.arrived'))).toBeNull();
+});
+
 test('sign-up is core’s, and the rest of local sign-in is not here on an instance that takes only Sovereign', async ({
   page,
   request,

@@ -12,6 +12,8 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
 - **A wallet on a device that slept now locks when it comes back.** The lock times were timers, which a suspended page does not run, so a phone taken out of a
   pocket or a laptop opened again could show an unlocked wallet. Wallet now goes by the clock as well.
+- **Hosted, starting “Unlock through Sovereign” and coming back no longer opens a locked wallet.** Wallet took leaving for Sovereign as proof, so coming back
+  without its answer opened the wallet. Only Sovereign's answer does now.
 
 ### Fixed
 

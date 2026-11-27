@@ -300,12 +300,10 @@ export function WalletProvider({
     async (password) => {
       // The account is proved every time, even though this browser holds its key for the session: what a lock is for is that holding the device is not enough.
       if (keys.kind === 'core') {
-        // Core's release leaves the page and comes back to `/keys/return`, which opens the wallet; it is silent while the person's session at Sovereign is unlocked.
-        arrive();
+        // Core's release leaves the page and comes back to `/keys/return`; it is silent while the person's session at Sovereign is unlocked. **Leaving proves
+        // nothing:** `/keys/return` marks the arrival once it has taken core's answer (`KeyReturn`), so a page that comes back without one stays locked.
         const proof = await keys.unlock();
-        if (proof.outcome === 'away') return { ok: false, reason: 'away' };
-        clearArrival();
-        return { ok: false, reason: 'offline' };
+        return { ok: false, reason: proof.outcome === 'away' ? 'away' : 'offline' };
       }
       const proof = await keys.unlock(password, email);
       if (proof.outcome === 'open') return openRoot(accountId, proof.key, { create: true });
