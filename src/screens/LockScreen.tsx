@@ -14,7 +14,7 @@ import { useKeys } from '../keys/keys';
 import styles from './Screens.module.css';
 import { WalletMark } from '../ui/WalletMark';
 import { accountProblem } from './accountProblem';
-import { DeleteAccountDialog } from './DeleteAccount';
+import { DeleteAccountDialog, WHAT_DELETION_DOES } from './DeleteAccount';
 import { useWallet } from './WalletProvider';
 
 /**
@@ -232,10 +232,7 @@ function LostKeys({ email }: { email: string }) {
         After a password reset, your recovery kit opens it again: sign out, sign in, and type the
         kit. With no kit, and no device that still unlocks, nobody can bring back what is in it.
       </p>
-      <p className={styles.muted}>
-        You can delete your account instead. This deletes your wallet and everything in it from the
-        server, for good, and erases it from this device. Nobody can bring it back.
-      </p>
+      <p className={styles.muted}>You can delete your account instead. {WHAT_DELETION_DOES}</p>
       <div>
         <Button variant="destructive" onClick={() => setDeleting(true)}>
           Delete my account…

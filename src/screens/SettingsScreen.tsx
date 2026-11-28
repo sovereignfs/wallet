@@ -9,7 +9,7 @@ import { coreLink } from '../auth/core-links';
 import type { RefusedItem } from '../local/db';
 import { openSealed } from '../local/open';
 import { type Material, unlockMethods } from '../keyring/wrappers';
-import { DeleteAccountDialog } from './DeleteAccount';
+import { COPIES_LEFT, DeleteAccountDialog, WHAT_DELETION_DOES } from './DeleteAccount';
 import screens from './Screens.module.css';
 import { useIdentity } from './SignedInArea';
 import { UnlockMethods } from './UnlockMethods';
@@ -411,7 +411,8 @@ function Account({ email }: { email: string }) {
           <>
             <p className={screens.muted}>
               Your account is Sovereign’s, so deleting it is done there. Wallet is told, and deletes
-              your wallet and everything in it from the server, for good. Nobody can bring it back.
+              your wallet and everything in it from the server, for good: nobody can bring it back.
+              Deleting it erases none of your devices, this one included. {COPIES_LEFT}
             </p>
             <div>
               <ButtonLink href={coreLink(core, '/delete-account')} variant="secondary">
@@ -421,11 +422,7 @@ function Account({ email }: { email: string }) {
           </>
         ) : (
           <>
-            <p className={screens.muted}>
-              This deletes your wallet and everything in it from the server, for good, and erases it
-              from this device. Other devices erase it the next time they connect. Nobody can bring
-              it back.
-            </p>
+            <p className={screens.muted}>{WHAT_DELETION_DOES}</p>
             <div>
               <Button variant="destructive" onClick={() => setOpen(true)}>
                 Delete my account…

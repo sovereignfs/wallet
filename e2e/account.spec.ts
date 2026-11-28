@@ -22,6 +22,8 @@ test.setTimeout(120_000);
 
 const NEW_PASSWORD = 'a different long password';
 const LANDING = 'Your wallet, locked in your browser';
+/** What is said wherever deleting is offered: no other device is erased by it. */
+const OTHERS_KEEP = /not from your other devices\. Each keeps its copy/;
 
 /** A password reset link, as an operator makes one with no mail (`wallet-admin accounts reset-link`), for an account of this run's instance. */
 function resetLinkFor(email: string): string {
@@ -147,6 +149,7 @@ test('the lock screen offers deletion only beside the password, deletes nothing 
   await page.getByRole('button', { name: 'Use my password' }).click();
 
   const dialog = await openDeletionFromLockScreen(page);
+  await expect(page.getByText(OTHERS_KEEP)).toBeVisible();
   await dialog.getByLabel('Your password').fill('not the password');
   await dialog.getByRole('button', { name: 'Delete everything' }).click();
   await expect(dialog.getByText('That password is not right.')).toBeVisible();
@@ -244,6 +247,7 @@ test('deleting the account removes the wallet from the server and from this devi
 
   await goTo(page, 'Settings');
   await page.getByRole('tab', { name: 'Account' }).click();
+  await expect(page.getByText(OTHERS_KEEP)).toBeVisible();
   await page.getByRole('button', { name: 'Delete my account…' }).click();
   const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'));
   await dialog.getByLabel('Type delete to confirm').fill('delete');

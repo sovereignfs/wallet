@@ -34,7 +34,8 @@ What it must not give up, whatever the convenience:
 - **It works alone.** Every feature works on a Wallet with no Sovereign instance: its own accounts, its own mail, its own notices, its own files. An
   instance adds a way to sign in and core's bell, email and activity; never what a feature depends on (§25).
 - **No third party in the browser.** Codes are drawn and scanned by Wallet's own code; nothing loads from elsewhere.
-- **A person can leave,** with their data readable to them: an encrypted backup file, a readable export, and deletion that leaves nothing (§23, §28).
+- **A person can leave,** with their data readable to them: an encrypted backup file, a readable export, and deletion that leaves nothing on the server
+  (§23, §28).
 - **It is not a doctor.** Results are flagged against the range printed on the person's own report; Wallet never diagnoses (§16.9).
 
 What it is not: a password manager (no passwords, no autofill), a bank or payment card holder (no payment cards, no money: that is Ledger), a
@@ -1297,8 +1298,10 @@ last.
   a person can reach, not what is allowed. **In suite
   mode deleting the account is core's** (§25.1): Settings > Account links to core's delete page, `/api/account/delete` says where core is and refuses a
   deletion, and nothing here stands in for a password (a session made a moment ago once did, and proved only that core's session was alive). It is reached
-  from **core's account-deleted notice** (§25.2), answered `200` only once rows and files are gone. This device's store is erased; other devices learn at
-  their next sync and erase theirs.
+  from **core's account-deleted notice** (§25.2), answered `200` only once rows and files are gone. **Only the device a deletion is made on erases its
+  store: no other device does, and hosted, where it is made at core, none does.** Unless the person signed out there before the deletion (§11.8), each keeps
+  its copy, which its wrappers still open, until the site's data is cleared; Settings and the lock screen say so. ⏭ Erasing them is not built: a device is answered
+  `401`, as for an ended session, and the server keeps nothing of a deleted account to tell the two apart.
 - A test seeds one row of every table and a file for the person and a second person, and finds nothing of the first after, the second intact. A new
   table that holds something of a person fails it until it is handled.
 

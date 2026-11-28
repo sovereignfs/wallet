@@ -8,6 +8,13 @@ import { leaveDevice } from '../local/leave';
 import styles from './Screens.module.css';
 import { useWallet } from './WalletProvider';
 
+/** **No deletion reaches another device's copy** (DESIGN.md §28): nothing erases it, so wherever deleting is offered this is said, with what does remove one. */
+export const COPIES_LEFT =
+  'Each keeps its copy, which its passkey or passcode can still open. To remove one, sign out on that device before you delete the account, or clear this site’s data in its browser.';
+
+/** What deleting an account does on an instance that runs alone: said in Settings and on the lock screen. */
+export const WHAT_DELETION_DOES = `This deletes your wallet and everything in it from the server, for good: nobody can bring it back. It erases it from this device too, but not from your other devices. ${COPIES_LEFT}`;
+
 /**
  * Deleting an account of an instance that runs alone (DESIGN.md §28), asked for in Settings or, where nothing opens the wallet, on the lock screen: the password
  * and typing "delete", then the account goes from the server and the wallet from this device. **What the server asks for is the password, never an open wallet**,

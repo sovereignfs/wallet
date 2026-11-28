@@ -10,6 +10,10 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
 ### Security
 
+- **Deleting your account does not erase your other devices, and Wallet no longer says it does.** Earlier versions said they would erase it the next time
+  they connected; nothing did that. Each keeps its copy, which its passkey or passcode can still open. To remove one, sign out on that device before you
+  delete the account, or clear this site’s data in its browser. **If you have deleted an account, check the other devices you used it on.** Hosted by
+  Sovereign, deleting the account there erases no device, the one you used included.
 - **Signing out now removes your wallet from the device.** It stayed there before, with your name and address, and opened with the device's passcode or
   passkey with no session. If changes have not reached the server, Wallet asks first: keep this device's encrypted data, and they are sent when you sign in
   again here, or erase it. **Signing in again sets the device up anew** unless you kept its data.

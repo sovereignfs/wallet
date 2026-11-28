@@ -103,6 +103,13 @@ whether it is still open.
     specification use `wallet/v2/unlock`. §9.2 says a hosted wallet also has core's lock, which closes the app key; Wallet's side of that lock is not
     built (RFC 0001). _Fixed in 0.7.1:_ both are corrected.
 
+12. **Medium. Deleting an account leaves its copy on every other device.** _Found on 2026-11-28, after this review, which covered deletion and missed it._
+    Settings said "Other devices erase it the next time they connect", and §28 that they learn at their next sync and erase theirs. Nothing does: only the
+    device the deletion is made on erases, and hosted, where core deletes, none does. Another device is answered 401, as for an ended session, and the server
+    keeps nothing of the account to say otherwise. **Reproduced** in Chromium, standalone: a second device connected after the deletion, then went offline,
+    and its passcode opened a card. Hosted is **checked** in the code only. The sentence was in 0.1.1 and 0.7.0. _Wording corrected in 0.7.1:_ the app and
+    §28 say that other devices keep their copy, and how to remove one. _Open:_ erasing them is not built.
+
 ## Known and accepted, still true
 
 - A server that serves altered JavaScript can take a key once the wallet is open (§8.6; 0002, 3).
@@ -117,5 +124,5 @@ whether it is still open.
 
 ## Next
 
-Give findings 4, 5 and 10 a task or a reason. Then check passkeys and the locks on real phones (task 3.17), try the hosted release against a real
+Give findings 4, 5, 10 and 12 a task or a reason. Then check passkeys and the locks on real phones (task 3.17), try the hosted release against a real
 core, and have the format and the keyring reviewed by someone outside the project (task 20.8).
