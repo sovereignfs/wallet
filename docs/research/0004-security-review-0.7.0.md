@@ -112,7 +112,8 @@ whether it is still open.
 - The upgrade to 0.7.0 deletes every entry made before it, and 0.1.1 has no export (the changelog says so).
 - A tombstone no longer keeps any key (0002, 4); tombstones and applied mutations are still not pruned (task 4.11).
 - Not built: changing the password in the app, rotating the root (3.10) and resetting a wallet (3.11), so an account with neither kit nor open device
-  is stuck.
+  is stuck. _In 0.7.1:_ on an instance that runs alone it can be deleted from the lock screen (`DESIGN.md` §28), with the password. Its wallet still cannot
+  be brought back or started again.
 
 ## Next
 

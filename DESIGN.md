@@ -1107,7 +1107,7 @@ Shopper's (its §15.1), from one image:
   package's own split). **An operator gives an account back with a link** (`docker compose exec web node tools/wallet-admin.mjs accounts reset-link EMAIL`, task 2.9): it works once, for an hour, and ends
   every session of the account when it is used. It is the package's `resetLink` and nothing else: it runs no migration, opens no app store, prints only the link on the standard
   output and says nothing of it that holds the link or the address, and refuses in suite mode, where the passwords are Sovereign's (core has `sovereign-admin accounts
-reset-link` for those). **A reset gives back the account, not the wallet's keys:** it replaces the sign-in value but cannot open the account key, so the person unlocks with the recovery kit and chooses the new password for it (§7.5), and a lost authenticator app is not reset by it.
+reset-link` for those). **A reset gives back the account, not the wallet's keys:** it replaces the sign-in value but cannot open the account key, so the person unlocks with the recovery kit and chooses the new password for it (§7.5), and a lost authenticator app is not reset by it. The form that asks for the kit has a way on for someone without it, to the lock screen (§28).
 - **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=true`) **starts in suite mode** and says once at start-up that its local
   sign-in is off and which settings to remove; nothing else changes. Its password accounts cannot sign in while it is in suite mode.
 - **There is no linking** of a core account and a local one: an instance has one kind. A person is their better-auth user id; a `sub` is identity; an
@@ -1188,7 +1188,8 @@ Designed anew, with `@sovereignfs/ui`.
 - **Phone:** `MobileFooter` with **Cards** left of the launcher, **Documents** and **Health** right (Health holds the journal as a tab in
   phase 2; before phase 2, the right side is Documents and Family). An **Add** floating button opens a sheet of what can be added on the current
   screen.
-- **The lock screen** replaces everything when locked: the app's mark, **Unlock** (passkey) and the other ways (§9.3).
+- **The lock screen** replaces everything when locked: the app's mark, **Unlock** (passkey) and the other ways (§9.3); on an instance that runs alone, beside the password, **I've lost my keys**
+  (§28).
 
 ### 26.3 Setup
 
@@ -1289,7 +1290,11 @@ last.
   connection and its credential, notices, mail queued, applied mutations, rate counters, and in phase 3 published cards, share links, reminders and
   push subscriptions, and better-auth's rows.
 - **Not touched:** the person's git repository and any backup file they downloaded.
-- **Standalone**, reached from **Settings > Account**, after the password and typing "delete", saying what goes and that git backups stay. **In suite
+- **Standalone**, reached from **Settings > Account**, after the password and typing "delete", saying what goes and that git backups stay. **It is also on
+  the lock screen**, under **I've lost my keys** beside the password, for a person whose password was reset and who has neither the recovery kit nor a
+  device that unlocks: Settings opens only with the wallet unlocked, which they cannot do, and the sign-in page's form for the kit leads on to it. Nothing
+  there brings the wallet back. It is the same dialog: the server asks for the session and the password and never for an open wallet, so this changes what
+  a person can reach, not what is allowed. **In suite
   mode deleting the account is core's** (§25.1): Settings > Account links to core's delete page, `/api/account/delete` says where core is and refuses a
   deletion, and nothing here stands in for a password (a session made a moment ago once did, and proved only that core's session was alive). It is reached
   from **core's account-deleted notice** (§25.2), answered `200` only once rows and files are gone. This device's store is erased; other devices learn at

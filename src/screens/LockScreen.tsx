@@ -14,6 +14,7 @@ import { useKeys } from '../keys/keys';
 import styles from './Screens.module.css';
 import { WalletMark } from '../ui/WalletMark';
 import { accountProblem } from './accountProblem';
+import { DeleteAccountDialog } from './DeleteAccount';
 import { useWallet } from './WalletProvider';
 
 /**
@@ -21,10 +22,13 @@ import { useWallet } from './WalletProvider';
  * (Face ID, a fingerprint) or a device passcode. **With neither on this device, or after five wrong passcodes, the suite's key opens it**: the password, for an
  * instance that runs alone, or Sovereign's release, hosted, which needs the network and brings the root back so that a way to unlock can be made again.
  *
+ * **For an instance that runs alone, the password is not the end of it** (§28): a person whose password was reset, with no recovery kit and no device that still
+ * unlocks, can delete the account from here, since nothing else would let them. It is offered beside the password only, and not on the everyday way in.
+ *
  * **A box is read when its form is sent,** since a password manager can fill it without telling the page; no button waits for the page to hear of it, and an empty
  * box is the browser's to ask for.
  */
-export function LockScreen() {
+export function LockScreen({ email }: { email: string }) {
   const { db, keyring, openWithAccount, unlockWith } = useWallet();
   const keys = useKeys();
   const [methods, setMethods] = useState<UnlockWrapper[] | null>(null);
@@ -198,9 +202,46 @@ export function LockScreen() {
                 </Button>
               </div>
             )}
+            {useAccount && keys.kind === 'vault' ? <LostKeys email={email} /> : null}
           </>
         )}
       </div>
     </main>
+  );
+}
+
+/** What is left when none of the ways opens the wallet: said plainly, and the account can be deleted (DESIGN.md §28). */
+function LostKeys({ email }: { email: string }) {
+  const [shown, setShown] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  if (!shown)
+    return (
+      <div>
+        <Button variant="ghost" onClick={() => setShown(true)}>
+          I’ve lost my keys
+        </Button>
+      </div>
+    );
+  return (
+    <section className={styles.section} aria-labelledby="lost-heading">
+      <h2 id="lost-heading" className={styles.sectionTitle}>
+        If nothing opens your wallet
+      </h2>
+      <p className={styles.muted}>
+        After a password reset, your recovery kit opens it again: sign out, sign in, and type the
+        kit. With no kit, and no device that still unlocks, nobody can bring back what is in it.
+      </p>
+      <p className={styles.muted}>
+        You can delete your account instead. This deletes your wallet and everything in it from the
+        server, for good, and erases it from this device. Nobody can bring it back.
+      </p>
+      <div>
+        <Button variant="destructive" onClick={() => setDeleting(true)}>
+          Delete my account…
+        </Button>
+      </div>
+      {deleting ? <DeleteAccountDialog email={email} onClose={() => setDeleting(false)} /> : null}
+    </section>
   );
 }

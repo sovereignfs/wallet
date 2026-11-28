@@ -96,9 +96,10 @@ all at start-up and stops on a wrong one, naming it and never its value.** [`.en
 backup file, an encrypted git repository, a readable export) come in a later version.
 
 **If a person forgets their password and has lost their recovery kit, and no device of theirs is unlocked, Wallet has no way to give their wallet back.** An
-unlocked device can show the wallet's cards until it locks. The only way back is **Reset wallet** (a later version), which deletes the wallet's contents and starts
-again. **An instance that runs alone has no way to do that for such a person yet:** Settings, where an account is deleted, opens only when the wallet is unlocked, and
-the operator's tool has no command that deletes an account. Hosted, the account is Sovereign's, and is deleted there.
+unlocked device can show the wallet's cards until it locks. What can be done is to delete the account. On an instance that runs alone: reset the password
+(by mail, or with the link the operator makes), sign in, and on the lock screen choose **Use my password** if the box is not there, then **I've lost my
+keys**; deleting asks for the new password. **Reset wallet** (a later version) will keep the account and start it again with an empty wallet. The operator's
+tool has no command that deletes an account. Hosted, the account is Sovereign's, and is deleted there.
 
 ## What Wallet does not do yet
 

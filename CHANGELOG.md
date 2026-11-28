@@ -32,6 +32,10 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 - **Hosted by Sovereign, Wallet can be unlocked on an iPhone or iPad.** Getting the key from Sovereign failed in every browser on iOS, so a wallet could not be
   set up there (`@sovereignfs/sdk` 2.12.1). Not yet tried on a real device.
 - **Deleting an account no longer stalls when Wallet is open in another tab.** The other tab now lets this device's copy go, and leaves.
+- **An account whose wallet nothing can open can now be deleted.** If you reset your password and have neither your recovery kit nor a device that still
+  unlocks, sign in, and on the lock screen choose **I’ve lost my keys**, beside the password; deleting asks for your password. The sign-in page that asks
+  for your kit now has a way past it, **I don’t have my recovery kit**. This does not bring the wallet back. For instances that run alone: hosted, the
+  account is deleted in Sovereign.
 - **`WALLET_AUTH_SIGNUP=invite` no longer stops the server.** The suite's contract asks an app that issues no invitations to read it as `closed`, and Wallet
   now does. Settings that are switches are written `true` or `false` in the examples and the documents; `1` and `0` are still read.
 

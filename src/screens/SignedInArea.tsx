@@ -215,7 +215,7 @@ function Gate({
       ) : settingUp ? (
         <Setup name={name} />
       ) : stand === 'locked' ? (
-        <LockScreen />
+        <LockScreen email={email} />
       ) : (
         <Frame>{children}</Frame>
       )}

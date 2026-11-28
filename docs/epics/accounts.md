@@ -72,6 +72,8 @@ the test.
 
 **Done as:** `src/sovereign/people.ts`, `People.deletePerson`: entries, applied mutations, the vault, the stream counter, credentials, rate counters, then better-auth's rows, the account last; twice without harm. `people.test.ts` fails for a table nobody decided about. Settings, Account deletes after the password (or a fresh session) and typing "delete", and erases this device's store. **Files under `/data/blobs` are not removed because there are none yet (4.6).**
 
+**Since 0.7.1** an instance that runs alone offers the same deletion on the lock screen too, under "I've lost my keys" beside the password, and the sign-in page's recovery kit form leads on to it, for a person nothing opens the wallet for. The dialog is one, `src/screens/DeleteAccount.tsx`; the server is unchanged. `e2e/account.spec.ts` resets a password with the operator's tool and deletes the account from a browser that never opened the wallet, and from a locked one with a passcode, where it also shows the suite's key is let go.
+
 #### 📋 2.6 — Devices
 
 **Goal:** every browser a device the person sees, names and removes. **Design:** §6.3, §11.8. **Depends on:** 4.2, 3.6.

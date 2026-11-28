@@ -132,6 +132,7 @@ test('deleting the account is core’s: Wallet says where it is, and does not do
   // The wallet is locked until core releases its key, and offers to: there is no password to ask for here, and nothing to delete from here.
   await expect(page.getByRole('button', { name: 'Unlock through Sovereign' })).toBeVisible();
   await expect(page.getByLabel('Your password')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'I’ve lost my keys' })).toHaveCount(0);
 });
 
 test('core’s notices end the session, and a deletion removes the account, before it answers', async ({
