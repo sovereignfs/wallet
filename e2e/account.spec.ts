@@ -230,7 +230,6 @@ test('deleting the account does not wait for another tab, which lets the deviceâ
 
 test('deleting the account removes the wallet from the server and from this device', async ({
   page,
-  request,
 }) => {
   const email = emailFor('delete');
   await signUp(page, email);
@@ -263,9 +262,5 @@ test('deleting the account removes the wallet from the server and from this devi
   const left = await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name));
   expect(left.filter((name) => name?.startsWith('wallet-'))).toEqual([]);
   expect(await page.evaluate(() => window.localStorage.getItem('wallet.me'))).toBeNull();
-  const reply = await request.post('/api/auth/sign-in/email', {
-    headers: { origin: new URL(page.url()).origin },
-    data: { email, password: PASSWORD },
-  });
-  expect(reply.status()).not.toBe(200);
+  await expectNoAccount(page, email, PASSWORD);
 });
