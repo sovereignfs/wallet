@@ -78,6 +78,10 @@ async function expectNoAccount(page: Page, email: string, password: string) {
 
 /** From the lock screen's password form to the dialog that deletes the account. */
 async function openDeletionFromLockScreen(page: Page) {
+  // The app's "new version" notice can come up over the foot of the screen, where the button is: a person presses Later, and so does the test.
+  await page.addLocatorHandler(page.getByText('A new version of Wallet is ready.'), () =>
+    page.getByRole('button', { name: 'Later' }).click(),
+  );
   await page.getByRole('button', { name: 'I’ve lost my keys' }).click();
   await page.getByRole('button', { name: 'Delete my account…' }).click();
   const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'));
