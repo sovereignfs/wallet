@@ -76,7 +76,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "fake-indexeddb": "^6.2.7",
     "globals": "^17.14.0",
-    "happy-dom": "^20.0.0",
+    "happy-dom": "^21.0.4",
     "jiti": "^2.7.0",
     "jose": "6.2.13",
     "prettier": "^3.9.10",
