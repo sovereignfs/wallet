@@ -80,7 +80,7 @@ export async function openLocal(
   accountId: string,
   name = localName(accountId),
   options: {
-    /** Another tab is erasing this store, with its account: it has been let go, and this tab has nothing more to do with it. */
+    /** Another tab is erasing this store (signing out, or deleting the account): it has been let go, and this tab has nothing more to do with it. */
     onErased?: () => void;
   } = {},
 ): Promise<LocalDatabase> {

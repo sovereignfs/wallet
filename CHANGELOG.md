@@ -10,6 +10,9 @@ titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
 ### Security
 
+- **Signing out now removes your wallet from the device.** It stayed there before, with your name and address, and opened with the device's passcode or
+  passkey with no session. If changes have not reached the server, Wallet asks first: keep this device's encrypted data, and they are sent when you sign in
+  again here, or erase it. **Signing in again sets the device up anew** unless you kept its data.
 - **A password can no longer end up in the address.** Sign-in, sign-up or the new-password button pressed before the page had loaded sent the form as an
   address with the password in it, which a browser's history and a proxy's log can keep. Those buttons now wait for the page. **An instance that ran an
   earlier build may have such lines in its proxy's logs:** search them for `password=`, and change what you find.

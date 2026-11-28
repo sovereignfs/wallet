@@ -391,7 +391,8 @@ tools, say) could open the wallet without the passkey or passcode, as in every a
 - **After a time without use:** 1, 5 (the default), 15 or 60 minutes, set per device.
 - **When Wallet is hidden** (another app, the screen off): at once, after 1 minute (the default), or never.
 - **By hand:** the lock button in the header.
-- **At sign-out,** and what the SDK keeps of the app key opens nothing once the session ends. The device's wrappers stay with its ciphertext, as they did.
+- **At sign-out,** and what the SDK keeps of the app key opens nothing once the session ends. The device's store, wrappers included, is erased with it, unless
+  the person keeps it for changes not yet sent (§11.8).
 - **Hosted:** core's own lock (`sovereign`'s RFC 0006) is to close the app key too. **Wallet's side of it is not built,** so core's lock does not close an
   open wallet today.
 
@@ -613,7 +614,8 @@ is edited offline.** On iPhone, sync happens only while Wallet is open.
 - **First load** on a device pulls shapes first, then bodies, then files, in pages; the wallet unlocks as soon as the root is on the device (a wrapper, or fetched once).
 - **Sign-out asks** when the device holds device-only entries or unsent changes: **"Sign out and keep this device's encrypted data"** (the default:
   the store stays, for the same account to open after signing in again) or **"Sign out and erase this device"**, which names how many device-only
-  entries will be lost. With neither, sign-out erases the store.
+  entries will be lost. With neither, sign-out erases the store. **Either way the device forgets who was signed in,** so that nothing opens a kept store
+  without signing in again, and the account's other tabs leave. Nothing is erased until the session has ended.
 - **An ended session** shows sign-in and keeps everything: the store, the outbox.
 - **Tombstones** and applied-mutation records go after 90 days; a device behind that gets a fresh snapshot, after sending its outbox.
 

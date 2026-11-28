@@ -76,6 +76,9 @@ the test.
 
 **Goal:** every browser a device the person sees, names and removes. **Design:** §6.3, §11.8. **Depends on:** 4.2, 3.6.
 
+**Built ahead of the rest (0.7.1):** sign-out erases the device's store and forgets who was signed in, and asks first, keep or erase, when changes are unsent
+(`src/local/leave.ts`, `e2e/sign-out.spec.ts`). Naming device-only entries comes with their tier (4.7).
+
 **Technical:** `device` rows (device-made id, the session, a label sealed under a key derived from the root, times); registered at the first sync after unlocking;
 `last_seen_at` on each sync; Settings > Security lists them with this device marked; rename; **remove** (ends the session, marks its device-only
 entries lost, 4.8); a removed device's requests refused; the **new device** notice (10.1); "Is this the same device?" on a new device whose label

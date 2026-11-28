@@ -13,12 +13,11 @@ import {
   Tabs,
 } from '@sovereignfs/ui';
 import { IDLE_CHOICES, type HiddenLock, type IdleMinutes } from '../keyring/keyring';
-import { forgetResume } from '../keyring/resume';
 import { authClient, signInValue } from '../auth/client';
 import { useKeys } from '../keys/keys';
 import { coreLink } from '../auth/core-links';
-import { forgetIdentity } from '../identity';
-import { type RefusedItem, eraseLocal } from '../local/db';
+import type { RefusedItem } from '../local/db';
+import { leaveDevice } from '../local/leave';
 import { openSealed } from '../local/open';
 import { type Material, unlockMethods } from '../keyring/wrappers';
 import screens from './Screens.module.css';
@@ -65,9 +64,6 @@ export function SettingsScreen() {
     </main>
   );
 }
-
-/** How long deleting an account waits for the device's store to go before the page leaves all the same. */
-const ERASE_WAIT_MS = 5_000;
 
 const HIDDEN_NAMES: Record<HiddenLock, string> = {
   now: 'As soon as it is hidden',
@@ -431,17 +427,10 @@ function Account({ email }: { email: string }) {
         return setError('That was tried too many times. Wait a few minutes.');
       if (!response.ok) return setError('The account could not be deleted. Try again.');
       keyring.lock('sign-out');
-      forgetResume(accountId);
-      // Who was signed in goes first, so that nothing opens the store again for them.
-      forgetIdentity();
       // The store cannot be deleted while this page holds it open, and nothing is to be sent for an account that is gone.
       loop.stop();
       db.close();
-      // Other tabs let it go when the deletion asks (`openLocal`). One that cannot answer, such as one the browser has frozen, does not hold up leaving.
-      await Promise.race([
-        eraseLocal(accountId).catch(() => undefined),
-        new Promise((resolve) => setTimeout(resolve, ERASE_WAIT_MS)),
-      ]);
+      await leaveDevice(accountId);
       // The session's cookie is cleared as well: the account it was for is gone, but the browser still holds the cookie.
       await authClient.signOut().catch(() => undefined);
       window.location.assign('/');

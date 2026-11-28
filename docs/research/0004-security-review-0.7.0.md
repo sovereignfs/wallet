@@ -74,9 +74,11 @@ whether it is still open.
    do not. The README says a copy of the browser's data is guarded as far as the unlock method is strong, which this second case breaks. WebKit and
    Firefox were **not checked**. _Open. Fix:_ correct the claims (README, `wrappers.ts`, its test's name, Settings' words); decide whether a passcode
    must be longer, or not digits alone, and whether a lock should drop the suite's key (amendment 3); raise the kept key in `sovereign`.
-6. **Medium. Signing out leaves the wallet openable on the device.** The name and address, the store and the wrappers stay, and `/shell` opens with
-   the passcode with no session. **Reproduced** in Chromium and WebKit. §11.8 has signing out erase the store when nothing is unsent. _Open: the
-   owner's decision._
+6. **Medium. Signing out leaves the wallet openable on the device.** The name and address, the store and the wrappers stayed, and `/shell` opened with
+   the passcode with no session. **Reproduced** in Chromium and WebKit. §11.8 has signing out erase the store when nothing is unsent. _Fixed in
+   0.7.1,_ as the owner decided: signing out erases the store and forgets who was signed in, asking first when changes are unsent; a kept store opens
+   only after signing in again, and other tabs leave (`leave.test.ts`, `e2e/sign-out.spec.ts`, seen to fail before). A session that ends otherwise
+   still keeps everything, as §11.8 says.
 7. **Low. Whoever controls the server's data can serve an older value, or drop an entry, unnoticed.** The row's version is not bound into a sealed
    value (RFC 0001, amendment 2), so an earlier shape or body of the same entry opens as the current one. **Reproduced** with the format's own
    functions. The README says the encryption guards against moving or replaying a value between entries or accounts, which is true, and says nothing
@@ -114,5 +116,5 @@ whether it is still open.
 
 ## Next
 
-Give findings 4, 5, 6 and 10 a task or a reason. Then check passkeys and the locks on real phones (task 3.17), try the hosted release against a real
+Give findings 4, 5 and 10 a task or a reason. Then check passkeys and the locks on real phones (task 3.17), try the hosted release against a real
 core, and have the format and the keyring reviewed by someone outside the project (task 20.8).

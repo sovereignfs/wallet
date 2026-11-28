@@ -12,6 +12,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { importRoot } from '../core/vault';
+import { IDENTITY_KEY } from '../identity';
 import { suiteCipher } from '../keys/cipher';
 import { useKeys } from '../keys/keys';
 import { type RootResult, openRoot } from '../keys/root';
@@ -142,7 +143,7 @@ export function WalletProvider({
       // The loop is put here when it is made, for what comes before it and needs it.
       const made: { loop?: SyncLoop } = {};
       const db = await openLocal(accountId, undefined, {
-        // The account was deleted in another tab: this one has let the store go, and leaves.
+        // Another tab is erasing the store (it signed out, or deleted the account): this one has let it go, and leaves.
         onErased: () => {
           made.loop?.stop();
           window.location.assign('/');
@@ -258,6 +259,15 @@ export function WalletProvider({
       window.addEventListener('pagehide', leaving);
       window.addEventListener('pageshow', back);
       window.addEventListener('focus', back);
+      // Another tab signed this account out, or deleted it, and the device forgot who was signed in: this tab leaves too (§11.8), and cannot be unlocked
+      // again where it stands.
+      const gone = (event: StorageEvent) => {
+        if (event.key !== IDENTITY_KEY || event.newValue !== null) return;
+        loop.stop();
+        keyring.close();
+        window.location.assign('/');
+      };
+      window.addEventListener('storage', gone);
       teardown = () => {
         clearTimeout(giveUp);
         unsubscribe();
@@ -267,6 +277,7 @@ export function WalletProvider({
         window.removeEventListener('pagehide', leaving);
         window.removeEventListener('pageshow', back);
         window.removeEventListener('focus', back);
+        window.removeEventListener('storage', gone);
         loop.stop();
         keyring.close();
         db.close();
