@@ -6,7 +6,24 @@ All notable changes to Wallet are recorded here. The format follows [Keep a Chan
 Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
 titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
-## [0.7.1] - 2026-11-27
+## [0.7.1] - 2026-11-28
+
+**Before upgrading from 0.1.1, read this: a wallet made there is not carried over, and every card is deleted.** The encryption changed in 0.7.0, and the old and
+the new cannot open each other. When this version starts, the entries of every account are deleted from the database, and each browser clears what it held of
+them at its next visit. 0.1.1 has no export, so **anyone whose cards matter must copy what they need by hand before you upgrade**; there is no way back.
+Accounts are kept.
+
+Also, coming from 0.1.1:
+
+- **Take a backup first.** The sign-in's tables move at the first start, and an older Wallet cannot read them afterwards.
+- **Every session ends.** Each person signs in once more, which moves their password. Anyone who has not done so within 90 days needs a new one, by mail or by a
+  link you make (`wallet-admin accounts reset-link`, in `deploy/README.md`). On an instance that runs alone, each is then shown a recovery kit, once.
+- **An instance signs people in one way.** With both `WALLET_CORE_*` and local sign-in set, it uses Sovereign only, and accounts that only have a password cannot
+  sign in.
+- **Hosted by Sovereign:** `WALLET_CORE_URL` is Sovereign's address with no path (one ending in `/api/auth` stops Wallet at start). Sovereign must be 0.126.0 or
+  later (0.140.0 for its sign-up page), let Wallet come back to `/sign-in` after signing out, and release keys to apps, with its operator allowing it for Wallet.
+
+The sections for 0.3.0 to 0.7.0 below say the rest.
 
 ### Security
 
