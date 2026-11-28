@@ -97,8 +97,8 @@ backup file, an encrypted git repository, a readable export) come in a later ver
 
 **If a person forgets their password and has lost their recovery kit, and no device of theirs is unlocked, Wallet has no way to give their wallet back.** An
 unlocked device can show the wallet's cards until it locks. What can be done is to delete the account. On an instance that runs alone: reset the password
-(by mail, or with the link the operator makes), sign in, and on the lock screen choose **Use my password** if the box is not there, then **I've lost my
-keys**; deleting asks for the new password. **Reset wallet** (a later version) will keep the account and start it again with an empty wallet. The operator's
+(by mail, or with the link the operator makes), sign in, and where the kit is asked for choose **I don't have my recovery kit**. On the lock screen choose
+**Use my password** if the box is not there, then **I've lost my keys**; deleting asks for the new password. **Reset wallet** (a later version) will keep the account and start it again with an empty wallet. The operator's
 tool has no command that deletes an account. Hosted, the account is Sovereign's, and is deleted there.
 
 ## What Wallet does not do yet
