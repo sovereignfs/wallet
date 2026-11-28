@@ -34,7 +34,8 @@ What it must not give up, whatever the convenience:
 - **It works alone.** Every feature works on a Wallet with no Sovereign instance: its own accounts, its own mail, its own notices, its own files. An
   instance adds a way to sign in and core's bell, email and activity; never what a feature depends on (§25).
 - **No third party in the browser.** Codes are drawn and scanned by Wallet's own code; nothing loads from elsewhere.
-- **A person can leave,** with their data readable to them: an encrypted backup file, a readable export, and deletion that leaves nothing (§23, §28).
+- **A person can leave,** with their data readable to them: an encrypted backup file, a readable export, and deletion that leaves nothing on the server
+  (§23, §28).
 - **It is not a doctor.** Results are flagged against the range printed on the person's own report; Wallet never diagnoses (§16.9).
 
 What it is not: a password manager (no passwords, no autofill), a bank or payment card holder (no payment cards, no money: that is Ledger), a
@@ -223,7 +224,8 @@ send mail. **It is the only personal data the server can read,** and Settings sa
 
 **Standalone, `closed` (the first account only) unless `WALLET_AUTH_SIGNUP` says `open`.** A closed sign-up answers every address alike, and says
 nothing of whether one has an account; an open one with no mail cannot, since it signs the person in at once, and says an address is taken. In suite mode (§25.1) it has nothing to decide: who may sign up is
-core's, and signing in through core always gets an account (`app-manifest.md` §4). Wallet has no invitations until phase 4 (§31.1).
+core's, and signing in through core always gets an account (`app-manifest.md` §4). Wallet has no invitations until phase 4 (§31.1), so `invite`, the
+suite's mode for an app that issues them (`contracts/env.md` §2), is read as `closed`.
 
 ### 6.3 Devices
 
@@ -358,6 +360,8 @@ So an operator can see how many entries someone has, roughly how large, which li
   the operator "cannot" read what it keeps. Mitigations are the suite's: a strict CSP with nonces, no third-party code, the image's provenance, and running one's own instance. A
   published-script check (the service worker comparing the shell's scripts against a pinned list) is noted in §31.4, not planned.
 - **Nor a device taken while unlocked,** or malware on it. The locks (§9.2) shorten the window.
+- **Nor an older value or a missing one:** whoever holds the server's data can give a device an earlier shape or body of an entry, or leave an entry out,
+  and nothing says so, since a value is not bound to its version (§8.2).
 - **The server still sees** §8.5's counts, sizes, tiers and times, and the network addresses it is spoken to from.
 - **Losing the password, the kit and every unlocked device loses the wallet.** Nobody can recover it, unless the instance turned escrow on, in which case its owner can open everyone's.
 - **What the person chooses to publish** (passes, public cards, Google Wallet: §19.5, §20) leaves the encryption by design, and says so first.
@@ -388,11 +392,17 @@ tools, say) could open the wallet without the passkey or passcode, as in every a
 - **After a time without use:** 1, 5 (the default), 15 or 60 minutes, set per device.
 - **When Wallet is hidden** (another app, the screen off): at once, after 1 minute (the default), or never.
 - **By hand:** the lock button in the header.
-- **At sign-out,** and what the SDK keeps of the app key opens nothing once the session ends. The device's wrappers stay with its ciphertext, as they did.
-- **Hosted:** also core's lock (`sovereign`'s RFC 0006), which closes the app key.
+- **At sign-out,** and what the SDK keeps of the app key opens nothing once the session ends. The device's store, wrappers included, is erased with it, unless
+  the person keeps it for changes not yet sent (§11.8).
+- **Hosted:** core's own lock (`sovereign`'s RFC 0006) is to close the app key too. **Wallet's side of it is not built,** so core's lock does not close an
+  open wallet today.
 
 Tabs share one lock (BroadcastChannel): unlocking or locking one does the same in every tab of the account. **A device with no wrapper set has nothing to come back with**: its lock needs the
 suite's key, which needs a connection, so setup asks for a passkey or a passcode and says why.
+
+**The two times are kept by the clock as well as by timers.** A page the system suspends (a phone in a pocket, a closed laptop) runs no timer, so while it is
+unlocked Wallet reads the clock when the page comes back, at every touch, once a second, and before it lets a new tab in, and locks if a time has run out
+or the clock has been set back.
 
 **A reload is not a lock** (the owner's decision, 2026-11-26). The keys still live only in the page's memory, so a reloaded page has none; but it opens again **by the suite's key, without
 asking, when all of this holds**: it is the same tab; the server can be asked; the SDK still keeps the key for the session; the wallet was not locked; and neither lock time has run out, counting
@@ -408,7 +418,7 @@ Each device keeps one or more **unlock wrappers** in its store: the root, wrappe
 
 | Way                                                 | How                                                                                                                                                                                                     |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Passkey (Face ID, a fingerprint, Windows Hello)** | A WebAuthn credential made for unlocking, with the **PRF extension**. Its output for the salt `"wallet/v1/unlock"`, through HKDF, is an AES-256-GCM key that wraps the root                             |
+| **Passkey (Face ID, a fingerprint, Windows Hello)** | A WebAuthn credential made for unlocking, with the **PRF extension**. Its output for the salt `"wallet/v2/unlock"`, through HKDF, is an AES-256-GCM key that wraps the root                             |
 | **Device passcode**                                 | At least 6 characters (digits allowed). Argon2id (64 MiB, 3 passes, `hash-wasm`) of it and a random salt is a key that wraps the root, which is then wrapped again under a device key kept in the store |
 | **The suite's key** (online)                        | Standalone, the password at sign-in; hosted, core's release. It fetches the wrapped root and opens it with the app key, so a new device, or one with no wrapper, gets the root                          |
 | **Recovery kit** (standalone, after a reset)        | The typed kit opens the account key again, and with it the app key and the root                                                                                                                         |
@@ -424,8 +434,9 @@ Each device keeps one or more **unlock wrappers** in its store: the root, wrappe
 Signing in proves the account to the server and needs a network, and **signing in also opens the suite's key** (a password derives the unlocking value; hosted, core releases the app key), which is what
 fetches the root onto a device. **Unlocking proves the key to the device and happens after every lock** (a reload within the lock times is none, §9.2), offline, with the wrapper. So day to day, **Face ID is the way in**, as the owner asked, and
 the password is the way back in after a new device or a reset. Hosted, signing in through Sovereign is one redirect and the key's release another, **one press on the lock screen** (Unlock
-through Sovereign), which core answers without asking while its session is unlocked; **for that the page must send its origin as the referrer** (§30). Nothing of the wallet depends on a file the
-person must keep: the kit is the way back after a reset.
+through Sovereign), which core answers without asking while its session is unlocked; **for that the page must send its origin as the referrer** (§30). **Only core's
+answer is that proof:** a page that left for core and came back without one stays locked. Nothing of the wallet depends on a file the person must keep: the
+kit is the way back after a reset.
 
 **A password typed at the lock screen or in Settings is first confirmed by the server** (its sign-in value, `/api/keys/confirm`, wrong ones counted per account), and only then given to the vault:
 an account that has no keys yet (one older than 0.7.0 whose session is still alive, or a sign-up that could not reach the vault) is given them from the first secret the vault sees, so a typo
@@ -604,7 +615,8 @@ is edited offline.** On iPhone, sync happens only while Wallet is open.
 - **First load** on a device pulls shapes first, then bodies, then files, in pages; the wallet unlocks as soon as the root is on the device (a wrapper, or fetched once).
 - **Sign-out asks** when the device holds device-only entries or unsent changes: **"Sign out and keep this device's encrypted data"** (the default:
   the store stays, for the same account to open after signing in again) or **"Sign out and erase this device"**, which names how many device-only
-  entries will be lost. With neither, sign-out erases the store.
+  entries will be lost. With neither, sign-out erases the store. **Either way the device forgets who was signed in,** so that nothing opens a kept store
+  without signing in again, and the account's other tabs leave. Nothing is erased until the session has ended.
 - **An ended session** shows sign-in and keeps everything: the store, the outbox.
 - **Tombstones** and applied-mutation records go after 90 days; a device behind that gets a fresh snapshot, after sending its outbox.
 
@@ -1074,10 +1086,10 @@ Few, and about the account, since the server cannot read entries:
 store of its own (`wallet_auth`, opened again in the package's shape, `src/auth/store.ts`). **An instance signs people in one way, never both**, as
 Shopper's (its §15.1), from one image:
 
-| Mode                                     | Who signs in, and how                                                                                                                                                                                                                           |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Suite mode** (`WALLET_CORE_*` are set) | Everyone, through core: the package's `./core` on the SDK's steps (PKCE, matched by `sub`), `WALLET_CORE_URL` being the instance's own address                                                                                                  |
-| **Standalone mode** (no core)            | Everyone, with Wallet's own accounts (`WALLET_AUTH_LOCAL=1`): a password, passkeys and an authenticator app with backup codes; verified, and a reset asked for, by mail when set up; a reset link an operator makes (`wallet-admin`) needs none |
+| Mode                                     | Who signs in, and how                                                                                                                                                                                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Suite mode** (`WALLET_CORE_*` are set) | Everyone, through core: the package's `./core` on the SDK's steps (PKCE, matched by `sub`), `WALLET_CORE_URL` being the instance's own address                                                                                                     |
+| **Standalone mode** (no core)            | Everyone, with Wallet's own accounts (`WALLET_AUTH_LOCAL=true`): a password, passkeys and an authenticator app with backup codes; verified, and a reset asked for, by mail when set up; a reset link an operator makes (`wallet-admin`) needs none |
 
 - **In suite mode `/sign-in` and `/sign-up` show nothing:** someone with a session goes to the front address, anyone else straight to
   `/api/auth/sign-in/sovereign`, and `/sign-up` asks core to open its sign-up page (`prompt=create`: Sovereign 0.140.0 or later; before it, core shows
@@ -1096,8 +1108,8 @@ Shopper's (its §15.1), from one image:
   package's own split). **An operator gives an account back with a link** (`docker compose exec web node tools/wallet-admin.mjs accounts reset-link EMAIL`, task 2.9): it works once, for an hour, and ends
   every session of the account when it is used. It is the package's `resetLink` and nothing else: it runs no migration, opens no app store, prints only the link on the standard
   output and says nothing of it that holds the link or the address, and refuses in suite mode, where the passwords are Sovereign's (core has `sovereign-admin accounts
-reset-link` for those). **A reset gives back the account, not the wallet's keys:** it replaces the sign-in value but cannot open the account key, so the person unlocks with the recovery kit and chooses the new password for it (§7.5), and a lost authenticator app is not reset by it.
-- **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=1`) **starts in suite mode** and says once at start-up that its local
+reset-link` for those). **A reset gives back the account, not the wallet's keys:** it replaces the sign-in value but cannot open the account key, so the person unlocks with the recovery kit and chooses the new password for it (§7.5), and a lost authenticator app is not reset by it. The form that asks for the kit has a way on for someone without it, to the lock screen (§28).
+- **An instance configured with both** (`WALLET_CORE_*` and `WALLET_AUTH_LOCAL=true`) **starts in suite mode** and says once at start-up that its local
   sign-in is off and which settings to remove; nothing else changes. Its password accounts cannot sign in while it is in suite mode.
 - **There is no linking** of a core account and a local one: an instance has one kind. A person is their better-auth user id; a `sub` is identity; an
   email is never matched to an account at sign-in. A session through core is checked against core every hour, and signing out of one goes through core.
@@ -1177,7 +1189,8 @@ Designed anew, with `@sovereignfs/ui`.
 - **Phone:** `MobileFooter` with **Cards** left of the launcher, **Documents** and **Health** right (Health holds the journal as a tab in
   phase 2; before phase 2, the right side is Documents and Family). An **Add** floating button opens a sheet of what can be added on the current
   screen.
-- **The lock screen** replaces everything when locked: the app's mark, **Unlock** (passkey) and the other ways (§9.3).
+- **The lock screen** replaces everything when locked: the app's mark, **Unlock** (passkey) and the other ways (§9.3); on an instance that runs alone, beside the password, **I've lost my keys**
+  (§28).
 
 ### 26.3 Setup
 
@@ -1278,11 +1291,17 @@ last.
   connection and its credential, notices, mail queued, applied mutations, rate counters, and in phase 3 published cards, share links, reminders and
   push subscriptions, and better-auth's rows.
 - **Not touched:** the person's git repository and any backup file they downloaded.
-- **Standalone**, reached from **Settings > Account**, after the password and typing "delete", saying what goes and that git backups stay. **In suite
+- **Standalone**, reached from **Settings > Account**, after the password and typing "delete", saying what goes and that git backups stay. **It is also on
+  the lock screen**, under **I've lost my keys** beside the password, for a person whose password was reset and who has neither the recovery kit nor a
+  device that unlocks: Settings opens only with the wallet unlocked, which they cannot do, and the sign-in page's form for the kit leads on to it. Nothing
+  there brings the wallet back. It is the same dialog: the server asks for the session and the password and never for an open wallet, so this changes what
+  a person can reach, not what is allowed. **In suite
   mode deleting the account is core's** (§25.1): Settings > Account links to core's delete page, `/api/account/delete` says where core is and refuses a
   deletion, and nothing here stands in for a password (a session made a moment ago once did, and proved only that core's session was alive). It is reached
-  from **core's account-deleted notice** (§25.2), answered `200` only once rows and files are gone. This device's store is erased; other devices learn at
-  their next sync and erase theirs.
+  from **core's account-deleted notice** (§25.2), answered `200` only once rows and files are gone. **Only the device a deletion is made on erases its
+  store: no other device does, and hosted, where it is made at core, none does.** Unless the person signed out there before the deletion (§11.8), each keeps
+  its copy, which its wrappers still open, until the site's data is cleared; Settings and the lock screen say so. ⏭ Erasing them is not built: a device is answered
+  `401`, as for an ended session, and the server keeps nothing of a deleted account to tell the two apart.
 - A test seeds one row of every table and a file for the person and a second person, and finds nothing of the first after, the second intact. A new
   table that holds something of a person fails it until it is handled.
 
@@ -1368,7 +1387,7 @@ One image (Debian, for libSQL), not root, on port 3006, and three Compose setups
 
 ```bash
 docker run -v wallet:/data -e WALLET_DB_DIALECT=sqlite -e WALLET_SQLITE_URL=file:/data/wallet.db \
-  -e WALLET_URL=https://wallet.example.com -e WALLET_AUTH_LOCAL=1 -e WALLET_AUTH_SECRET=… -e WALLET_ENCRYPTION_KEY=… ghcr.io/sovereignfs/wallet
+  -e WALLET_URL=https://wallet.example.com -e WALLET_AUTH_LOCAL=true -e WALLET_AUTH_SECRET=… -e WALLET_ENCRYPTION_KEY=… ghcr.io/sovereignfs/wallet
 ```
 
 - **Settings:** the shared names of `contracts/env.md`, and Wallet's own: `WALLET_WORKER`; the limits of §29.5; `WALLET_GITHUB_APP_*`,

@@ -13,6 +13,7 @@ import {
   AuthError,
   AuthField,
   AuthForm,
+  AuthLink,
   AuthNotice,
   Input,
   SignInForm as Form,
@@ -164,6 +165,8 @@ export function SignInForm({ canSignUp, canReset }: { canSignUp: boolean; canRes
         <AuthButton type="submit" loading={pending}>
           Open my wallet
         </AuthButton>
+        {/* The lock screen is where a person without it goes on from: a device's passcode, or deleting the account (DESIGN.md §28). A full page load. */}
+        <AuthLink href="/">I don’t have my recovery kit</AuthLink>
       </AuthForm>
     );
 

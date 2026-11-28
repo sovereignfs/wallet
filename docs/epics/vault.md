@@ -175,6 +175,8 @@ again.
 
 **Accepts when:** after a reset the account has no entries or files and setup runs; a second device's store is emptied at its next sync.
 
+**Built ahead of it (0.7.1):** the lock screen has "I've lost my keys" on an instance that runs alone, offering only to delete the account (2.5). The reset joins it there.
+
 #### ➖ 3.12 — One prompt to sign in and unlock
 
 **Superseded by RFC 0001 (signing in unlocks).** What follows is what 0.1.x built.

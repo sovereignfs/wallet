@@ -12,6 +12,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { importRoot } from '../core/vault';
+import { IDENTITY_KEY } from '../identity';
 import { suiteCipher } from '../keys/cipher';
 import { useKeys } from '../keys/keys';
 import { type RootResult, openRoot } from '../keys/root';
@@ -139,12 +140,19 @@ export function WalletProvider({
     let cancelled = false;
     let teardown: (() => void) | undefined;
     void (async () => {
-      const db = await openLocal(accountId);
+      // The loop is put here when it is made, for what comes before it and needs it.
+      const made: { loop?: SyncLoop } = {};
+      const db = await openLocal(accountId, undefined, {
+        // Another tab is erasing the store (it signed out, or deleted the account): this one has let it go, and leaves.
+        onErased: () => {
+          made.loop?.stop();
+          window.location.assign('/');
+        },
+      });
       const lock = await store.localValue<LockTimers>(db, 'lockTimers', DEFAULT_TIMERS);
       const keyring = new Keyring({ accountId, timers: lock, cipher: suiteCipher });
       const transport = fetchTransport();
-      // The wallet asks the loop to sync after a write, and the loop needs the wallet: the loop is put here when it is made.
-      const made: { loop?: SyncLoop } = {};
+      // The wallet asks the loop to sync after a write, and the loop needs the wallet, so the wallet finds it in `made`.
       const wallet = new Wallet({
         accountId,
         db,
@@ -243,10 +251,23 @@ export function WalletProvider({
         }
       };
       const leaving = () => note(Date.now());
+      // A page that comes back, from sleep or from the browser's back and forward cache, is asked what the clock says (§9.2).
+      const back = () => void keyring.expire();
       for (const event of ['pointerdown', 'keydown', 'touchstart', 'scroll'])
         window.addEventListener(event, touch, { passive: true });
       document.addEventListener('visibilitychange', hidden);
       window.addEventListener('pagehide', leaving);
+      window.addEventListener('pageshow', back);
+      window.addEventListener('focus', back);
+      // Another tab signed this account out, or deleted it, and the device forgot who was signed in: this tab leaves too (§11.8), and cannot be unlocked
+      // again where it stands.
+      const gone = (event: StorageEvent) => {
+        if (event.key !== IDENTITY_KEY || event.newValue !== null) return;
+        loop.stop();
+        keyring.close();
+        window.location.assign('/');
+      };
+      window.addEventListener('storage', gone);
       teardown = () => {
         clearTimeout(giveUp);
         unsubscribe();
@@ -254,6 +275,9 @@ export function WalletProvider({
           window.removeEventListener(event, touch);
         document.removeEventListener('visibilitychange', hidden);
         window.removeEventListener('pagehide', leaving);
+        window.removeEventListener('pageshow', back);
+        window.removeEventListener('focus', back);
+        window.removeEventListener('storage', gone);
         loop.stop();
         keyring.close();
         db.close();
@@ -294,12 +318,10 @@ export function WalletProvider({
     async (password) => {
       // The account is proved every time, even though this browser holds its key for the session: what a lock is for is that holding the device is not enough.
       if (keys.kind === 'core') {
-        // Core's release leaves the page and comes back to `/keys/return`, which opens the wallet; it is silent while the person's session at Sovereign is unlocked.
-        arrive();
+        // Core's release leaves the page and comes back to `/keys/return`; it is silent while the person's session at Sovereign is unlocked. **Leaving proves
+        // nothing:** `/keys/return` marks the arrival once it has taken core's answer (`KeyReturn`), so a page that comes back without one stays locked.
         const proof = await keys.unlock();
-        if (proof.outcome === 'away') return { ok: false, reason: 'away' };
-        clearArrival();
-        return { ok: false, reason: 'offline' };
+        return { ok: false, reason: proof.outcome === 'away' ? 'away' : 'offline' };
       }
       const proof = await keys.unlock(password, email);
       if (proof.outcome === 'open') return openRoot(accountId, proof.key, { create: true });

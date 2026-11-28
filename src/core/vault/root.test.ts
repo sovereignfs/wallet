@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { importDocumentKey } from '@sovereignfs/sdk/keys';
 import { toHex } from './bytes';
 import {
@@ -18,7 +18,48 @@ import {
 const appKey = () =>
   crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 
+/** The copies of `secret` that are handed to the browser's cryptography while `run` runs: each as it was given, to be looked at afterwards. */
+async function handedOver(secret: Uint8Array, run: () => Promise<unknown>): Promise<Uint8Array[]> {
+  const seen: Uint8Array[] = [];
+  const note = (data: unknown) => {
+    if (data instanceof Uint8Array && data.length === secret.length)
+      if (data.every((byte, i) => byte === secret[i])) seen.push(data);
+  };
+  const subtle = crypto.subtle;
+  const importKey = subtle.importKey.bind(subtle);
+  const encrypt = subtle.encrypt.bind(subtle);
+  const spies = [
+    vi.spyOn(subtle, 'importKey').mockImplementation(((...args: Parameters<typeof importKey>) => {
+      note(args[1]);
+      return importKey(...args);
+    }) as never),
+    vi.spyOn(subtle, 'encrypt').mockImplementation(((...args: Parameters<typeof encrypt>) => {
+      note(args[2]);
+      return encrypt(...args);
+    }) as never),
+  ];
+  try {
+    await run();
+  } finally {
+    for (const spy of spies) spy.mockRestore();
+  }
+  return seen;
+}
+const overwritten = (copies: Uint8Array[]) =>
+  copies.map((copy) => copy.every((byte) => byte === 0));
+
 describe('the keyring root, wrapped under the app key', () => {
+  it('overwrites the copy of the root it makes to wrap it or to load it, and leaves the caller’s own', async () => {
+    const key = await appKey();
+    const root = newRoot();
+    const kept = new Uint8Array(root);
+    const wrapping = await handedOver(kept, () => wrapRoot(key, 'acct', 1, root));
+    const loading = await handedOver(kept, () => importRoot(root));
+    expect(overwritten(wrapping)).toEqual([true]);
+    expect(overwritten(loading)).toEqual([true]);
+    expect(root).toEqual(kept);
+  });
+
   it('wraps to 60 bytes and opens to the same root', async () => {
     const key = await appKey();
     const root = newRoot();

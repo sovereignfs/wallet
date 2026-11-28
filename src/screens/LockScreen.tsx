@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import { deriveInWorker } from '../keyring/derive';
 import {
@@ -14,19 +14,26 @@ import { useKeys } from '../keys/keys';
 import styles from './Screens.module.css';
 import { WalletMark } from '../ui/WalletMark';
 import { accountProblem } from './accountProblem';
+import { DeleteAccountDialog, WHAT_DELETION_DOES } from './DeleteAccount';
 import { useWallet } from './WalletProvider';
 
 /**
  * The lock screen (DESIGN.md §9, §26.2): it replaces everything while the wallet is locked. Unlocking is the daily way in and needs no connection: a passkey
  * (Face ID, a fingerprint) or a device passcode. **With neither on this device, or after five wrong passcodes, the suite's key opens it**: the password, for an
  * instance that runs alone, or Sovereign's release, hosted, which needs the network and brings the root back so that a way to unlock can be made again.
+ *
+ * **For an instance that runs alone, the password is not the end of it** (§28): a person whose password was reset, with no recovery kit and no device that still
+ * unlocks, can delete the account from here, since nothing else would let them. It is offered beside the password only, and not on the everyday way in.
+ *
+ * **A box is read when its form is sent,** since a password manager can fill it without telling the page; no button waits for the page to hear of it, and an empty
+ * box is the browser's to ask for.
  */
-export function LockScreen() {
+export function LockScreen({ email }: { email: string }) {
   const { db, keyring, openWithAccount, unlockWith } = useWallet();
   const keys = useKeys();
   const [methods, setMethods] = useState<UnlockWrapper[] | null>(null);
-  const [passcode, setPasscode] = useState('');
-  const [password, setPassword] = useState('');
+  const passcodeBox = useRef<HTMLInputElement>(null);
+  const passwordBox = useRef<HTMLInputElement>(null);
   const [useAccount, setUseAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -55,7 +62,7 @@ export function LockScreen() {
         setMethods(await unlockMethods(db));
         setUseAccount(true);
       }
-      if (result === 'ok') setPasscode('');
+      if (result === 'ok' && passcodeBox.current) passcodeBox.current.value = '';
     } catch {
       setError('That did not work. Try again, or use your password.');
     } finally {
@@ -73,7 +80,7 @@ export function LockScreen() {
         if (result.reason !== 'away') setError(accountProblem(result.reason));
         return;
       }
-      setPassword('');
+      if (passwordBox.current) passwordBox.current.value = '';
       // The root goes straight in; a device with no way to unlock it is asked for one, in setup, while the root is in hand (`WalletProvider`).
       await unlockWith(result.material);
     } catch {
@@ -127,6 +134,7 @@ export function LockScreen() {
                 className={styles.stack}
                 onSubmit={(event) => {
                   event.preventDefault();
+                  const passcode = passcodeBox.current?.value ?? '';
                   void run(
                     () => unlockWithPasscode(db, keyring, passcode, deriveInWorker),
                     'That passcode is not right.',
@@ -137,15 +145,15 @@ export function LockScreen() {
                   {(field) => (
                     <Input
                       {...field}
+                      ref={passcodeBox}
                       type="password"
                       autoComplete="off"
-                      value={passcode}
-                      onChange={(event) => setPasscode(event.target.value)}
+                      required
                     />
                   )}
                 </FormField>
                 <div>
-                  <Button type="submit" loading={busy} disabled={passcode === ''}>
+                  <Button type="submit" loading={busy}>
                     Unlock
                   </Button>
                 </div>
@@ -163,7 +171,7 @@ export function LockScreen() {
                   className={styles.stack}
                   onSubmit={(event) => {
                     event.preventDefault();
-                    void withAccount(password);
+                    void withAccount(passwordBox.current?.value ?? '');
                   }}
                 >
                   <FormField
@@ -173,15 +181,15 @@ export function LockScreen() {
                     {(field) => (
                       <Input
                         {...field}
+                        ref={passwordBox}
                         type="password"
                         autoComplete="current-password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
+                        required
                       />
                     )}
                   </FormField>
                   <div>
-                    <Button type="submit" loading={busy} disabled={password === ''}>
+                    <Button type="submit" loading={busy}>
                       Unlock with my password
                     </Button>
                   </div>
@@ -194,9 +202,43 @@ export function LockScreen() {
                 </Button>
               </div>
             )}
+            {useAccount && keys.kind === 'vault' ? <LostKeys email={email} /> : null}
           </>
         )}
       </div>
     </main>
+  );
+}
+
+/** What is left when none of the ways opens the wallet: said plainly, and the account can be deleted (DESIGN.md §28). */
+function LostKeys({ email }: { email: string }) {
+  const [shown, setShown] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  if (!shown)
+    return (
+      <div>
+        <Button variant="ghost" onClick={() => setShown(true)}>
+          I’ve lost my keys
+        </Button>
+      </div>
+    );
+  return (
+    <section className={styles.section} aria-labelledby="lost-heading">
+      <h2 id="lost-heading" className={styles.sectionTitle}>
+        If nothing opens your wallet
+      </h2>
+      <p className={styles.muted}>
+        After a password reset, your recovery kit opens it again: sign out, sign in, and type the
+        kit. With no kit, and no device that still unlocks, nobody can bring back what is in it.
+      </p>
+      <p className={styles.muted}>You can delete your account instead. {WHAT_DELETION_DOES}</p>
+      <div>
+        <Button variant="destructive" onClick={() => setDeleting(true)}>
+          Delete my account…
+        </Button>
+      </div>
+      {deleting ? <DeleteAccountDialog email={email} onClose={() => setDeleting(false)} /> : null}
+    </section>
   );
 }

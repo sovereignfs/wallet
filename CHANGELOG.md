@@ -6,6 +6,64 @@ All notable changes to Wallet are recorded here. The format follows [Keep a Chan
 Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
 titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
+## [0.7.1] - 2026-11-28
+
+**Before upgrading from 0.1.1, read this: a wallet made there is not carried over, and every card is deleted.** The encryption changed in 0.7.0, and the old and
+the new cannot open each other. When this version starts, the entries of every account are deleted from the database, and each browser clears what it held of
+them at its next visit. 0.1.1 has no export, so **anyone whose cards matter must copy what they need by hand before you upgrade**; there is no way back.
+Accounts are kept.
+
+Also, coming from 0.1.1:
+
+- **Take a backup first.** The sign-in's tables move at the first start, and an older Wallet cannot read them afterwards.
+- **Every session ends.** Each person signs in once more, which moves their password. Anyone who has not done so within 90 days needs a new one, by mail or by a
+  link you make (`wallet-admin accounts reset-link`, in `deploy/README.md`). On an instance that runs alone, each is then shown a recovery kit, once.
+- **An instance signs people in one way.** With both `WALLET_CORE_*` and local sign-in set, it uses Sovereign only, and accounts that only have a password cannot
+  sign in.
+- **Hosted by Sovereign:** `WALLET_CORE_URL` is Sovereign's address with no path (one ending in `/api/auth` stops Wallet at start). Sovereign must be 0.126.0 or
+  later (0.140.0 for its sign-up page), let Wallet come back to `/sign-in` after signing out, and release keys to apps, with its operator allowing it for Wallet.
+
+The sections for 0.3.0 to 0.7.0 below say the rest.
+
+### Security
+
+- **Deleting your account does not erase your other devices, and Wallet no longer says it does.** Earlier versions said they would erase it the next time
+  they connected; nothing did that. Each keeps its copy, which its passkey or passcode can still open. To remove one, sign out on that device before you
+  delete the account, or clear this site’s data in its browser. **If you have deleted an account, check the other devices you used it on.** Hosted by
+  Sovereign, deleting the account there erases no device, the one you used included.
+- **Signing out now removes your wallet from the device.** It stayed there before, with your name and address, and opened with the device's passcode or
+  passkey with no session. If changes have not reached the server, Wallet asks first: keep this device's encrypted data, and they are sent when you sign in
+  again here, or erase it. **Signing in again sets the device up anew** unless you kept its data.
+- **A password can no longer end up in the address.** Sign-in, sign-up or the new-password button pressed before the page had loaded sent the form as an
+  address with the password in it, which a browser's history and a proxy's log can keep. Those buttons now wait for the page. **An instance that ran an
+  earlier build may have such lines in its proxy's logs:** search them for `password=`, and change what you find.
+- **Copies of the key your entries' keys come from are overwritten** once Wallet is done with them, where some were left in memory, and Settings
+  overwrites the one it holds when you lock or leave the screen.
+- **A wallet on a device that slept now locks when it comes back.** The lock times were timers, which a suspended page does not run, so a phone taken out of a
+  pocket or a laptop opened again could show an unlocked wallet. Wallet now goes by the clock as well.
+- **Hosted, starting “Unlock through Sovereign” and coming back no longer opens a locked wallet.** Wallet took leaving for Sovereign as proof, so coming back
+  without its answer opened the wallet. Only Sovereign's answer does now.
+
+### Fixed
+
+- **A password or passcode filled in by a password manager is now used.** On the lock screen, in Settings (changing how this device unlocks, and deleting
+  the account) and where a passcode is set, the box is read when you press the button. Before, it could look empty to Wallet: the button stayed greyed out,
+  or the passcode was called too short. The sign-in, sign-up and reset forms send what a password manager filled in too (`@sovereignfs/ui` 0.107.4), where
+  before they could answer that a right password was wrong.
+- **Hosted by Sovereign, Wallet can be unlocked on an iPhone or iPad.** Getting the key from Sovereign failed in every browser on iOS, so a wallet could not be
+  set up there (`@sovereignfs/sdk` 2.12.1). Not yet tried on a real device.
+- **Deleting an account no longer stalls when Wallet is open in another tab.** The other tab now lets this device's copy go, and leaves.
+- **An account whose wallet nothing can open can now be deleted.** If you reset your password and have neither your recovery kit nor a device that still
+  unlocks, sign in, and on the lock screen choose **I’ve lost my keys**, beside the password; deleting asks for your password. The sign-in page that asks
+  for your kit now has a way past it, **I don’t have my recovery kit**. This does not bring the wallet back. For instances that run alone: hosted, the
+  account is deleted in Sovereign.
+- **`WALLET_AUTH_SIGNUP=invite` no longer stops the server.** The suite's contract asks an app that issues no invitations to read it as `closed`, and Wallet
+  now does. Settings that are switches are written `true` or `false` in the examples and the documents; `1` and `0` are still read.
+
+### Changed
+
+- Background Sync is the suite's, from `@sovereignfs/pwa` 0.3.0, in place of Wallet's own few lines in the service worker. It does what it did.
+
 ## [0.7.0] - 2026-11-26
 
 **Before upgrading, read this: a wallet made by an earlier version is not carried over.** The encryption changed to the suite's, and the two cannot open each other. When this version

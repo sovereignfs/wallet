@@ -20,9 +20,9 @@ legacy plugin `sovereignfs/sovereign-plugin-wallet`, none of whose code, data or
 full PWA on Next.js, with its own database (sqld, a SQLite file or PostgreSQL) and files under `/data`, signing people in with its own accounts when it runs
 alone and through a Sovereign core when it is hosted (one way per instance, never both), from one image. Four phases: cards and documents (the MVP), health, out into the world, sharing and native.
 
-**0.1.0 is built** as a cut of phase 1 (`ROADMAP.md`, "The 0.1.0 cut"): the foundation, sign-in locally and through Sovereign, the whole encryption design (the
-vault, keys, unlocking, the `synced` tier's sync) and QR cards. `DESIGN.md` is the design of the whole, `ROADMAP.md` the order, and what is not built yet is
-marked ⏭ there.
+**What is built is a cut of phase 1** (`ROADMAP.md`, "The 0.1.0 cut"): the foundation, sign-in locally and through Sovereign, the encryption (on the suite's
+keys: the keyring, unlocking, the `synced` tier's sync) and QR cards. `DESIGN.md` is the design of the whole, `ROADMAP.md` the order and where it stands, and
+what is not built yet is marked ⏭ there.
 
 ## Source of truth
 
@@ -32,8 +32,8 @@ Read the relevant document before a task. Where two disagree, the earlier one wi
    `docs/specs/sdk.md`, `docs/specs/design-system.md` and `docs/design-system.md`, `docs/connecting-an-app.md`. A gap is raised in `sovereign`, not
    patched here.
 2. **`DESIGN.md`**: what Wallet is and how it is built, with numbered sections that tasks cite.
-3. **`docs/specs/`** (written by tasks 3.1, 4.2, 8.1): the vault, sync and backup formats as standalone specifications with test vectors. The code
-   follows them; changing a format changes its spec, its version byte and its vectors in the same PR.
+3. **`docs/specs/`** (the vault's and sync's formats, written by tasks 3.15 and 4.2; the backup's comes with 8.1): standalone specifications with test
+   vectors. The code follows them; changing a format changes its spec, its version byte and its vectors in the same PR.
 4. **`ROADMAP.md`**: the order of work, one row per task, canonical for status.
 5. **`docs/epics/`**: each task's detail (goal, "Accepts when", and once done, how it was done and what was left out).
 

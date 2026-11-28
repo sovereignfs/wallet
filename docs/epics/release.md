@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 20.1 to 20.3 are done, and 20.4 is open.
 
 ## Overview
 
@@ -40,6 +40,8 @@ the git backup's contents, logs, what the server can read (§8.5) checked agains
 
 **Done as:** `docs/research/0002-security-review-0.1.0.md`: every claim of §8 and §30 matched to its code and its test, what the server can read, and ten findings, none a way to read an entry. **Not independent**; that is 20.8.
 
+**Since:** 0.7.0 replaced the encryption this review read; [`0004`](../research/0004-security-review-0.7.0.md) reviews what replaced it, with its findings open.
+
 #### ✅ 20.3 — The documents
 
 **Goal:** a README a person and an operator can follow. **Design:** §30 Deployment, §8.6. **Depends on:** 1.10.
@@ -61,6 +63,9 @@ time.
 **Accepts when:** the image for both architectures is published, pulled and booted by the workflow.
 
 **Done as:** version 0.1.0 is `package.json`'s, the changelog's `[0.1.0]` section is its notes, and the commit `Release wallet 0.1.0` is tagged `v0.1.0`; `main` and the tag were pushed on 2026-11-14 at the owner's word. The gates ran by hand on a file, sqld and PostgreSQL (645 unit tests; 45 browser tests; `scripts/deploy-check.sh` on the final image). **Then:** both workflows (CI and Publish) were refused by GitHub before any job started (a billing block on the organization). Once billing was fixed (2026-11-15) they ran: every check passed but two test setups that only fail on a checkout of the release commit itself (the release script's tests found HEAD to be the real `Release wallet 0.1.0` commit, and the scanner's WebAssembly test ran before any build had copied the file), and Publish stopped at its tests. **0.1.0 is a tag that was never published**; both were fixed and the first published release is **0.1.1**, a patch with the same app. **Still to do:** publish 0.1.1, make the package public the first time, and check passkeys with PRF on a real phone (`DESIGN.md` §33). Marked ✅ once the image is published and pulled.
+
+**Since:** GitHub has a release 0.1.1, dated 2026-11-15 (seen 2026-11-27). That the image was pulled, that the package is public and the check of passkeys on
+a real phone are not recorded here, so the task stays open.
 
 #### 📋 20.5 — Hosting on the instance
 

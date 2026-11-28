@@ -198,12 +198,20 @@ export async function dumpBrowser(page: Page): Promise<string> {
   });
 }
 
-/** Signs in with the password. The page that follows is the wallet's: set up, on a device that has never opened it (`setUpNewDevice`), or locked. */
-export async function signIn(page: Page, email: string) {
+/**
+ * Signs in with the password. The page that follows is the wallet's: set up, on a device that has never opened it (`setUpNewDevice`), or locked. After a password
+ * reset it is the sign-in page's own, asking for the recovery kit, and the caller says what it expects.
+ */
+export async function signIn(
+  page: Page,
+  email: string,
+  password = PASSWORD,
+  arrived: ReturnType<Page['getByRole']> = page.getByRole('button', { name: 'User menu' }),
+) {
   await page.goto('/sign-in');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(PASSWORD);
-  await submitUntilThrough(page, 'Sign in', page.getByRole('button', { name: 'User menu' }));
+  await page.getByLabel('Password').fill(password);
+  await submitUntilThrough(page, 'Sign in', arrived);
 }
 
 /**

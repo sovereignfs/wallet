@@ -50,6 +50,33 @@ test('with no network, the password cannot open the wallet and the screen says w
   await context.setOffline(false);
 });
 
+test('a page that slept, running no timer meanwhile, comes back locked', async ({ page }) => {
+  // The page's clock is the test's, so that time can pass for it with no timer run, as it does on a phone in a pocket or a laptop that is closed.
+  await page.clock.install();
+  await signUp(page, emailFor('slept'));
+  await setUp(page);
+  await page.getByRole('button', { name: 'See my cards' }).click();
+  const becomes = (state: 'hidden' | 'visible') =>
+    page.evaluate((value) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, state);
+  const sleep = async (ms: number) =>
+    page.clock.setSystemTime((await page.evaluate(() => Date.now())) + ms);
+  const locked = page.getByRole('heading', { name: 'Your wallet is locked' });
+
+  await becomes('hidden');
+  await sleep(60 * 60_000);
+  await becomes('visible');
+  await expect(locked).toBeVisible({ timeout: 10_000 });
+
+  // And one that slept in view, which nothing tells that it was away.
+  await unlockWithPasscode(page);
+  await sleep(60 * 60_000);
+  await page.clock.runFor(1_500);
+  await expect(locked).toBeVisible({ timeout: 10_000 });
+});
+
 test('five wrong passcodes delete the passcode, and the password opens the wallet and sets the device up again', async ({
   page,
 }) => {

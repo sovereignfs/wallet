@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
+import { withCopy } from '../core/vault/bytes';
 import { deriveInWorker } from '../keyring/derive';
 import {
   PASSCODE_MIN_LENGTH,
@@ -21,7 +22,8 @@ import { useWallet } from './WalletProvider';
  * offered first where the device has one that can do it** (Face ID, a fingerprint, Windows Hello with the PRF extension), and a passcode otherwise or as well.
  * Each keeps the keyring root encrypted on this device, so that the wallet opens with no connection; the suite's key still opens everything online.
  *
- * The root's bytes are in `material` only for as long as this screen is: the caller zeroes them when it is done.
+ * The root's bytes are in `material` only for as long as this screen is: the caller zeroes them when it is done. The two passcode boxes are read when the button
+ * is pressed, since a password manager can fill them without telling the page.
  */
 export function UnlockMethods({
   material,
@@ -38,8 +40,8 @@ export function UnlockMethods({
   const { db } = useWallet();
   const [methods, setMethods] = useState<UnlockWrapper[]>([]);
   const [passkey, setPasskey] = useState(false);
-  const [passcode, setPasscode] = useState('');
-  const [again, setAgain] = useState('');
+  const passcodeBox = useRef<HTMLInputElement>(null);
+  const againBox = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<'passkey' | 'passcode' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,12 +57,9 @@ export function UnlockMethods({
     setError(null);
     setBusy('passkey');
     try {
-      // The root's bytes are copied, so that making a wrapper cannot spoil the ones the caller still holds.
-      await enrollPasskey(
-        db,
-        { raw: new Uint8Array(material.raw), epoch: material.epoch },
-        'This device',
-        Date.now(),
+      // A copy, so that a lock that overwrites the caller's own bytes meanwhile cannot spoil the wrapper; the copy is overwritten once it is made.
+      await withCopy(material.raw, (raw) =>
+        enrollPasskey(db, { raw, epoch: material.epoch }, 'This device', Date.now()),
       );
       setMethods(await unlockMethods(db));
     } catch (failure) {
@@ -76,20 +75,18 @@ export function UnlockMethods({
 
   async function addPasscode() {
     setError(null);
+    const passcode = passcodeBox.current?.value ?? '';
     if ([...passcode].length < PASSCODE_MIN_LENGTH)
       return setError(`A passcode is at least ${PASSCODE_MIN_LENGTH} characters.`);
-    if (passcode !== again) return setError('The two passcodes are not the same.');
+    if (passcode !== (againBox.current?.value ?? ''))
+      return setError('The two passcodes are not the same.');
     setBusy('passcode');
     try {
-      await enrollPasscode(
-        db,
-        { raw: new Uint8Array(material.raw), epoch: material.epoch },
-        passcode,
-        Date.now(),
-        deriveInWorker,
+      await withCopy(material.raw, (raw) =>
+        enrollPasscode(db, { raw, epoch: material.epoch }, passcode, Date.now(), deriveInWorker),
       );
-      setPasscode('');
-      setAgain('');
+      if (passcodeBox.current) passcodeBox.current.value = '';
+      if (againBox.current) againBox.current.value = '';
       setMethods(await unlockMethods(db));
     } catch {
       setError('The passcode was not set. Try again.');
@@ -136,24 +133,12 @@ export function UnlockMethods({
           hint={`At least ${PASSCODE_MIN_LENGTH} characters. Five wrong tries and this passcode is deleted from the device.`}
         >
           {(field) => (
-            <Input
-              {...field}
-              type="password"
-              autoComplete="new-password"
-              value={passcode}
-              onChange={(event) => setPasscode(event.target.value)}
-            />
+            <Input {...field} ref={passcodeBox} type="password" autoComplete="new-password" />
           )}
         </FormField>
         <FormField label="Passcode again">
           {(field) => (
-            <Input
-              {...field}
-              type="password"
-              autoComplete="new-password"
-              value={again}
-              onChange={(event) => setAgain(event.target.value)}
-            />
+            <Input {...field} ref={againBox} type="password" autoComplete="new-password" />
           )}
         </FormField>
         <div>

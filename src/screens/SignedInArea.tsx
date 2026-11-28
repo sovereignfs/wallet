@@ -1,9 +1,11 @@
 'use client';
 
 import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
+import { openLocal } from '../local/db';
+import { leaveDevice, unsentChanges } from '../local/leave';
 import type { Wallet } from '../local/wallet';
 import { Button } from '@sovereignfs/ui';
-import { AccountMenu } from '../auth/screens/AccountMenu';
+import { AccountMenu, type Leaving } from '../auth/screens/AccountMenu';
 import { rememberIdentity } from '../identity';
 import { KeysProvider, useKeys } from '../keys/keys';
 import { forgetResume } from '../keyring/resume';
@@ -90,7 +92,7 @@ function WithUndo({
     <WalletProvider
       accountId={accountId}
       email={email}
-      fallback={<Shell name={name} email={email} />}
+      fallback={<Shell accountId={accountId} name={name} email={email} />}
       onMerged={(merged: Merged) =>
         undo({
           message: 'Also edited on another device: kept yours.',
@@ -105,10 +107,40 @@ function WithUndo({
   );
 }
 
+/** How long signing out waits for what is unsent to be taken before it asks about it. */
+const SEND_WAIT_MS = 5_000;
+
+/** Leaving while the wallet is not made yet: the store is opened only to be asked, and let go. */
+const fromDevice = (accountId: string): Leaving => ({
+  unsent: async () => {
+    const db = await openLocal(accountId);
+    try {
+      return await unsentChanges(db);
+    } finally {
+      db.close();
+    }
+  },
+  lock: () => forgetResume(accountId),
+  leave: (keepData) => leaveDevice(accountId, { keepData }),
+});
+
 /** The header and nothing else, while the device's store is opening. */
-function Shell({ name, email, children }: { name: string; email: string; children?: ReactNode }) {
+function Shell({
+  accountId,
+  name,
+  email,
+  children,
+}: {
+  accountId: string;
+  name: string;
+  email: string;
+  children?: ReactNode;
+}) {
   return (
-    <AppShell name={site.name} account={<AccountMenu name={name} email={email} />}>
+    <AppShell
+      name={site.name}
+      account={<AccountMenu name={name} email={email} leaving={fromDevice(accountId)} />}
+    >
       {/* Registers the service worker in production, and says when a new version is ready (`@sovereignfs/pwa`). */}
       <ServiceWorkerRegistration appName={site.name} />
       {children}
@@ -127,9 +159,31 @@ function Gate({
   children: ReactNode;
   registerWallet: (wallet: Wallet) => void;
 }) {
-  const { stand, keyring, wallet, settingUp } = useWallet();
+  const { stand, keyring, wallet, db, loop, settingUp } = useWallet();
   const keys = useKeys();
   registerWallet(wallet);
+  const leaving: Leaving = {
+    unsent: async () => {
+      // What was just written is sent first, if the server answers in a moment, so that only what cannot be sent is asked about.
+      await Promise.race([
+        wallet.sync().catch(() => undefined),
+        new Promise((resolve) => setTimeout(resolve, SEND_WAIT_MS)),
+      ]);
+      return unsentChanges(db);
+    },
+    lock: () => {
+      keyring.lock('sign-out');
+      // Signing out from the lock screen locks nothing, so what a reload would go by is let go here too.
+      forgetResume(wallet.accountId);
+      // The suite's key goes with the session: what this browser kept of it opens nothing once it ends.
+      void keys.forget();
+    },
+    leave: async (keepData) => {
+      loop.stop();
+      db.close();
+      await leaveDevice(wallet.accountId, { keepData });
+    },
+  };
   const lock = (
     <Button
       size="sm"
@@ -145,19 +199,7 @@ function Gate({
     <AppShell
       name={site.name}
       bell={stand === 'unlocked' ? lock : null}
-      account={
-        <AccountMenu
-          name={name}
-          email={email}
-          onLeave={() => {
-            keyring.lock('sign-out');
-            // Signing out from the lock screen locks nothing, so what a reload would go by is let go here too.
-            forgetResume(wallet.accountId);
-            // The suite's key goes with the session: what this browser kept of it opens nothing once it ends.
-            void keys.forget();
-          }}
-        />
-      }
+      account={<AccountMenu name={name} email={email} leaving={leaving} />}
     >
       <ServiceWorkerRegistration appName={site.name} />
       {stand === 'starting' ? null : stand === 'needs-connection' ? (
@@ -173,7 +215,7 @@ function Gate({
       ) : settingUp ? (
         <Setup name={name} />
       ) : stand === 'locked' ? (
-        <LockScreen />
+        <LockScreen email={email} />
       ) : (
         <Frame>{children}</Frame>
       )}

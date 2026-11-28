@@ -1,8 +1,9 @@
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 import { writeCameraVideo } from './e2e/camera.ts';
+import { SECRET, databaseFile, localSettings } from './e2e/instance.ts';
 import { PORTS } from './e2e/ports.ts';
 
 /**
@@ -15,10 +16,7 @@ import { PORTS } from './e2e/ports.ts';
  *
  * Browsers: Chromium at a desktop's width and a phone's, and WebKit (Safari's engine) at a desktop's. WebKit here has no virtual authenticator with PRF, so
  * the passkey journey runs in Chromium only, and says so.
- *
- * The secret below is for this throwaway instance only.
  */
-const SECRET = 'e2e-only-secret-not-for-anything-real-0123456789';
 // Playwright loads this file again in every worker: the first load makes the directory and the others, which inherit the variable, use it.
 const directory = process.env.WALLET_E2E_DIR ?? mkdtempSync(join(tmpdir(), 'wallet-e2e-'));
 process.env.WALLET_E2E_DIR = directory;
@@ -50,16 +48,6 @@ const BLANK = Object.fromEntries(
     'WALLET_ENCRYPTION_KEY',
   ].map((name) => [name, '']),
 );
-
-const own = (name: string): string => {
-  const folder = join(directory, name);
-  mkdirSync(folder, { recursive: true });
-  return join(folder, 'wallet.db');
-};
-
-const database = process.env.WALLET_DB_DIALECT
-  ? {}
-  : { WALLET_DB_DIALECT: 'sqlite', WALLET_SQLITE_URL: `file:${own('app')}` };
 
 export default defineConfig({
   testDir: 'e2e',
@@ -109,15 +97,7 @@ export default defineConfig({
       url: `http://localhost:${PORTS.app}/api/health`,
       timeout: 90_000,
       reuseExistingServer: false,
-      env: {
-        ...BLANK,
-        ...database,
-        WALLET_URL: `http://localhost:${PORTS.app}`,
-        WALLET_AUTH_LOCAL: '1',
-        WALLET_AUTH_SECRET: SECRET,
-        WALLET_AUTH_SIGNUP: 'open',
-        WALLET_ENCRYPTION_KEY: 'e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0',
-      } as Record<string, string>,
+      env: { ...BLANK, ...localSettings(directory) } as Record<string, string>,
     },
     {
       command: `node scripts/serve-standalone.mjs ${PORTS.sovereign}`,
@@ -127,7 +107,7 @@ export default defineConfig({
       env: {
         ...BLANK,
         WALLET_DB_DIALECT: 'sqlite',
-        WALLET_SQLITE_URL: `file:${own('sovereign')}`,
+        WALLET_SQLITE_URL: `file:${databaseFile(directory, 'sovereign')}`,
         WALLET_URL: `http://localhost:${PORTS.sovereign}`,
         WALLET_AUTH_SECRET: SECRET,
         ...CORE,

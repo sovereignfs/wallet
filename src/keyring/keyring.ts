@@ -1,4 +1,5 @@
 import { type SuiteCipher, deriveEntryKey } from '../core/vault';
+import { HIDDEN_MS } from './resume';
 
 /**
  * The keyring (DESIGN.md §9.1, §9.2): the keys the browser holds while the wallet is unlocked, and nothing else. **The suite's key is not kept here:** it opens the
@@ -9,6 +10,9 @@ import { type SuiteCipher, deriveEntryKey } from '../core/vault';
  * It locks after a time without use, when the app is hidden, by hand, at sign-out, and in every tab at once (a `BroadcastChannel`: unlocking in one tab
  * unlocks the others, locking locks them; a `CryptoKey` crosses between tabs of one origin without becoming readable). **Sync runs while locked,** since
  * the store holds ciphertext only.
+ *
+ * **The lock times are kept by the clock as well as by timers:** a page the system suspended runs no timer, and comes back with its timers where they were, so
+ * the keyring reads the clock whenever it may have been away (`expire`).
  *
  * The clock and the channel are given, so that a test sets the time and has two tabs in one process.
  */
@@ -29,6 +33,9 @@ export interface LockTimers {
 
 /** DESIGN.md §9.2: 5 minutes of no use, and 1 minute hidden, unless the person chose otherwise on this device. */
 export const DEFAULT_TIMERS: LockTimers = { idleMinutes: 5, hidden: '1m' };
+
+/** How often an unlocked keyring reads the clock, for a page that slept in view and is told nothing that says it is back. */
+export const WATCH_MS = 1_000;
 
 export interface Clock {
   now(): number;
@@ -81,6 +88,10 @@ export class Keyring {
   private readonly listeners = new Set<(state: KeyringState, reason?: LockReason) => void>();
   private idle: unknown;
   private away: unknown;
+  private watch: unknown;
+  /** When it was last used, and when it was hidden if that counts, by the clock. */
+  private used = 0;
+  private hiddenAt: number | undefined;
 
   constructor(options: KeyringOptions) {
     this.accountId = options.accountId;
@@ -97,7 +108,8 @@ export class Keyring {
       const message = event.data;
       if (message.type === 'lock') this.lockLocally('other-tab');
       else if (message.type === 'unlock') this.hold({ key: message.key, epoch: message.epoch });
-      else if (message.type === 'hello' && this.root)
+      // A page that slept past its times locks here, and gives a new tab nothing.
+      else if (message.type === 'hello' && this.root && !this.expire())
         this.channel?.postMessage({ type: 'unlock', key: this.root.key, epoch: this.root.epoch });
     });
     // A tab that opens while another is unlocked asks to be let in.
@@ -129,6 +141,7 @@ export class Keyring {
     const was = this.state;
     this.root = root;
     this.restartIdle();
+    this.watchClock();
     if (was === 'locked') for (const listener of [...this.listeners]) listener('unlocked');
   }
 
@@ -153,25 +166,60 @@ export class Keyring {
     return made;
   }
 
-  /** The person used the app: the idle timer starts again. */
+  /** The person used the app: the idle timer starts again, unless the wallet should have locked before they did. */
   touch(): void {
-    if (this.root) this.restartIdle();
+    if (this.root && !this.expire()) this.restartIdle();
+  }
+
+  /**
+   * Locks if either lock time has run out by the clock, whatever the timers did. A clock that has been set back cannot say how long it has been, so that locks
+   * too, as for a reload (`resume.ts`). Returns whether it locked.
+   */
+  expire(): boolean {
+    if (!this.root) return false;
+    const now = this.clock.now();
+    const within = (since: number, limit: number) => now >= since && now - since < limit;
+    if (
+      this.timers.hidden === '1m' &&
+      this.hiddenAt !== undefined &&
+      !within(this.hiddenAt, HIDDEN_MS)
+    )
+      this.lock('hidden');
+    else if (!within(this.used, this.timers.idleMinutes * 60_000)) this.lock('idle');
+    else return false;
+    return true;
   }
 
   /** The app was hidden or shown (another app, the screen off): the hidden timer runs while it is hidden. */
   setHidden(hidden: boolean): void {
+    // What ran out while no timer could run is taken first, before the timers are started again.
+    if (this.expire()) return;
     this.clock.clearTimeout(this.away);
     this.away = undefined;
     if (!hidden || !this.root) {
-      if (!hidden) this.touch();
+      if (!hidden) {
+        this.hiddenAt = undefined;
+        this.touch();
+      }
       return;
     }
     if (this.timers.hidden === 'now') this.lock('hidden');
-    else if (this.timers.hidden === '1m')
-      this.away = this.clock.setTimeout(() => this.lock('hidden'), 60_000);
+    else if (this.timers.hidden === '1m') {
+      this.hiddenAt ??= this.clock.now();
+      this.away = this.clock.setTimeout(() => this.lock('hidden'), HIDDEN_MS);
+    }
+  }
+
+  /** Reads the clock again and again while unlocked, so that a page that slept in view locks as soon as it runs again. */
+  private watchClock(): void {
+    this.clock.clearTimeout(this.watch);
+    this.watch = this.clock.setTimeout(() => {
+      if (!this.expire() && this.root) this.watchClock();
+    }, WATCH_MS);
   }
 
   private restartIdle(): void {
+    this.used = this.clock.now();
     this.clock.clearTimeout(this.idle);
     this.idle = this.clock.setTimeout(() => this.lock('idle'), this.timers.idleMinutes * 60_000);
   }
@@ -186,8 +234,11 @@ export class Keyring {
   private lockLocally(reason: LockReason): void {
     this.clock.clearTimeout(this.idle);
     this.clock.clearTimeout(this.away);
+    this.clock.clearTimeout(this.watch);
     this.idle = undefined;
     this.away = undefined;
+    this.watch = undefined;
+    this.hiddenAt = undefined;
     if (!this.root) return;
     this.root = undefined;
     this.cache = new Map();

@@ -1,26 +1,15 @@
 'use client';
 
 import { useRouter, useSearchParams } from './nav';
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Button,
-  ButtonLink,
-  ConfirmDialog,
-  FormField,
-  Input,
-  Select,
-  Tabs,
-} from '@sovereignfs/ui';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Button, ButtonLink, FormField, Input, Select, Tabs } from '@sovereignfs/ui';
 import { IDLE_CHOICES, type HiddenLock, type IdleMinutes } from '../keyring/keyring';
-import { forgetResume } from '../keyring/resume';
-import { authClient, signInValue } from '../auth/client';
 import { useKeys } from '../keys/keys';
 import { coreLink } from '../auth/core-links';
-import { forgetIdentity } from '../identity';
-import { type RefusedItem, eraseLocal } from '../local/db';
+import type { RefusedItem } from '../local/db';
 import { openSealed } from '../local/open';
 import { type Material, unlockMethods } from '../keyring/wrappers';
+import { COPIES_LEFT, DeleteAccountDialog, WHAT_DELETION_DOES } from './DeleteAccount';
 import screens from './Screens.module.css';
 import { useIdentity } from './SignedInArea';
 import { UnlockMethods } from './UnlockMethods';
@@ -77,9 +66,12 @@ function Security() {
   const keys = useKeys();
   const [methods, setMethods] = useState<number | null>(null);
   const [asking, setAsking] = useState(false);
-  const [password, setPassword] = useState('');
+  // Read when Continue is pressed, since a password manager can fill the box without telling the page.
+  const passwordBox = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [material, setMaterial] = useState<Material | null>(null);
+  // The root's bytes are overwritten when this screen lets go of them, or goes with them, as it does at a lock or when the person moves on (§9.1).
+  useEffect(() => () => void material?.raw.fill(0), [material]);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(
@@ -100,11 +92,17 @@ function Security() {
         return;
       }
       setAsking(false);
-      setPassword('');
       setMaterial(result.material);
     } finally {
       setBusy(false);
     }
+  }
+
+  function proceed() {
+    const typed = passwordBox.current?.value ?? '';
+    // No form is round the box to ask for it, so an empty one is said here, and nothing is sent.
+    if (keys.kind !== 'core' && typed === '') return setError('Type your password.');
+    void reveal(typed);
   }
 
   return (
@@ -200,20 +198,15 @@ function Security() {
                     {(field) => (
                       <Input
                         {...field}
+                        ref={passwordBox}
                         type="password"
                         autoComplete="current-password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
                       />
                     )}
                   </FormField>
                 )}
                 <div className={screens.row}>
-                  <Button
-                    loading={busy}
-                    disabled={keys.kind !== 'core' && password === ''}
-                    onClick={() => void reveal(password)}
-                  >
+                  <Button loading={busy} onClick={proceed}>
                     Continue
                   </Button>
                   <Button variant="ghost" onClick={() => setAsking(false)}>
@@ -384,58 +377,16 @@ function Storage() {
 }
 
 function Account({ email }: { email: string }) {
-  const { accountId, keyring, db, loop } = useWallet();
   const [open, setOpen] = useState(false);
-  const [password, setPassword] = useState('');
-  const [typed, setTyped] = useState('');
-  const [needsPassword, setNeedsPassword] = useState(true);
   // Core's address in suite mode (DESIGN.md §25.1), where the account is looked after and deleted; null alone, and until the server has said.
   const [core, setCore] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void fetch('/api/account/delete', { credentials: 'same-origin' })
-      .then((r) => r.json() as Promise<{ password: boolean; core: string | null }>)
-      .then((r) => {
-        setNeedsPassword(r.password);
-        setCore(r.core);
-      })
+      .then((r) => r.json() as Promise<{ core: string | null }>)
+      .then((r) => setCore(r.core))
       .catch(() => undefined);
   }, []);
-
-  async function remove() {
-    setError(null);
-    setBusy(true);
-    try {
-      // The password is never sent (auth.md §4, rule 1): what the server checks is the sign-in value the page makes from it.
-      const value = needsPassword && password ? await signInValue(password, email) : '';
-      const response = await fetch('/api/account/delete', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ password: value }),
-      });
-      if (response.status === 403) return setError('That password is not right.');
-      if (response.status === 429)
-        return setError('That was tried too many times. Wait a few minutes.');
-      if (!response.ok) return setError('The account could not be deleted. Try again.');
-      keyring.lock('sign-out');
-      forgetResume(accountId);
-      // The store cannot be deleted while this page holds it open, and nothing is to be sent for an account that is gone.
-      loop.stop();
-      db.close();
-      await eraseLocal(accountId);
-      forgetIdentity();
-      // The session's cookie is cleared as well: the account it was for is gone, but the browser still holds the cookie.
-      await authClient.signOut().catch(() => undefined);
-      window.location.assign('/');
-    } catch {
-      setError('Deleting needs a connection.');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className={screens.stack}>
@@ -460,7 +411,8 @@ function Account({ email }: { email: string }) {
           <>
             <p className={screens.muted}>
               Your account is Sovereign’s, so deleting it is done there. Wallet is told, and deletes
-              your wallet and everything in it from the server, for good. Nobody can bring it back.
+              your wallet and everything in it from the server, for good: nobody can bring it back.
+              Deleting it erases none of your devices, this one included. {COPIES_LEFT}
             </p>
             <div>
               <ButtonLink href={coreLink(core, '/delete-account')} variant="secondary">
@@ -470,11 +422,7 @@ function Account({ email }: { email: string }) {
           </>
         ) : (
           <>
-            <p className={screens.muted}>
-              This deletes your wallet and everything in it from the server, for good, and erases it
-              from this device. Other devices erase it the next time they connect. Nobody can bring
-              it back.
-            </p>
+            <p className={screens.muted}>{WHAT_DELETION_DOES}</p>
             <div>
               <Button variant="destructive" onClick={() => setOpen(true)}>
                 Delete my account…
@@ -483,42 +431,7 @@ function Account({ email }: { email: string }) {
           </>
         )}
       </section>
-      <ConfirmDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Delete your account?"
-        message={
-          <div className={screens.stack}>
-            <p>Type “delete” to confirm.</p>
-            <Input
-              aria-label="Type delete to confirm"
-              autoComplete="off"
-              value={typed}
-              onChange={(event) => setTyped(event.target.value)}
-            />
-            {needsPassword ? (
-              <FormField label="Your password">
-                {(field) => (
-                  <Input
-                    {...field}
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                  />
-                )}
-              </FormField>
-            ) : null}
-          </div>
-        }
-        confirmLabel={busy ? 'Deleting…' : 'Delete everything'}
-        destructive
-        pending={
-          busy || typed.trim().toLowerCase() !== 'delete' || (needsPassword && password === '')
-        }
-        error={error}
-        onConfirm={() => void remove()}
-      />
+      {open ? <DeleteAccountDialog email={email} onClose={() => setOpen(false)} /> : null}
     </div>
   );
 }

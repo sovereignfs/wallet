@@ -1,8 +1,8 @@
 /**
  * Who is signed in on this device, kept **on the device** so that the offline shell can open the wallet with no server to ask (DESIGN.md §26.6). It is the
  * person's id, name and address: what the account menu shows and which working copy to open. It is written by every signed-in page, read only by the
- * shell, and **removed when the person signs out** (`leaveDevice`), as the working copy is. It is never in the service worker's cache, nor in any page
- * the worker keeps: those hold nothing of a person.
+ * shell, and **removed when the person signs out** or deletes the account (`leaveDevice`), as the working copy is, unless it is kept for changes not yet sent
+ * (DESIGN.md §11.8). It is never in the service worker's cache, nor in any page the worker keeps: those hold nothing of a person.
  */
 import { type KeySource, parseKeySource } from './keys/source';
 

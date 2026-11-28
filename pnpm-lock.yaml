@@ -27,14 +27,14 @@ importers:
         specifier: 0.1.0
         version: 0.1.0
       '@sovereignfs/pwa':
-        specifier: 0.2.0
-        version: 0.2.0(@sovereignfs/ui@0.105.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+        specifier: 0.3.0
+        version: 0.3.0(@sovereignfs/ui@0.107.4(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       '@sovereignfs/sdk':
-        specifier: 2.12.0
-        version: 2.12.0(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
+        specifier: 2.12.1
+        version: 2.12.1(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
       '@sovereignfs/ui':
-        specifier: 0.105.0
-        version: 0.105.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: 0.107.4
+        version: 0.107.4(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       better-auth:
         specifier: 1.7.27
         version: 1.7.27(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@types/pg@8.23.1)(kysely@0.29.9)(pg@8.23.1))(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@24.19.2)(happy-dom@20.14.6)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
@@ -79,8 +79,8 @@ importers:
         specifier: 1.64.1
         version: 1.64.1
       '@sovereignfs/create':
-        specifier: 0.27.1
-        version: 0.27.1
+        specifier: 0.28.1
+        version: 0.28.1
       '@sovereignfs/manifest':
         specifier: 0.4.0
         version: 0.4.0
@@ -1314,8 +1314,8 @@ packages:
     resolution: {integrity: sha512-PEZ+pW9sMUzlmZu0K0VsUarXLhUsLnBD5TXkCrQ2gNZ52t95ddYlSB3qzZ4Moys2bDKx0a3NoSg4dYAk2ryMdg==}
     engines: {node: '>=22.3'}
 
-  '@sovereignfs/create@0.27.1':
-    resolution: {integrity: sha512-6fN1SOK4qhAd9G9PDuu42lu8hXNZFXzVqwYjM01KyBvkCvvQLUDvuTXj3oeWDRzkS82gAV+xv5WRZUHsU/jz5w==}
+  '@sovereignfs/create@0.28.1':
+    resolution: {integrity: sha512-8GhY/pA+Sx8x0ak9RoIZ9AXb1rjItUx45gWu3aC8rTeowKNRlXNzVsEg3TQILqGWQVR9ltQX956bpcJnSKMT/A==}
     engines: {node: '>=24.15'}
     hasBin: true
 
@@ -1328,15 +1328,15 @@ packages:
     engines: {node: '>=22.3'}
     hasBin: true
 
-  '@sovereignfs/pwa@0.2.0':
-    resolution: {integrity: sha512-xOmSM+9xFgFdJtw8fitARgUJoB5Zwnz8V6kvk8Bsnr0E3WODTqI90jshkbflNgN0nxJMdjS7L+vchvh2Ynd/Hw==}
+  '@sovereignfs/pwa@0.3.0':
+    resolution: {integrity: sha512-cEa1/b2eeA1RDKeXBvxXwt+N395dgw3r996muVIY0xy10W44hwcORFOi7+x6glny6lNAGVEr0+7Qm5UIbfBpMw==}
     engines: {node: '>=22.3'}
     peerDependencies:
       '@sovereignfs/ui': '>=0.100.0 <1.0.0'
       react: ^19.0.0
 
-  '@sovereignfs/sdk@2.12.0':
-    resolution: {integrity: sha512-IPieQcvOAcqKkNersPok2keKZWT+QU+j2gIpYyPuzg5yMUoNFi4I9aCKqQw71Jjm0UdIbe/GjgvApBN7Z997+g==}
+  '@sovereignfs/sdk@2.12.1':
+    resolution: {integrity: sha512-f0JuDAUP2vT2vaG9qYlqJVAAab09Dxef2CT3FreT4t8IzSAST+qx9iYi+Zi+oeYWCMltMtDoFFaMBplLqfBxBQ==}
     engines: {node: '>=22.3'}
     peerDependencies:
       next: '>=15'
@@ -1344,8 +1344,8 @@ packages:
       next:
         optional: true
 
-  '@sovereignfs/ui@0.105.0':
-    resolution: {integrity: sha512-F2WbjeNAh7AW1Ao8ce5MCvn2M+Ohb6htfjuHFRs99LF3s6/QEDrgJMSyuDuz+alL+9zgc9dMLW5b0K6CbDkBKg==}
+  '@sovereignfs/ui@0.107.4':
+    resolution: {integrity: sha512-QznVw0y1dpqTdEnxsHdGFzwZJHlWZvUH4hScuPhOyOKVUwXekYuk0JuYpc2td8kybeWhSYJUhKVgNcbET+m1gw==}
     peerDependencies:
       '@dnd-kit/core': ^6.3.1
       '@dnd-kit/sortable': ^10.0.0
@@ -3758,7 +3758,7 @@ snapshots:
     dependencies:
       '@better-auth/passkey': 1.7.27(@better-auth/core@1.7.27(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.6(zod@4.6.7))(jose@6.2.13)(kysely@0.29.9)(nanostores@1.5.5))(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-auth@1.7.27(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@types/pg@8.23.1)(kysely@0.29.9)(pg@8.23.1))(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@24.19.2)(happy-dom@20.14.6)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))))(better-call@1.4.6(zod@4.6.7))(nanostores@1.5.5)
       '@sovereignfs/config': 0.1.0
-      '@sovereignfs/sdk': 2.12.0(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
+      '@sovereignfs/sdk': 2.12.1(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
       better-auth: 1.7.27(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@types/pg@8.23.1)(kysely@0.29.9)(pg@8.23.1))(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@24.19.2)(happy-dom@20.14.6)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
       drizzle-orm: 0.45.4(@libsql/client@0.18.0)(@types/pg@8.23.1)(kysely@0.29.9)(pg@8.23.1)
       libsodium-wrappers-sumo: 0.8.4
@@ -3816,7 +3816,7 @@ snapshots:
 
   '@sovereignfs/config@0.1.0': {}
 
-  '@sovereignfs/create@0.27.1': {}
+  '@sovereignfs/create@0.28.1': {}
 
   '@sovereignfs/export@0.4.0':
     dependencies:
@@ -3824,12 +3824,12 @@ snapshots:
 
   '@sovereignfs/manifest@0.4.0': {}
 
-  '@sovereignfs/pwa@0.2.0(@sovereignfs/ui@0.105.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)':
+  '@sovereignfs/pwa@0.3.0(@sovereignfs/ui@0.107.4(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)':
     dependencies:
-      '@sovereignfs/ui': 0.105.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@sovereignfs/ui': 0.107.4(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
 
-  '@sovereignfs/sdk@2.12.0(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))':
+  '@sovereignfs/sdk@2.12.1(next@16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))':
     dependencies:
       '@sovereignfs/export': 0.4.0
       jose: 6.2.13
@@ -3837,7 +3837,7 @@ snapshots:
     optionalDependencies:
       next: 16.4.6(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
 
-  '@sovereignfs/ui@0.105.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@sovereignfs/ui@0.107.4(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@dnd-kit/sortable@10.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)

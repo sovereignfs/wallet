@@ -1,4 +1,4 @@
-import { copy, encoder, randomBytes } from '../core/vault/bytes';
+import { copy, encoder, randomBytes, withCopy } from '../core/vault/bytes';
 import { importRoot } from '../core/vault';
 import type { LocalDatabase, UnlockWrapper } from '../local/db';
 import {
@@ -15,7 +15,7 @@ import type { Keyring } from './keyring';
  * the device's store, so that unlocking works with no network and no server (the suite's own key, which needs the server, brings the root to a new device and
  * back after a wrapper is gone).
  *
- *  - **A passkey** (Face ID, a fingerprint, Windows Hello) with the WebAuthn PRF extension: the credential's PRF output for the salt `wallet/v1/unlock`,
+ *  - **A passkey** (Face ID, a fingerprint, Windows Hello) with the WebAuthn PRF extension: the credential's PRF output for the salt `wallet/v2/unlock`,
  *    through HKDF-SHA-256, is an AES-256-GCM key that wraps the root. The credential is made for unlocking and is not the sign-in passkey.
  *  - **A device passcode** (at least six characters): Argon2id (64 MiB, 3 passes, 1 lane) of it and a random salt is the key that wraps the root; that
  *    wrapper is then wrapped again under a key the browser keeps and cannot be read out (`extractable: false`), so a copy of the store alone cannot be
@@ -41,12 +41,17 @@ const aadOf = (kind: 'passkey' | 'passcode', epoch: number) =>
   encoder.encode(`wallet/v2/unlock|${kind}|${epoch}`);
 
 async function encrypt(key: CryptoKey, iv: Uint8Array, aad: Uint8Array, plain: Uint8Array) {
-  return new Uint8Array(
-    await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: copy(iv), additionalData: copy(aad) },
-      key,
-      copy(plain),
-    ),
+  // What is encrypted here is the root, or a wrapping of it: no copy made of it is left.
+  return withCopy(
+    plain,
+    async (bytes) =>
+      new Uint8Array(
+        await crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv: copy(iv), additionalData: copy(aad) },
+          key,
+          bytes,
+        ),
+      ),
   );
 }
 

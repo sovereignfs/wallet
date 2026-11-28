@@ -41,7 +41,7 @@ password="$(openssl rand -hex 16)"
 
 cat >.env <<ENV
 WALLET_URL=http://localhost:$port
-WALLET_AUTH_LOCAL=1
+WALLET_AUTH_LOCAL=true
 WALLET_AUTH_SECRET=$secret
 WALLET_ENCRYPTION_KEY=$key
 POSTGRES_PASSWORD=$password
@@ -133,7 +133,7 @@ check_run() {
   docker volume rm wallet-check-run >/dev/null 2>&1 || true
   docker run -d --name wallet-check-run -p "127.0.0.1:$port:3006" -v wallet-check-run:/data \
     -e WALLET_DB_DIALECT=sqlite -e WALLET_SQLITE_URL=file:/data/wallet.db \
-    -e WALLET_URL="https://wallet.example.com" -e WALLET_AUTH_LOCAL=1 -e WALLET_AUTH_SECRET="$secret" -e WALLET_ENCRYPTION_KEY="$key" \
+    -e WALLET_URL="https://wallet.example.com" -e WALLET_AUTH_LOCAL=true -e WALLET_AUTH_SECRET="$secret" -e WALLET_ENCRYPTION_KEY="$key" \
     "$image" >/dev/null
   for attempt in $(seq 1 60); do
     if [ "$(database)" = sqlite ]; then break; fi
